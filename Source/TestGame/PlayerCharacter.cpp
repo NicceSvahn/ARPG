@@ -13,7 +13,7 @@ APlayerCharacter::APlayerCharacter()
     bUseControllerRotationYaw = false;
 
     GetCharacterMovement()->bOrientRotationToMovement = true;
-
+    GetCharacterMovement()->bUseControllerDesiredRotation = false;
     GetCharacterMovement()->RotationRate = FRotator(0.f, 720.f, 0.f);
 }
 
@@ -21,13 +21,26 @@ APlayerCharacter::APlayerCharacter()
 void APlayerCharacter::BeginPlay()
 {
 	Super::BeginPlay();
-	
+
 }
 
 // Called every frame
 void APlayerCharacter::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
+
+    if (!bHasMovementTarget) return;
+
+    FVector ToTarget = MovementTarget - GetActorLocation();
+    ToTarget.Z = 0.f;
+
+    if (ToTarget.SizeSquared() <= FMath::Square(AcceptanceRadius))
+    {
+        bHasMovementTarget = false;
+        return;
+    }
+
+    AddMovementInput(ToTarget.GetSafeNormal());
 }
 
 // Called to bind functionality to input
@@ -35,15 +48,11 @@ void APlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
 
+    UE_LOG(LogTemp, Warning, TEXT("HELP ME"));
 }
 
-void APlayerCharacter::MoveToLocation(FVector Location)
+void APlayerCharacter::MoveToLocation(FVector& NewTarget)
 {
-    FVector Direction = Location - GetActorLocation();
-
-    Direction.Z = 0.f;
-
-    Direction.Normalize();
-
-    AddMovementInput(Direction);
+    MovementTarget = NewTarget;
+    bHasMovementTarget = true;
 }

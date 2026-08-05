@@ -26,6 +26,13 @@ public:
 	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
-	void MoveToLocation(FVector Location);
+	void MoveToLocation(FVector& NewTarget);
 
+private:
+
+	FVector MovementTarget = FVector::ZeroVector;
+	bool bHasMovementTarget = false;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Movement")
+	float AcceptanceRadius = 50.f;
 };
