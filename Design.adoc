@@ -1,0 +1,1645 @@
+= TestGame ARPG Combat System
+:doctype: book
+:toc: left
+:toclevels: 3
+:sectnums:
+:icons: font
+:source-highlighter: highlight.js
+:imagesdir: images
+
+== Document information
+
+[cols="1,3", options="header"]
+|===
+|Field |Value
+
+|Document
+|Technical Design Document
+
+|Project
+|TestGame
+
+|System
+|ARPG combat, damage, attributes, abilities, and health
+
+|Version
+|0.1
+
+|Status
+|Initial architectural baseline
+|===
+
+== Purpose
+
+This document defines the initial architecture for combat, damage calculation,
+character attributes, health, abilities, projectiles, status effects, and future
+multiplayer authority in the TestGame ARPG project.
+
+The system should eventually support abilities such as:
+
+* Fireball
+* Frozen Orb
+* Bash
+* Throw Knife
+* Basic weapon attacks
+* Damage-over-time effects
+* Area explosions
+* Buffs and debuffs
+
+The immediate goal is not to reproduce every Diablo mechanic. The first goal is
+to establish a maintainable vertical slice:
+
+[source,text]
+----
+Player activates an ability
+        |
+        v
+The ability detects or creates a hit
+        |
+        v
+A damage request is created
+        |
+        v
+Damage is calculated
+        |
+        v
+Final damage is applied
+        |
+        v
+Health changes
+        |
+        v
+Hit and death events are emitted
+----
+
+== Design principles
+
+=== Use composition for reusable character systems
+
+Shared functionality should live in `UActorComponent` classes attached to
+characters rather than being duplicated across player and enemy subclasses.
+
+=== Keep damage as data
+
+Damage is not an object that must permanently exist on a character.
+
+One attempted hit is represented by:
+
+[source,cpp]
+----
+FDamageRequest
+----
+
+The calculated outcome is represented by:
+
+[source,cpp]
+----
+FDamageResult
+----
+
+Neither type is an Actor, component, or UObject.
+
+=== Separate hit detection from damage calculation
+
+A projectile, overlap, or melee trace answers:
+
+[quote]
+What was hit?
+
+The calculation system answers:
+
+[quote]
+How much damage did that hit cause?
+
+The health system answers:
+
+[quote]
+What does that final damage do to the target's health?
+
+=== Keep presentation separate from authority
+
+Particles, sounds, damage numbers, camera shake, and animation reactions should
+respond to combat events. They must not decide whether damage occurred.
+
+=== Avoid god classes
+
+No single component should own all of the following:
+
+* Every ability
+* Every attribute
+* Health
+* Projectiles
+* Animation
+* UI
+* Loot
+* Enemy AI
+
+Each system should have one primary responsibility.
+
+=== Design for server authority
+
+For future multiplayer, the server should eventually own:
+
+* Ability validation
+* Resource deduction
+* Cooldowns
+* Projectile spawning
+* Authoritative hit validation
+* Damage calculation
+* Health mutation
+* Death
+* Loot spawning
+* Experience attribution
+
+== High-level architecture
+
+[source,text]
+----
+                            +----------------------+
+                            | AGenericCharacter    |
+                            |                      |
+                            | Shared character     |
+                            | behaviour            |
+                            +----------+-----------+
+                                       |
+                   +-------------------+-------------------+
+                   |                   |                   |
+                   v                   v                   v
+        +------------------+ +------------------+ +------------------+
+        | HealthComponent  | |AttributeComponent| | AbilityComponent |
+        |                  | |                  | |                  |
+        | Current health   | | Offensive stats  | | Learned skills   |
+        | Maximum health   | | Defensive stats  | | Cooldowns        |
+        | Death state      | | Resources        | | Activation       |
+        +------------------+ +------------------+ +------------------+
+
+                            AGenericCharacter
+                                  /       \
+                                 /         \
+                                v           v
+                    APlayerCharacter     AEnemyCharacter
+                           |                    |
+                           v                    v
+                 BP_PlayerCharacter       BP_Skeleton
+                                          BP_Zombie
+                                          BP_Demon
+----
+
+== Combat execution sequence
+
+[source,text]
+----
+1. Player input
+   Fireball key pressed
+        |
+        v
+2. AbilityComponent
+   Finds Fireball
+   Checks cooldown and resource
+        |
+        v
+3. Fireball ability
+   Validates target data
+   Plays cast animation
+        |
+        v
+4. Animation notify
+   Spawn frame reached
+        |
+        v
+5. Projectile actor
+   Travels and collides
+        |
+        v
+6. Hit detected
+   Target actor identified
+        |
+        v
+7. FDamageRequest
+   Base damage
+   Element
+   Source, target, and damage causer
+   Critical-hit permission
+        |
+        v
+8. DamageCalculationLibrary
+   Reads source attributes
+   Reads target attributes
+   Produces FDamageResult
+        |
+        v
+9. HealthComponent
+   Applies FinalDamage
+   Broadcasts health event
+        |
+        v
+10. Reactions
+    Hit animation
+    Floating damage number
+    Sound and particles
+    Death if health <= 0
+----
+
+== Core character hierarchy
+
+=== `AGenericCharacter`
+
+Parent class:
+
+[source,cpp]
+----
+ACharacter
+----
+
+Responsibilities:
+
+* Provides the common base for player-controlled and AI-controlled characters
+* Creates shared components
+* Exposes shared component accessors
+* Provides common death and combat hooks
+* May later own team or faction identity
+
+Owns:
+
+[source,text]
+----
+UHealthComponent
+UAttributeComponent
+UAbilityComponent
+----
+
+Should not contain:
+
+* Player input mapping
+* Click-to-move implementation
+* Enemy AI decision-making
+* Individual ability implementations
+* Damage formulas
+* Loot generation
+* UI logic
+
+=== `APlayerCharacter`
+
+Parent:
+
+[source,cpp]
+----
+AGenericCharacter
+----
+
+Responsibilities may include:
+
+* Player-specific animation hooks
+* Inventory and equipment integration
+* Interaction support
+* Player-specific targeting helpers
+
+Input interpretation should usually begin in the Player Controller.
+
+=== `AEnemyCharacter`
+
+Parent:
+
+[source,cpp]
+----
+AGenericCharacter
+----
+
+Responsibilities may include:
+
+* AI Controller assignment
+* Enemy archetype data
+* Experience reward
+* Loot-table references
+* Enemy-specific death behaviour
+* Aggro or threat integration
+
+== `UHealthComponent`
+
+=== Unreal template
+
+Create it from:
+
+[source,text]
+----
+Tools
+  -> New C++ Class
+  -> Actor Component
+----
+
+Generated class:
+
+[source,cpp]
+----
+UHealthComponent
+----
+
+=== Responsibility
+
+The component owns current life state.
+
+It answers:
+
+* How much health does the owner have?
+* Is the owner dead?
+* How much damage was actually subtracted?
+* How much healing was applied?
+* When did health change?
+* When did death occur?
+
+=== Data
+
+[source,cpp]
+----
+float MaxHealth;
+float CurrentHealth;
+bool bDead;
+----
+
+=== Public operations
+
+[source,cpp]
+----
+float ApplyDamage(float FinalDamage);
+float Heal(float Amount);
+
+bool IsDead() const;
+float GetCurrentHealth() const;
+float GetMaxHealth() const;
+----
+
+=== Events
+
+[source,cpp]
+----
+OnHealthChanged
+OnDeath
+----
+
+=== Non-responsibilities
+
+The Health Component must not calculate:
+
+* Armor reduction
+* Elemental resistance
+* Critical hits
+* Weapon scaling
+* Attribute scaling
+* Status-effect chance
+* Friendly-fire rules
+
+It receives an already calculated value:
+
+[source,cpp]
+----
+const float AppliedDamage =
+    HealthComponent->ApplyDamage(Result.FinalDamage);
+----
+
+== `UAttributeComponent`
+
+=== Unreal template
+
+Create it from:
+
+[source,text]
+----
+Tools
+  -> New C++ Class
+  -> Actor Component
+----
+
+Generated class:
+
+[source,cpp]
+----
+UAttributeComponent
+----
+
+=== Responsibility
+
+Stores mutable combat attributes for one character.
+
+=== Initial attributes
+
+Keep the first implementation intentionally small:
+
+[source,cpp]
+----
+float Strength;
+float Dexterity;
+float Intelligence;
+float Vitality;
+
+float Armor;
+float FireResistance;
+float ColdResistance;
+
+float CriticalChance;
+float CriticalDamageMultiplier;
+
+float Resource;
+float MaxResource;
+----
+
+=== Attribute categories
+
+==== Primary attributes
+
+* Strength
+* Dexterity
+* Intelligence
+* Vitality
+
+==== Offensive attributes
+
+* Critical chance
+* Critical damage
+* Attack speed
+* Increased physical damage
+* Increased fire damage
+* Increased cold damage
+
+==== Defensive attributes
+
+* Armor
+* Fire resistance
+* Cold resistance
+* Maximum health
+* Damage reduction
+
+==== Resource attributes
+
+* Current resource
+* Maximum resource
+* Resource regeneration
+* Resource-cost reduction
+
+=== Responsibility boundary
+
+Good:
+
+[source,cpp]
+----
+float GetArmor() const;
+float GetCriticalChance() const;
+float GetResistance(EDamageElement Element) const;
+----
+
+Avoid:
+
+[source,cpp]
+----
+TargetAttributes->TakeFireballDamageFrom(Source);
+----
+
+The component stores and exposes values. The full transaction belongs in the
+damage calculator.
+
+== Damage request and result types
+
+=== Unreal template
+
+Do not use the Unreal class wizard.
+
+Create this file manually:
+
+[source,text]
+----
+Source/TestGame/Combat/DamageTypes.h
+----
+
+It contains reflected structs and enums, but no `UCLASS`.
+
+=== Damage element
+
+Begin with an enum:
+
+[source,cpp]
+----
+UENUM(BlueprintType)
+enum class EDamageElement : uint8
+{
+    Physical,
+    Fire,
+    Cold,
+    Lightning,
+    Poison
+};
+----
+
+Gameplay Tags can be introduced later for hierarchical categories such as:
+
+[source,text]
+----
+Damage.Fire
+Damage.Fire.Burning
+Ability.Projectile.Fireball
+Status.Chilled
+----
+
+=== `FDamageRequest`
+
+Represents an attempted damage event.
+
+[source,cpp]
+----
+USTRUCT(BlueprintType)
+struct TESTGAME_API FDamageRequest
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    float BaseDamage = 0.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    EDamageElement Element = EDamageElement::Physical;
+
+    UPROPERTY(BlueprintReadWrite)
+    TObjectPtr<AActor> SourceActor = nullptr;
+
+    UPROPERTY(BlueprintReadWrite)
+    TObjectPtr<AActor> TargetActor = nullptr;
+
+    UPROPERTY(BlueprintReadWrite)
+    TObjectPtr<AActor> DamageCauser = nullptr;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    bool bCanCrit = true;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    float ArmorPenetration = 0.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    float ResistancePenetration = 0.0f;
+};
+----
+
+Terminology:
+
+[cols="1,3", options="header"]
+|===
+|Field |Meaning
+
+|`SourceActor`
+|The character or system responsible for causing the damage
+
+|`DamageCauser`
+|The physical object causing the hit, such as a projectile or trap
+
+|`TargetActor`
+|The actor receiving the damage
+|===
+
+For Fireball:
+
+[source,text]
+----
+SourceActor  = PlayerCharacter
+DamageCauser = FireballProjectile
+TargetActor  = Skeleton
+----
+
+=== `FDamageResult`
+
+Represents the calculated outcome.
+
+[source,cpp]
+----
+USTRUCT(BlueprintType)
+struct TESTGAME_API FDamageResult
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadOnly)
+    float RawDamage = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float DamageBeforeMitigation = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float MitigatedDamage = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float FinalDamage = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    bool bWasCritical = false;
+
+    UPROPERTY(BlueprintReadOnly)
+    bool bWasBlocked = false;
+};
+----
+
+== `UDamageCalculationLibrary`
+
+=== Unreal template
+
+Create it from:
+
+[source,text]
+----
+Tools
+  -> New C++ Class
+  -> Blueprint Function Library
+----
+
+Generated class:
+
+[source,cpp]
+----
+UDamageCalculationLibrary
+----
+
+=== Responsibility
+
+Provides stateless combat calculations.
+
+It should not own:
+
+* Character state
+* Cooldown state
+* Cached targets
+* Health
+* Timers
+* World actors
+
+=== Public API
+
+[source,cpp]
+----
+UFUNCTION(BlueprintCallable, Category = "Combat|Damage")
+static FDamageResult CalculateDamage(
+    const FDamageRequest& Request,
+    const UAttributeComponent* SourceAttributes,
+    const UAttributeComponent* TargetAttributes
+);
+----
+
+=== Initial calculation order
+
+. Validate the request
+. Begin with base damage
+. Apply source primary-attribute scaling
+. Apply source elemental or physical modifiers
+. Roll critical hit
+. Apply target armor or elemental resistance
+. Clamp the result
+. Return `FDamageResult`
+
+=== Example calculation
+
+[source,text]
+----
+Base damage:                         40
+Strength contribution:              +8
+Damage before critical:              48
+Critical multiplier, if critical:   x2
+Damage before mitigation:            96
+Target physical mitigation:         x0.75
+Final damage:                         72
+----
+
+Example armor factor:
+
+[source,cpp]
+----
+const float EffectiveArmor =
+    FMath::Max(0.0f, Armor - ArmorPenetration);
+
+const float DamageMultiplier =
+    100.0f / (100.0f + EffectiveArmor);
+----
+
+This gives diminishing returns and prevents ordinary armor from trivially
+reaching complete immunity.
+
+=== Deterministic testing
+
+Random critical-hit rolls should eventually use an injectable random stream:
+
+[source,cpp]
+----
+FRandomStream& RandomStream
+----
+
+This allows deterministic tests:
+
+[source,text]
+----
+Given critical chance = 25%
+And injected roll = 0.10
+Then the hit is critical
+----
+
+== `UAbilityComponent`
+
+=== Unreal template
+
+Create it from:
+
+[source,text]
+----
+Tools
+  -> New C++ Class
+  -> Actor Component
+----
+
+Generated class:
+
+[source,cpp]
+----
+UAbilityComponent
+----
+
+=== Responsibility
+
+Coordinates abilities owned by one character.
+
+It owns:
+
+* Granted abilities
+* Ability lookup
+* Cooldown tracking
+* Resource validation
+* Activation requests
+* Ability cancellation
+* Active casting state
+
+Possible initial interface:
+
+[source,cpp]
+----
+bool TryActivateAbility(
+    FGameplayTag AbilityTag,
+    const FAbilityTargetData& TargetData
+);
+----
+
+== `UAbilityBase`
+
+=== Unreal template
+
+Create it from:
+
+[source,text]
+----
+Tools
+  -> New C++ Class
+  -> Object
+----
+
+Generated class:
+
+[source,cpp]
+----
+UAbilityBase
+----
+
+=== Responsibility
+
+Represents one executable ability definition or runtime ability instance.
+
+It owns:
+
+* Ability identity
+* Cooldown
+* Resource cost
+* Activation requirements
+* Animation montage
+* Target requirements
+* Ability-specific execution
+
+=== Base hierarchy
+
+[source,text]
+----
+UObject
+└── UAbilityBase
+    ├── UProjectileAbility
+    ├── UMeleeAbility
+    ├── UAreaAbility
+    └── UBuffAbility
+----
+
+=== Target data
+
+[source,cpp]
+----
+USTRUCT(BlueprintType)
+struct FAbilityTargetData
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadWrite)
+    TObjectPtr<AActor> TargetActor = nullptr;
+
+    UPROPERTY(BlueprintReadWrite)
+    FVector TargetLocation = FVector::ZeroVector;
+
+    UPROPERTY(BlueprintReadWrite)
+    FVector AimDirection = FVector::ForwardVector;
+};
+----
+
+=== Base interface
+
+[source,cpp]
+----
+bool CanActivate(
+    AGenericCharacter* Caster,
+    const FAbilityTargetData& TargetData
+) const;
+
+void Activate(
+    AGenericCharacter* Caster,
+    const FAbilityTargetData& TargetData
+);
+----
+
+== `AProjectileBase`
+
+=== Unreal template
+
+Create it from:
+
+[source,text]
+----
+Tools
+  -> New C++ Class
+  -> Actor
+----
+
+Generated class:
+
+[source,cpp]
+----
+AProjectileBase
+----
+
+=== Responsibility
+
+Represents a physical attack object in the world.
+
+It owns:
+
+* Collision
+* Projectile movement
+* Mesh or visual root
+* Source reference
+* Damage configuration
+* Lifetime
+* Hit handling
+
+=== Components
+
+[source,text]
+----
+USphereComponent
+UProjectileMovementComponent
+UStaticMeshComponent or UNiagaraComponent
+----
+
+=== Responsibility boundary
+
+A projectile may carry damage information, but it must not own the target's
+damage formula.
+
+[source,text]
+----
+Projectile detects target
+        |
+        v
+Build FDamageRequest
+        |
+        v
+Calculate damage
+        |
+        v
+Apply final result
+----
+
+== Ability examples
+
+=== Fireball
+
+Type:
+
+[source,text]
+----
+Projectile ability
+----
+
+Execution:
+
+[source,text]
+----
+Activate
+-> play casting montage
+-> animation notify spawns projectile
+-> projectile travels
+-> projectile hits target or environment
+-> explosion gathers targets
+-> create one damage request per valid target
+-> optionally apply Burning
+----
+
+Relevant data:
+
+* Base damage
+* Fire scaling
+* Projectile speed
+* Explosion radius
+* Critical-hit permission
+* Burning chance
+* Burning duration
+
+=== Frozen Orb
+
+Type:
+
+[source,text]
+----
+Specialized projectile ability
+----
+
+Execution:
+
+[source,text]
+----
+Activate
+-> spawn main orb
+-> orb travels slowly
+-> orb periodically emits shards
+-> each shard can hit independently
+-> orb performs final burst
+-> hits may apply Chilled
+----
+
+Frozen Orb requires specialized projectile behaviour because it emits secondary
+projectiles over its lifetime.
+
+=== Bash
+
+Type:
+
+[source,text]
+----
+Melee ability
+----
+
+Execution:
+
+[source,text]
+----
+Activate
+-> face target
+-> play melee montage
+-> impact animation notify fires
+-> sphere sweep or capsule trace
+-> create physical damage request
+-> apply knockback or stun
+----
+
+Damage should be applied at the animation's impact frame rather than
+immediately when input is received.
+
+=== Throw Knife
+
+Type:
+
+[source,text]
+----
+Projectile ability
+----
+
+Initial Blueprint configuration:
+
+* High projectile speed
+* Physical damage
+* Knife mesh
+* No explosion
+* Destroy on first target
+
+Create a specialized C++ projectile only when it gains behaviour such as:
+
+* Piercing
+* Ricochet
+* Returning to the caster
+* Embedding in targets
+
+== Combat coordinator decision
+
+A `UCombatComponent` is not required in the first milestone.
+
+Initially:
+
+[source,text]
+----
+Ability or projectile
+        |
+        v
+DamageCalculationLibrary
+        |
+        v
+HealthComponent
+----
+
+Introduce `UCombatComponent` only when a central coordinator is needed for:
+
+* Friendly-fire validation
+* Team relationships
+* Lifesteal
+* Thorns
+* Reflected damage
+* On-hit item effects
+* Kill attribution
+* Experience attribution
+* Combat logging
+* Floating combat events
+
+Potential future API:
+
+[source,cpp]
+----
+FDamageResult ResolveDamage(
+    const FDamageRequest& Request
+);
+----
+
+Future pipeline:
+
+[source,text]
+----
+Ability or projectile
+        |
+        v
+CombatComponent::ResolveDamage
+        |
+        v
+DamageCalculationLibrary
+        |
+        v
+HealthComponent
+        |
+        v
+Combat events
+----
+
+== Status effects
+
+Do not implement status effects during the first damage milestone.
+
+Possible future architecture:
+
+[source,text]
+----
+UStatusEffectComponent
+FStatusEffectSpec
+UStatusEffectBase
+----
+
+Examples:
+
+* Burning
+* Chilled
+* Frozen
+* Stunned
+* Poisoned
+* Bleeding
+* Vulnerable
+
+== Recommended source layout
+
+[source,text]
+----
+Source/TestGame/
+
+Characters/
+    GenericCharacter.h
+    GenericCharacter.cpp
+
+    PlayerCharacter.h
+    PlayerCharacter.cpp
+
+    EnemyCharacter.h
+    EnemyCharacter.cpp
+
+Components/
+    HealthComponent.h
+    HealthComponent.cpp
+
+    AttributeComponent.h
+    AttributeComponent.cpp
+
+    AbilityComponent.h
+    AbilityComponent.cpp
+
+Combat/
+    DamageTypes.h
+
+    DamageCalculationLibrary.h
+    DamageCalculationLibrary.cpp
+
+Abilities/
+    AbilityBase.h
+    AbilityBase.cpp
+
+    ProjectileAbility.h
+    ProjectileAbility.cpp
+
+    MeleeAbility.h
+    MeleeAbility.cpp
+
+Projectiles/
+    ProjectileBase.h
+    ProjectileBase.cpp
+
+Interfaces/
+    CombatantInterface.h
+
+Tests/
+    DamageCalculationTests.cpp
+    HealthComponentTests.cpp
+----
+
+Recommended Content structure:
+
+[source,text]
+----
+Content/TestGame/
+
+Blueprints/
+    Characters/
+        BP_PlayerCharacter
+        BP_Skeleton
+
+    Abilities/
+        BP_Ability_Fireball
+        BP_Ability_FrozenOrb
+        BP_Ability_Bash
+        BP_Ability_ThrowKnife
+
+    Projectiles/
+        BP_Projectile_Fireball
+        BP_Projectile_FrozenOrb
+        BP_Projectile_IceShard
+        BP_Projectile_ThrowKnife
+
+Animations/
+    Montages/
+    Notifies/
+
+FX/
+    Niagara/
+    Materials/
+
+UI/
+    HealthBars/
+    FloatingDamage/
+----
+
+== Dependency direction
+
+[source,text]
+----
+PlayerController
+       |
+       v
+PlayerCharacter
+       |
+       v
+AbilityComponent
+       |
+       v
+AbilityBase
+       |
+       v
+Projectile or melee hit detection
+       |
+       v
+FDamageRequest
+       |
+       v
+DamageCalculationLibrary
+       |
+       v
+FDamageResult
+       |
+       v
+HealthComponent
+       |
+       v
+UI, animation, sound, and VFX listeners
+----
+
+Avoid circular dependencies.
+
+=== Knowledge boundaries
+
+`HealthComponent` knows about:
+
+* Health values
+* Final damage amount
+* Healing amount
+* Death state
+
+`AttributeComponent` knows about:
+
+* Attribute values
+* Resource values
+* Accessors and modifiers
+
+`DamageCalculationLibrary` knows about:
+
+* Damage requests
+* Damage results
+* Attributes
+* Calculation formulas
+
+An ability knows about:
+
+* Caster
+* Target data
+* Cost
+* Cooldown
+* Animation
+* Hit-generation behaviour
+
+A projectile knows about:
+
+* Movement
+* Collision
+* Caster or source
+* Damage configuration
+* Hit callback
+
+UI knows about:
+
+* Health-changed events
+* Resource-changed events
+* Cooldown events
+* Combat-result events
+
+Gameplay classes should not directly manipulate UI widgets.
+
+== Multiplayer boundaries
+
+=== Server-authoritative operations
+
+* Ability validation
+* Resource deduction
+* Cooldown start
+* Projectile spawning
+* Authoritative hit validation
+* Damage calculation
+* Health mutation
+* Death
+* Loot spawning
+* Experience attribution
+
+=== Client responsibilities
+
+* Capture input
+* Display targeting feedback
+* Request ability activation
+* Play permitted predicted cosmetics
+* Display replicated outcomes
+
+=== Likely replicated state
+
+* Current health
+* Death state
+* Current resource
+* Important status effects
+* Authoritative projectiles
+* Relevant ability state
+
+=== Conceptual RPC flow
+
+[source,text]
+----
+Client:
+"I request Fireball in this direction."
+
+Server:
+"Is the ability available?"
+"Does the player have enough resource?"
+"Is the target data plausible?"
+"Yes: activate and spawn the projectile."
+
+Server:
+"The projectile hit this enemy."
+"Calculate and apply damage."
+
+Clients:
+"Receive replicated health and cosmetic events."
+----
+
+The client must never be allowed to authoritatively report:
+
+[source,text]
+----
+"I dealt 50,000 damage to the boss."
+----
+
+== Testing strategy
+
+=== Damage calculation tests
+
+* Zero base damage returns zero
+* Negative base damage is rejected or clamped
+* Physical armor reduces physical damage
+* Fire resistance reduces fire damage
+* Fire resistance does not reduce physical damage
+* Armor penetration reduces effective armor
+* Critical hit applies the configured multiplier
+* Non-critical hit does not apply the multiplier
+* Final damage never becomes negative
+* Missing source attributes are handled safely
+* Missing target attributes are handled safely
+
+=== Health tests
+
+* Damage reduces health
+* Damage cannot reduce health below zero
+* Healing increases health
+* Healing cannot exceed maximum health
+* A dead character does not die twice
+* The death event fires once
+* `OnHealthChanged` reports the correct delta
+* Negative healing is rejected
+* Negative damage is rejected
+
+=== Integration tests
+
+* Projectile overlap damages a valid target
+* Projectile ignores its source
+* Projectile does not repeatedly damage one target unless intended
+* Bash cannot hit behind the character
+* Area attack damages each target only once
+* Enemy death occurs after lethal damage
+
+== Implementation milestones
+
+=== Milestone 1: Health
+
+Create:
+
+[source,text]
+----
+UHealthComponent
+----
+
+Acceptance check:
+
+[source,text]
+----
+Enemy starts at 100 health
+ApplyDamage(25)
+Enemy ends at 75 health
+----
+
+=== Milestone 2: Attributes
+
+Create:
+
+[source,text]
+----
+UAttributeComponent
+----
+
+Attach it to `AGenericCharacter`.
+
+Expose Blueprint defaults for:
+
+* Armor
+* Fire resistance
+* Cold resistance
+* Critical chance
+* Critical multiplier
+
+=== Milestone 3: Damage data
+
+Create manually:
+
+[source,text]
+----
+Combat/DamageTypes.h
+----
+
+Add:
+
+* `EDamageElement`
+* `FDamageRequest`
+* `FDamageResult`
+
+Do not create a `UDamageTypes` class.
+
+=== Milestone 4: Calculation library
+
+Create:
+
+[source,text]
+----
+Blueprint Function Library
+-> DamageCalculationLibrary
+----
+
+Implement one formula:
+
+[source,text]
+----
+Physical base damage
+-> armor mitigation
+-> final damage
+----
+
+=== Milestone 5: End-to-end test
+
+Temporarily execute:
+
+[source,text]
+----
+Create request
+-> calculate result
+-> apply result to enemy health
+----
+
+Do not add animation or projectiles yet.
+
+=== Milestone 6: Projectile
+
+Create:
+
+[source,text]
+----
+AProjectileBase
+----
+
+Add:
+
+* Sphere collision
+* Projectile movement
+* Source actor
+* Base damage
+* Damage element
+
+Verify that a simple sphere damages an enemy.
+
+=== Milestone 7: Fireball
+
+Create:
+
+[source,text]
+----
+UAbilityComponent
+UAbilityBase
+UProjectileAbility
+BP_Ability_Fireball
+BP_Projectile_Fireball
+----
+
+Connect input to a complete Fireball execution.
+
+=== Milestone 8: Bash
+
+Add:
+
+* `UMeleeAbility`
+* Animation montage
+* Impact notify
+* Sphere sweep
+
+=== Milestone 9: Combat events and UI
+
+Add listeners for:
+
+* Health changed
+* Damage result
+* Critical hit
+* Death
+
+Use them to drive:
+
+* Health bars
+* Floating damage text
+* Hit reactions
+* Sound
+* Particles
+
+=== Milestone 10: Multiplayer pass
+
+After single-player execution works:
+
+* Make health authoritative
+* Replicate health
+* Move activation validation to the server
+* Spawn authoritative projectiles
+* Test with two PIE clients
+
+== Gameplay Ability System migration path
+
+Evaluate Unreal's Gameplay Ability System after Fireball and Bash work.
+
+Possible mapping:
+
+[source,text]
+----
+UAbilityComponent
+-> UAbilitySystemComponent
+
+UAbilityBase
+-> UGameplayAbility
+
+UAttributeComponent
+-> UAttributeSet
+
+Damage and buffs
+-> UGameplayEffect
+
+Visual combat reactions
+-> Gameplay Cues
+
+FDamageRequest context
+-> Gameplay Effect Context or SetByCaller data
+----
+
+Consider migration when the custom system begins reimplementing:
+
+* Effect duration
+* Effect stacking
+* Gameplay-tag requirements
+* Ability cancellation
+* Attribute replication
+* Client prediction
+* Cooldown effects
+* Buff and debuff removal
+* Immunity and blocking rules
+
+== Immediate next task
+
+Implement only these types:
+
+[source,text]
+----
+UHealthComponent
+UAttributeComponent
+FDamageRequest
+FDamageResult
+UDamageCalculationLibrary
+----
+
+First end-to-end acceptance test:
+
+[source,text]
+----
+Given:
+    Player base attack damage = 30
+    Enemy armor = 25
+    Enemy health = 100
+
+When:
+    A physical FDamageRequest is calculated
+    And its FDamageResult is applied
+
+Then:
+    FinalDamage is greater than zero
+    FinalDamage is less than 30
+    Enemy health equals 100 minus FinalDamage
+----
+
+Do not implement Fireball, projectiles, montages, status effects, or inventory
+until this path works.
+
+== Architectural summary
+
+[source,text]
+----
+AGenericCharacter
+├── HealthComponent
+├── AttributeComponent
+└── AbilityComponent
+
+Ability
+└── Produces a hit
+
+Hit
+└── Produces FDamageRequest
+
+DamageCalculationLibrary
+└── Converts request and attributes into FDamageResult
+
+HealthComponent
+└── Applies FinalDamage
+
+Events
+└── Drive death, animation, sound, VFX, and UI
+----
+
+The central rule is:
+
+[quote]
+Abilities decide what is attempted. Hit detection decides what was hit.
+Attributes influence the calculation. The damage calculator determines the
+result. Health applies the final result. Events communicate what happened.
