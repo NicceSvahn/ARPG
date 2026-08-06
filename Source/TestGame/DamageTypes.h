@@ -1,57 +1,71 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Components/ActorComponent.h"
-#include "GameplayTagContainer.h"
 #include "DamageTypes.generated.h"
 
-USTRUCT(BlueprintType)
-struct FDamageSpec
+class AActor;
+
+UENUM(BlueprintType)
+enum class EDamageElement : uint8
 {
-	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float BaseDamage = 0.0f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FGameplayTag DamageType;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float CriticalMultiplier = 2.0f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TObjectPtr<AActor> SourceActor = nullptr;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TObjectPtr<AActor> TargetActor = nullptr;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	bool bCanCrit = true;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TObjectPtr<AActor> SourceActor = nullptr;
-
+	Physical	UMETA(DisplayName = "Physical"),
+	Fire		UMETA(DisplayName = "Fire"),
+	Cold		UMETA(DisplayName = "Cold"),
+	Lightning	UMETA(DisplayName = "Lightning"),
+	Poison		UMETA(DisplayName = "Poison")
 };
 
-
-UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
-class TESTGAME_API UDamageTypes : public UActorComponent
+USTRUCT(BlueprintType)
+struct TESTGAME_API FDamageRequest
 {
 	GENERATED_BODY()
 
-public:	
-	// Sets default values for this component's properties
-	UDamageTypes();
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Damage")
+	float BaseDamage = 0.0f;
 
-protected:
-	// Called when the game starts
-	virtual void BeginPlay() override;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Damage")
+	EDamageElement Element = EDamageElement::Physical;
 
-public:	
-	// Called every frame
-	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+	UPROPERTY(BlueprintReadWrite, Category = "Damage")
+	TObjectPtr<AActor> SourceActor = nullptr;
 
-		
+	UPROPERTY(BlueprintReadWrite, Category = "Damage")
+	TObjectPtr<AActor> TargetActor = nullptr;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Damage")
+	TObjectPtr<AActor> DamageCauser = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Damage")
+	bool bCanCrit = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Damage")
+	float ArmorPenetration = 0.0f;
+
+	/*
+	 * Stored as a fraction:
+	 * 0.10 means 10 percentage points of resistance penetration.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Damage")
+	float ResistancePenetration = 0.0f;
+};
+
+USTRUCT(BlueprintType)
+struct TESTGAME_API FDamageResult
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly, Category = "Damage")
+	float RawDamage = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Damage")
+	float DamageBeforeMitigation = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Damage")
+	float MitigatedDamage = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Damage")
+	float FinalDamage = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Damage")
+	bool bWasCritical = false;
 };

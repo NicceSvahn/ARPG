@@ -4,8 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
-#include "HealthComponent.h"
 #include "GenericCharacter.generated.h"
+
+class UAttributeComponent;
+class UHealthComponent;
 
 UCLASS()
 class TESTGAME_API AGenericCharacter : public ACharacter
@@ -16,12 +18,39 @@ public:
 	// Sets default values for this character's properties
 	AGenericCharacter();
 
+
+	UFUNCTION(BlueprintPure, Category = "Components")
+	UHealthComponent* GetHealthComponent() const
+	{
+		return HealthComponent;
+	}
+
+	UFUNCTION(BlueprintPure, Category = "Components")
+	UAttributeComponent* GetAttributeComponent() const
+	{
+		return AttributeComponent;
+	}
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
-	UHealthComponent* HealthComponent;
+	UPROPERTY(
+		VisibleAnywhere,
+		BlueprintReadOnly,
+		Category = "Components",
+		meta = (AllowPrivateAccess = "true")
+	)
+	TObjectPtr<UHealthComponent> HealthComponent;
+
+	UPROPERTY(
+		VisibleAnywhere,
+		BlueprintReadOnly,
+		Category = "Components",
+		meta = (AllowPrivateAccess = "true")
+	)
+	TObjectPtr<UAttributeComponent> AttributeComponent;
+
 
 public:	
 	// Called every frame

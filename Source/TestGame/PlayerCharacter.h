@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GenericCharacter.h"
+#include "DamageTypes.h"
 #include "PlayerCharacter.generated.h"
 
 UCLASS()
@@ -27,6 +28,12 @@ public:
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
 	void MoveToLocation(FVector& NewTarget);
+
+	UFUNCTION(BlueprintCallable, Category = "Combat|Debug")
+	FDamageResult DebugDealDamageTo(
+		AGenericCharacter* Target,
+		float BaseDamage = 30.0f
+	);
 
 private:
 
