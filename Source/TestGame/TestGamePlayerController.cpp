@@ -61,7 +61,10 @@ void ATestGamePlayerController::OnClickMove(const FInputActionValue& Value)
     {
         if (APlayerCharacter* PlayerCharacter = Cast<APlayerCharacter>(GetPawn()))
         {
-            PlayerCharacter->MoveToLocation(Hit.Location);
+            UAIBlueprintHelperLibrary::SimpleMoveToLocation(
+                this,
+                Hit.Location
+            );
         }
     }
     else

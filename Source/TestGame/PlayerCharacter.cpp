@@ -5,19 +5,38 @@
 #include "DamageCalculationLibrary.h"
 #include "AttributeComponent.h"
 #include "HealthComponent.h"
+#include "Engine/World.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
-// Sets default values
 APlayerCharacter::APlayerCharacter()
 {
- 	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
-    bUseControllerRotationYaw = false;
+	bUseControllerRotationYaw = false;
 
-    GetCharacterMovement()->bOrientRotationToMovement = true;
-    GetCharacterMovement()->bUseControllerDesiredRotation = false;
-    GetCharacterMovement()->RotationRate = FRotator(0.f, 720.f, 0.f);
+	GetCharacterMovement()->bOrientRotationToMovement = true;
+	GetCharacterMovement()->bUseControllerDesiredRotation = false;
+	GetCharacterMovement()->RotationRate = FRotator(0.f, 720.f, 0.f);
+
+	BasicAttackSpec.AbilityType =
+		EAbilityType::BasicAttack;
+
+	BasicAttackSpec.BaseDamage = 30.0f;
+	BasicAttackSpec.Range = 200.0f;
+	BasicAttackSpec.Cooldown = 0.8f;
+	BasicAttackSpec.DamageElement =
+		EDamageElement::Physical;
+	BasicAttackSpec.bCanCrit = true;
+
+	BashSpec.AbilityType =
+		EAbilityType::Bash;
+
+	BashSpec.BaseDamage = 50.0f;
+	BashSpec.Range = 180.0f;
+	BashSpec.Cooldown = 2.0f;
+	BashSpec.DamageElement =
+		EDamageElement::Physical;
+	BashSpec.bCanCrit = true;
 }
 
 // Called when the game starts or when spawned
@@ -46,97 +65,227 @@ void APlayerCharacter::Tick(float DeltaTime)
     AddMovementInput(ToTarget.GetSafeNormal());
 }
 
-// Called to bind functionality to input
-void APlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
+bool APlayerCharacter::IsPendingAbilityInRange() const
 {
-	Super::SetupPlayerInputComponent(PlayerInputComponent);
+	if (!IsValid(PendingAbilityTarget))
+	{
+		return false;
+	}
 
-    UE_LOG(LogTemp, Warning, TEXT("HELP ME"));
+	const FAbilitySpec* AbilitySpec =
+		GetAbilitySpec(PendingAbilityType);
+
+	if (!AbilitySpec)
+	{
+		return false;
+	}
+
+	const float DistanceToTarget = FVector::Dist(
+		GetActorLocation(),
+		PendingAbilityTarget->GetActorLocation()
+	);
+
+	return DistanceToTarget <= AbilitySpec->Range;
 }
 
-void APlayerCharacter::MoveToLocation(FVector& NewTarget)
+bool APlayerCharacter::RequestTargetedAbility(
+	EAbilityType AbilityType,
+	AGenericCharacter* Target
+)
 {
-    MovementTarget = NewTarget;
-    bHasMovementTarget = true;
+	if (!IsValid(Target) || Target == this)
+	{
+		return false;
+	}
+
+	const FAbilitySpec* AbilitySpec =
+		GetAbilitySpec(AbilityType);
+
+	if (!AbilitySpec)
+	{
+		return false;
+	}
+
+	PendingAbilityType = AbilityType;
+	PendingAbilityTarget = Target;
+
+	return true;
 }
 
-FDamageResult APlayerCharacter::DebugDealDamageTo(
+FDamageResult APlayerCharacter::TryExecutePendingAbility()
+{
+	FDamageResult EmptyResult;
+
+	if (!IsValid(PendingAbilityTarget))
+	{
+		return EmptyResult;
+	}
+
+	const FAbilitySpec* AbilitySpec =
+		GetAbilitySpec(PendingAbilityType);
+
+	if (!AbilitySpec)
+	{
+		return EmptyResult;
+	}
+
+	if (!IsPendingAbilityInRange())
+	{
+		return EmptyResult;
+	}
+
+	if (IsAbilityOnCooldown(*AbilitySpec))
+	{
+		return EmptyResult;
+	}
+
+	FaceTarget(PendingAbilityTarget);
+
+	const FDamageResult Result =
+		ExecuteDamageAbility(
+			PendingAbilityTarget,
+			*AbilitySpec
+		);
+
+	StartAbilityCooldown(PendingAbilityType);
+
+	return Result;
+}
+
+FDamageResult APlayerCharacter::ExecuteDamageAbility(
 	AGenericCharacter* Target,
-	float BaseDamage
+	const FAbilitySpec& AbilitySpec
 )
 {
 	FDamageResult EmptyResult;
 
-	if (!IsValid(Target) || Target == this)
+	if (!IsValid(Target))
 	{
-		UE_LOG(
-			LogTemp,
-			Warning,
-			TEXT("DebugDealDamageTo received an invalid target.")
-		);
-
 		return EmptyResult;
 	}
-
-	UAttributeComponent* SourceAttributes =
-		GetAttributeComponent();
-
-	UAttributeComponent* TargetAttributes =
-		Target->GetAttributeComponent();
 
 	UHealthComponent* TargetHealth =
 		Target->GetHealthComponent();
 
 	if (!IsValid(TargetHealth))
 	{
-		UE_LOG(
-			LogTemp,
-			Warning,
-			TEXT("%s has no HealthComponent."),
-			*GetNameSafe(Target)
-		);
-
 		return EmptyResult;
 	}
 
 	FDamageRequest Request;
-	Request.BaseDamage = BaseDamage;
-	Request.Element = EDamageElement::Physical;
+	Request.BaseDamage = AbilitySpec.BaseDamage;
+	Request.Element = AbilitySpec.DamageElement;
 	Request.SourceActor = this;
 	Request.TargetActor = Target;
 	Request.DamageCauser = this;
-	Request.bCanCrit = true;
+	Request.bCanCrit = AbilitySpec.bCanCrit;
 
 	const FDamageResult Result =
 		UDamageCalculationLibrary::CalculateDamage(
 			Request,
-			SourceAttributes,
-			TargetAttributes
+			GetAttributeComponent(),
+			Target->GetAttributeComponent()
 		);
 
-	const float AppliedDamage =
-		TargetHealth->TakeDamage(Result.FinalDamage);
-
-	UE_LOG(
-		LogTemp,
-		Log,
-		TEXT(
-			" --- "
-			"%s damaged %s | "
-			"Raw: %.2f | Before mitigation: %.2f | "
-			"Mitigated: %.2f | Final: %.2f | "
-			"Applied: %.2f | Critical: %s"
-			" --- "
-		),
-		*GetNameSafe(this),
-		*GetNameSafe(Target),
-		Result.RawDamage,
-		Result.DamageBeforeMitigation,
-		Result.MitigatedDamage,
-		Result.FinalDamage,
-		AppliedDamage,
-		Result.bWasCritical ? TEXT("true") : TEXT("false")
-	);
+	TargetHealth->TakeDamage(Result.FinalDamage);
 
 	return Result;
+}
+
+const FAbilitySpec* APlayerCharacter::GetAbilitySpec(
+	EAbilityType AbilityType
+) const
+{
+	switch (AbilityType)
+	{
+	case EAbilityType::BasicAttack:
+		return &BasicAttackSpec;
+
+	case EAbilityType::Bash:
+		return &BashSpec;
+
+	default:
+		return nullptr;
+	}
+}
+
+bool APlayerCharacter::IsAbilityOnCooldown(
+	const FAbilitySpec& AbilitySpec
+) const
+{
+	const UWorld* World = GetWorld();
+
+	if (!World)
+	{
+		return true;
+	}
+
+	const float* LastUseTime =
+		LastAbilityUseTimes.Find(
+			AbilitySpec.AbilityType
+		);
+
+	if (!LastUseTime)
+	{
+		return false;
+	}
+
+	const float TimeSinceLastUse =
+		World->GetTimeSeconds() - *LastUseTime;
+
+	return TimeSinceLastUse < AbilitySpec.Cooldown;
+}
+
+void APlayerCharacter::StartAbilityCooldown(
+	EAbilityType AbilityType
+)
+{
+	if (!GetWorld())
+	{
+		return;
+	}
+
+	LastAbilityUseTimes.Add(
+		AbilityType,
+		GetWorld()->GetTimeSeconds()
+	);
+}
+
+void APlayerCharacter::ClearPendingAbility()
+{
+	PendingAbilityTarget = nullptr;
+	PendingAbilityType =
+		EAbilityType::BasicAttack;
+}
+
+void APlayerCharacter::FaceTarget(
+	const AActor* Target
+)
+{
+	if (!IsValid(Target))
+	{
+		return;
+	}
+
+	FVector Direction =
+		Target->GetActorLocation() -
+		GetActorLocation();
+
+	Direction.Z = 0.0f;
+
+	if (Direction.IsNearlyZero())
+	{
+		return;
+	}
+
+	const FRotator TargetRotation =
+		Direction.Rotation();
+
+	SetActorRotation(
+		FRotator(
+			0.0f,
+			TargetRotation.Yaw,
+			0.0f
+		)
+	);
 }
