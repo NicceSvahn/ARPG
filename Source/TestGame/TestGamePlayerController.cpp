@@ -10,18 +10,16 @@
 
 ATestGamePlayerController::ATestGamePlayerController()
 {
-    bShowMouseCursor = true;
-
-    bEnableClickEvents = true;
-
-    bEnableMouseOverEvents = true;
-
     UE_LOG(LogTemp, Warning, TEXT("Constructor on PlayerController"));
 }
 
 void ATestGamePlayerController::BeginPlay()
 {
     Super::BeginPlay();
+
+    bShowMouseCursor = true;
+    bEnableClickEvents = true;
+    bEnableMouseOverEvents = true;
 
     UE_LOG(LogTemp, Warning, TEXT("BeginPlay on PlayerController"));
 
@@ -65,5 +63,10 @@ void ATestGamePlayerController::OnClickMove(const FInputActionValue& Value)
         {
             PlayerCharacter->MoveToLocation(Hit.Location);
         }
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("ECC Visibility not found"));
+        return;
     }
 }

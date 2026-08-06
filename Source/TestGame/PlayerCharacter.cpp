@@ -2,6 +2,9 @@
 
 
 #include "PlayerCharacter.h"
+#include "DamageCalculationLibrary.h"
+#include "AttributeComponent.h"
+#include "HealthComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
 // Sets default values
@@ -13,7 +16,7 @@ APlayerCharacter::APlayerCharacter()
     bUseControllerRotationYaw = false;
 
     GetCharacterMovement()->bOrientRotationToMovement = true;
-
+    GetCharacterMovement()->bUseControllerDesiredRotation = false;
     GetCharacterMovement()->RotationRate = FRotator(0.f, 720.f, 0.f);
 }
 
@@ -21,13 +24,26 @@ APlayerCharacter::APlayerCharacter()
 void APlayerCharacter::BeginPlay()
 {
 	Super::BeginPlay();
-	
+
 }
 
 // Called every frame
 void APlayerCharacter::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
+
+    if (!bHasMovementTarget) return;
+
+    FVector ToTarget = MovementTarget - GetActorLocation();
+    ToTarget.Z = 0.f;
+
+    if (ToTarget.SizeSquared() <= FMath::Square(AcceptanceRadius))
+    {
+        bHasMovementTarget = false;
+        return;
+    }
+
+    AddMovementInput(ToTarget.GetSafeNormal());
 }
 
 // Called to bind functionality to input
@@ -35,15 +51,92 @@ void APlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
 
+    UE_LOG(LogTemp, Warning, TEXT("HELP ME"));
 }
 
-void APlayerCharacter::MoveToLocation(FVector Location)
+void APlayerCharacter::MoveToLocation(FVector& NewTarget)
 {
-    FVector Direction = Location - GetActorLocation();
+    MovementTarget = NewTarget;
+    bHasMovementTarget = true;
+}
 
-    Direction.Z = 0.f;
+FDamageResult APlayerCharacter::DebugDealDamageTo(
+	AGenericCharacter* Target,
+	float BaseDamage
+)
+{
+	FDamageResult EmptyResult;
 
-    Direction.Normalize();
+	if (!IsValid(Target) || Target == this)
+	{
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("DebugDealDamageTo received an invalid target.")
+		);
 
-    AddMovementInput(Direction);
+		return EmptyResult;
+	}
+
+	UAttributeComponent* SourceAttributes =
+		GetAttributeComponent();
+
+	UAttributeComponent* TargetAttributes =
+		Target->GetAttributeComponent();
+
+	UHealthComponent* TargetHealth =
+		Target->GetHealthComponent();
+
+	if (!IsValid(TargetHealth))
+	{
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("%s has no HealthComponent."),
+			*GetNameSafe(Target)
+		);
+
+		return EmptyResult;
+	}
+
+	FDamageRequest Request;
+	Request.BaseDamage = BaseDamage;
+	Request.Element = EDamageElement::Physical;
+	Request.SourceActor = this;
+	Request.TargetActor = Target;
+	Request.DamageCauser = this;
+	Request.bCanCrit = true;
+
+	const FDamageResult Result =
+		UDamageCalculationLibrary::CalculateDamage(
+			Request,
+			SourceAttributes,
+			TargetAttributes
+		);
+
+	const float AppliedDamage =
+		TargetHealth->TakeDamage(Result.FinalDamage);
+
+	UE_LOG(
+		LogTemp,
+		Log,
+		TEXT(
+			" --- "
+			"%s damaged %s | "
+			"Raw: %.2f | Before mitigation: %.2f | "
+			"Mitigated: %.2f | Final: %.2f | "
+			"Applied: %.2f | Critical: %s"
+			" --- "
+		),
+		*GetNameSafe(this),
+		*GetNameSafe(Target),
+		Result.RawDamage,
+		Result.DamageBeforeMitigation,
+		Result.MitigatedDamage,
+		Result.FinalDamage,
+		AppliedDamage,
+		Result.bWasCritical ? TEXT("true") : TEXT("false")
+	);
+
+	return Result;
 }

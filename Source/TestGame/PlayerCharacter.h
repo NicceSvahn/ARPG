@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GenericCharacter.h"
+#include "DamageTypes.h"
 #include "PlayerCharacter.generated.h"
 
 UCLASS()
@@ -26,6 +27,19 @@ public:
 	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
-	void MoveToLocation(FVector Location);
+	void MoveToLocation(FVector& NewTarget);
 
+	UFUNCTION(BlueprintCallable, Category = "Combat|Debug")
+	FDamageResult DebugDealDamageTo(
+		AGenericCharacter* Target,
+		float BaseDamage = 30.0f
+	);
+
+private:
+
+	FVector MovementTarget = FVector::ZeroVector;
+	bool bHasMovementTarget = false;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Movement")
+	float AcceptanceRadius = 50.f;
 };

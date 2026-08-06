@@ -1,6 +1,3 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
-
 #include "HealthComponent.h"
 
 UHealthComponent::UHealthComponent()
@@ -8,69 +5,78 @@ UHealthComponent::UHealthComponent()
 	PrimaryComponentTick.bCanEverTick = false;
 }
 
-
 void UHealthComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
 	CurrentHealth = MaxHealth;
+	bDead = false;
 }
 
-
-void UHealthComponent::TakeDamage(float DamageAmount)
+float UHealthComponent::TakeDamage(float FinalDamage)
 {
-	if (bDead)
+	if (bDead || FinalDamage <= 0.0f)
 	{
-		return;
+		return 0.0f;
 	}
 
-
-	CurrentHealth -= DamageAmount;
+	const float PreviousHealth = CurrentHealth;
 
 	CurrentHealth = FMath::Clamp(
-		CurrentHealth,
-		0.f,
+		CurrentHealth - FinalDamage,
+		0.0f,
 		MaxHealth
 	);
 
+	const float AppliedDamage =
+		PreviousHealth - CurrentHealth;
 
-	OnHealthChanged.Broadcast(CurrentHealth);
+	OnHealthChanged.Broadcast(
+		CurrentHealth,
+		MaxHealth,
+		-AppliedDamage
+	);
 
-
-	if (CurrentHealth <= 0.f)
+	if (CurrentHealth <= 0.0f && !bDead)
 	{
 		bDead = true;
-
-		OnDeath.Broadcast();
+		OnDeath.Broadcast(GetOwner());
 	}
+
+	return AppliedDamage;
 }
-
-
 
 void UHealthComponent::Heal(float HealAmount)
 {
-	if (bDead)
+	if (bDead || HealAmount <= 0.0f)
 	{
 		return;
 	}
 
-
-	CurrentHealth += HealAmount;
-
+	const float PreviousHealth = CurrentHealth;
 
 	CurrentHealth = FMath::Clamp(
-		CurrentHealth,
-		0.f,
+		CurrentHealth + HealAmount,
+		0.0f,
 		MaxHealth
 	);
 
+	const float AppliedHealing =
+		CurrentHealth - PreviousHealth;
 
-	OnHealthChanged.Broadcast(CurrentHealth);
+	OnHealthChanged.Broadcast(
+		CurrentHealth,
+		MaxHealth,
+		AppliedHealing
+	);
 }
-
-
 
 float UHealthComponent::GetHealthPercent() const
 {
+	if (MaxHealth <= 0.0f)
+	{
+		return 0.0f;
+	}
+
 	return CurrentHealth / MaxHealth;
 }
