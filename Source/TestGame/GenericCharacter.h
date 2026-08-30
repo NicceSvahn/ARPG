@@ -4,17 +4,23 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "AbilitySystemInterface.h"
 #include "GenericCharacter.generated.h"
 
+class UAbilitySystemComponent;
 class UAttributeComponent;
 class UHealthComponent;
 
 UCLASS()
-class TESTGAME_API AGenericCharacter : public ACharacter
+class TESTGAME_API AGenericCharacter : public ACharacter, public IAbilitySystemInterface
 {
 	GENERATED_BODY()
 
 public:
+	UAbilitySystemComponent* GetAbilitySystemComponent() const override;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly) TObjectPtr<UAbilitySystemComponent> AbilitySystemComponent;
+
 	// Sets default values for this character's properties
 	AGenericCharacter();
 
