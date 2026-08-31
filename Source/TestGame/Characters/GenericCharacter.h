@@ -3,18 +3,25 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GenericCharacter.h"
-#include "EnemyAIController.h"
-#include "EnemyCharacter.generated.h"
+#include "GameFramework/Character.h"
+#include "AbilitySystemInterface.h"
+#include "GenericCharacter.generated.h"
+
+class UAbilitySystemComponent;
 
 UCLASS()
-class TESTGAME_API AEnemyCharacter : public AGenericCharacter
+class TESTGAME_API AGenericCharacter : public ACharacter, public IAbilitySystemInterface
 {
 	GENERATED_BODY()
 
 public:
+	UAbilitySystemComponent* GetAbilitySystemComponent() const override;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly) TObjectPtr<UAbilitySystemComponent> AbilitySystemComponent;
+
 	// Sets default values for this character's properties
-	AEnemyCharacter();
+	AGenericCharacter();
+
 
 protected:
 	// Called when the game starts or when spawned
@@ -26,5 +33,6 @@ public:
 
 	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+
 
 };

@@ -1,7 +1,5 @@
 #include "GenericCharacter.h"
 #include "AbilitySystemComponent.h"
-#include "AttributeComponent.h"
-#include "HealthComponent.h"
 
 AGenericCharacter::AGenericCharacter()
 {
@@ -11,13 +9,6 @@ AGenericCharacter::AGenericCharacter()
 		TEXT("AbilitySystemComponent")
 	);
 
-	HealthComponent = CreateDefaultSubobject<UHealthComponent>(
-		TEXT("HealthComponent")
-	);
-
-	AttributeComponent = CreateDefaultSubobject<UAttributeComponent>(
-		TEXT("AttributeComponent")
-	);
 }
 
 void AGenericCharacter::BeginPlay()

@@ -6,7 +6,7 @@
 #include "EnhancedInputSubsystems.h"
 #include "EnhancedInputComponent.h"
 #include "Blueprint/AIBlueprintHelperLibrary.h"
-#include "PlayerCharacter.h"
+#include "../Characters/PlayerCharacter.h"
 
 ATestGamePlayerController::ATestGamePlayerController()
 {
