@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
 #include "InputActionValue.h"
+#include "TestGame/Characters/PlayerCharacter.h"
 #include "TestGamePlayerController.generated.h"
 
 class UInputMappingContext;
