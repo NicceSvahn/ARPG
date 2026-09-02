@@ -13,13 +13,29 @@ AEnemyCharacter::AEnemyCharacter()
 
 	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
 
+	HealthAttributeSet = CreateDefaultSubobject<UHealthAttributeSet>(TEXT("HealthAttributeSet"));
 }
 
 // Called when the game starts or when spawned
 void AEnemyCharacter::BeginPlay()
 {
 	Super::BeginPlay();
+
+	if (HealthAttributeSet)
+	{
+		HealthAttributeSet->OnHealthChanged.AddDynamic(this, &AEnemyCharacter::HandleHealthChanged);
+	}
 	
+}
+
+void AEnemyCharacter::HandleHealthChanged(float Magnitude, float NewHealth)
+{
+	UE_LOG(LogTemp, Warning, TEXT("HELP ME"));
+
+	if (NewHealth <= 0)
+	{
+		Destroy();
+	}
 }
 
 // Called every frame
