@@ -8,8 +8,19 @@
 void AEnemyAIController::BeginPlay()
 {
 	Super::BeginPlay();
+}
 
-	UE_LOG(LogTemp, Warning, TEXT("EnemyAIController BeginPlay"));
+void AEnemyAIController::OnPossess(APawn* InPawn)
+{
+	Super::OnPossess(InPawn);
+
+	UE_LOG(
+		LogTemp,
+		Warning,
+		TEXT("AIController %s possessed %s"),
+		*GetName(),
+		InPawn ? *InPawn->GetName() : TEXT("NONE")
+	);
 
 	APawn* PlayerPawn =
 		UGameplayStatics::GetPlayerPawn(
