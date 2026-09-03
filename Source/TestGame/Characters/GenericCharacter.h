@@ -27,7 +27,7 @@ public:
 	float InitialHealth = 100.0f;
 
 	UFUNCTION()
-	void HandleHealthChanged(float Magnitude, float NewHealth);
+	virtual void HandleHealthChanged(float Magnitude, float NewHealth);
 
 	// Sets default values for this character's properties
 	AGenericCharacter();
@@ -40,9 +40,6 @@ protected:
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
-
-	// Called to bind functionality to input
-	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
 
 };

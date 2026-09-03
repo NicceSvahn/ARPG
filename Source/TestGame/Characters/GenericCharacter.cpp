@@ -27,7 +27,6 @@ void AGenericCharacter::BeginPlay()
 		UE_LOG(LogTemp, Warning, TEXT("BeginPlay Health=%f"), HealthAttributeSet->GetHealth());
 
 		HealthAttributeSet->OnHealthChanged.AddDynamic(this, &AGenericCharacter::HandleHealthChanged);
-		HealthAttributeSet->SetHealth(InitialHealth);
 	}
 }
 
@@ -50,9 +49,4 @@ UAbilitySystemComponent* AGenericCharacter::GetAbilitySystemComponent() const
 void AGenericCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-}
-
-void AGenericCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
-{
-	Super::SetupPlayerInputComponent(PlayerInputComponent);
 }
