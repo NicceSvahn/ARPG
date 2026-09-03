@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "GenericCharacter.h"
-#include "TestGame/AbilitySystem/Attributes/HealthAttributeSet.h"
 #include "../AI/EnemyAIController.h"
 #include "EnemyCharacter.generated.h"
 
@@ -19,15 +18,6 @@ class TESTGAME_API AEnemyCharacter : public AGenericCharacter
 public:
 	// Sets default values for this character's properties
 	AEnemyCharacter();
-
-	UPROPERTY()
-	TObjectPtr<UHealthAttributeSet> HealthAttributeSet;
-
-	UPROPERTY(EditAnywhere)
-	float InitialHealth = 100.0f;
-
-	UFUNCTION()
-	void HandleHealthChanged(float Magnitude, float NewHealth);
 
 protected:
 	// Called when the game starts or when spawned

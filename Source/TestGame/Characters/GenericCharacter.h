@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "AbilitySystemInterface.h"
+#include "TestGame/AbilitySystem/Attributes/HealthAttributeSet.h"
 #include "GenericCharacter.generated.h"
 
 class UAbilitySystemComponent;
@@ -18,6 +19,15 @@ public:
 	UAbilitySystemComponent* GetAbilitySystemComponent() const override;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly) TObjectPtr<UAbilitySystemComponent> AbilitySystemComponent;
+
+	UPROPERTY()
+	TObjectPtr<UHealthAttributeSet> HealthAttributeSet;
+
+	UPROPERTY(EditAnywhere)
+	float InitialHealth = 100.0f;
+
+	UFUNCTION()
+	void HandleHealthChanged(float Magnitude, float NewHealth);
 
 	// Sets default values for this character's properties
 	AGenericCharacter();

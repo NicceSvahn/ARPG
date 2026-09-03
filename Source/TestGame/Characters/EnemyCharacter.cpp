@@ -1,7 +1,5 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
-
 #include "EnemyCharacter.h"
+#include "GenericCharacter.h"
 
 // Sets default values
 AEnemyCharacter::AEnemyCharacter()
@@ -12,43 +10,17 @@ AEnemyCharacter::AEnemyCharacter()
 	AIControllerClass = AEnemyAIController::StaticClass();
 
 	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
-
-	HealthAttributeSet = CreateDefaultSubobject<UHealthAttributeSet>(TEXT("HealthAttributeSet"));
 }
 
 // Called when the game starts or when spawned
 void AEnemyCharacter::BeginPlay()
 {
-	Super::BeginPlay();
-
-	if (HealthAttributeSet)
-	{
-		HealthAttributeSet->OnHealthChanged.AddDynamic(this, &AEnemyCharacter::HandleHealthChanged);
-	}
-	
-}
-
-void AEnemyCharacter::HandleHealthChanged(float Magnitude, float NewHealth)
-{
-	UE_LOG(LogTemp, Warning, TEXT("DEAD"));
-
-	if (NewHealth <= 0)
-	{
-		Destroy();
-	}
+	Super::BeginPlay();	
 }
 
 // Called every frame
 void AEnemyCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-
-}
-
-// Called to bind functionality to input
-void AEnemyCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
-{
-	Super::SetupPlayerInputComponent(PlayerInputComponent);
-
 }
 
