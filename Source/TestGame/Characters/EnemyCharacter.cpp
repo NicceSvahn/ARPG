@@ -30,7 +30,7 @@ void AEnemyCharacter::BeginPlay()
 
 void AEnemyCharacter::HandleHealthChanged(float Magnitude, float NewHealth)
 {
-	UE_LOG(LogTemp, Warning, TEXT("HELP ME"));
+	UE_LOG(LogTemp, Warning, TEXT("DEAD"));
 
 	if (NewHealth <= 0)
 	{

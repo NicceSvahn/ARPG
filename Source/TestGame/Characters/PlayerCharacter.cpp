@@ -67,7 +67,7 @@ void APlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
 
-    UE_LOG(LogTemp, Warning, TEXT("HELP ME"));
+    //UE_LOG(LogTemp, Warning, TEXT("HELP ME"));
 }
 
 void APlayerCharacter::MoveToLocation(FVector& NewTarget)
