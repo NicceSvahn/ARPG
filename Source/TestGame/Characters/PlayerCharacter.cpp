@@ -2,6 +2,7 @@
 
 
 #include "PlayerCharacter.h"
+#include "GenericCharacter.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
 // Sets default values
@@ -15,8 +16,6 @@ APlayerCharacter::APlayerCharacter()
     GetCharacterMovement()->bOrientRotationToMovement = true;
     GetCharacterMovement()->bUseControllerDesiredRotation = false;
     GetCharacterMovement()->RotationRate = FRotator(0.f, 720.f, 0.f);
-    
-    HealthAttributeSet = CreateDefaultSubobject<UHealthAttributeSet>(TEXT("HealthAttributeSet"));
 }
 
 // Called when the game starts or when spawned
@@ -24,22 +23,10 @@ void APlayerCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
-    if (HealthAttributeSet)
-    {
-        HealthAttributeSet->OnHealthChanged.AddDynamic(this, &APlayerCharacter::HandleHealthChanged);
-    }
     if (AbilitySystemComponent)
     {
         AbilitySystemComponent->InitAbilityActorInfo(this, this);
         AbilitySystemComponent->SetNumericAttributeBase(UHealthAttributeSet::GetHealthAttribute(), InitialHealth);
-    }
-}
-
-void APlayerCharacter::HandleHealthChanged(float Magnitude, float NewHealth)
-{
-    if (NewHealth <= 0)
-    {
-        Destroy();
     }
 }
 
