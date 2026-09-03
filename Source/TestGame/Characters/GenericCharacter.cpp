@@ -27,7 +27,6 @@ void AGenericCharacter::BeginPlay()
 		UE_LOG(LogTemp, Warning, TEXT("BeginPlay Health=%f"), HealthAttributeSet->GetHealth());
 
 		HealthAttributeSet->OnHealthChanged.AddDynamic(this, &AGenericCharacter::HandleHealthChanged);
-		HealthAttributeSet->SetHealth(InitialHealth);
 	}
 }
 
