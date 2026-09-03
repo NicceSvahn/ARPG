@@ -9,6 +9,8 @@
 
 class UAbilitySystemComponent;
 class UHealthAttributeSet;
+class UWidgetComponent;
+class UEnemyHealthBarWidget;
 
 UCLASS()
 class TESTGAME_API AEnemyCharacter : public AGenericCharacter
@@ -23,11 +25,15 @@ protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UI")
+	TObjectPtr<UWidgetComponent> EnemyHealthWidget;
+
+	void RefreshHealthBar(float CurrentHealth);
+
+	virtual void HandleHealthChanged(float Magnitude, float NewHealth) override;
+
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
-
-	// Called to bind functionality to input
-	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
 };

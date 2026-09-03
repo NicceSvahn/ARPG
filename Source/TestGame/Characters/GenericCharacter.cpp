@@ -50,8 +50,3 @@ void AGenericCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 }
-
-void AGenericCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
-{
-	Super::SetupPlayerInputComponent(PlayerInputComponent);
-}
