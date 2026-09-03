@@ -4,7 +4,11 @@
 
 #include "CoreMinimal.h"
 #include "GenericCharacter.h"
+#include "TestGame/AbilitySystem/Attributes/HealthAttributeSet.h"
 #include "PlayerCharacter.generated.h"
+
+class UAbilitySystemComponent;
+class UHealthAttributeSet;
 
 UCLASS()
 class TESTGAME_API APlayerCharacter : public AGenericCharacter
@@ -14,6 +18,15 @@ class TESTGAME_API APlayerCharacter : public AGenericCharacter
 public:
 	// Sets default values for this character's properties
 	APlayerCharacter();
+
+	UPROPERTY()
+	TObjectPtr<UHealthAttributeSet> HealthAttributeSet;
+
+	UPROPERTY(EditAnywhere)
+	float InitialHealth = 100.0f;
+
+	UFUNCTION()
+	void HandleHealthChanged(float Magnitude, float NewHealth);
 
 protected:
 	// Called when the game starts or when spawned

@@ -15,6 +15,8 @@ APlayerCharacter::APlayerCharacter()
     GetCharacterMovement()->bOrientRotationToMovement = true;
     GetCharacterMovement()->bUseControllerDesiredRotation = false;
     GetCharacterMovement()->RotationRate = FRotator(0.f, 720.f, 0.f);
+    
+    HealthAttributeSet = CreateDefaultSubobject<UHealthAttributeSet>(TEXT("HealthAttributeSet"));
 }
 
 // Called when the game starts or when spawned
@@ -22,6 +24,23 @@ void APlayerCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
+    if (HealthAttributeSet)
+    {
+        HealthAttributeSet->OnHealthChanged.AddDynamic(this, &APlayerCharacter::HandleHealthChanged);
+    }
+    if (AbilitySystemComponent)
+    {
+        AbilitySystemComponent->InitAbilityActorInfo(this, this);
+        AbilitySystemComponent->SetNumericAttributeBase(UHealthAttributeSet::GetHealthAttribute(), InitialHealth);
+    }
+}
+
+void APlayerCharacter::HandleHealthChanged(float Magnitude, float NewHealth)
+{
+    if (NewHealth <= 0)
+    {
+        Destroy();
+    }
 }
 
 // Called every frame
@@ -48,7 +67,7 @@ void APlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
 
-    UE_LOG(LogTemp, Warning, TEXT("HELP ME"));
+    //UE_LOG(LogTemp, Warning, TEXT("HELP ME"));
 }
 
 void APlayerCharacter::MoveToLocation(FVector& NewTarget)
