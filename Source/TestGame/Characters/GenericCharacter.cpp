@@ -1,5 +1,7 @@
 #include "GenericCharacter.h"
 #include "AbilitySystemComponent.h"
+#include "Abilities/GameplayAbility.h"
+
 
 AGenericCharacter::AGenericCharacter()
 {
@@ -19,14 +21,25 @@ void AGenericCharacter::BeginPlay()
 	if (AbilitySystemComponent)
 	{
 		AbilitySystemComponent->InitAbilityActorInfo(this, this);
+
+		GrantStartupAbilities();
 	}
 
 	if (HealthAttributeSet)
 	{
 		HealthAttributeSet->SetHealth(InitialHealth);
-		UE_LOG(LogTemp, Warning, TEXT("BeginPlay Health=%f"), HealthAttributeSet->GetHealth());
 
-		HealthAttributeSet->OnHealthChanged.AddDynamic(this, &AGenericCharacter::HandleHealthChanged);
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("BeginPlay Health=%f"),
+			HealthAttributeSet->GetHealth()
+		);
+
+		HealthAttributeSet->OnHealthChanged.AddDynamic(
+			this,
+			&AGenericCharacter::HandleHealthChanged
+		);
 	}
 }
 
@@ -49,4 +62,29 @@ UAbilitySystemComponent* AGenericCharacter::GetAbilitySystemComponent() const
 void AGenericCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+}
+
+void AGenericCharacter::GrantStartupAbilities()
+{
+	if (!AbilitySystemComponent)
+	{
+		return;
+	}
+
+	for (const TSubclassOf<UGameplayAbility>& AbilityClass : StartupAbilities)
+	{
+		if (!AbilityClass)
+		{
+			continue;
+		}
+
+		AbilitySystemComponent->GiveAbility(
+			FGameplayAbilitySpec(
+				AbilityClass,
+				1,
+				INDEX_NONE,
+				this
+			)
+		);
+	}
 }

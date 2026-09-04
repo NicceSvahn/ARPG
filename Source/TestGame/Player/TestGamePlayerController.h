@@ -1,37 +1,59 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
 #pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
-#include "InputActionValue.h"
-#include "TestGame/Characters/PlayerCharacter.h"
 #include "TestGamePlayerController.generated.h"
 
 class UInputMappingContext;
 class UInputAction;
 
+DECLARE_DELEGATE_OneParam(
+    FOnMoveIntoRangeCompleted,
+    bool
+);
+
 UCLASS()
 class TESTGAME_API ATestGamePlayerController : public APlayerController
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
 
 public:
-	ATestGamePlayerController();
+    ATestGamePlayerController();
+
+    virtual void Tick(float DeltaTime) override;
+
+    void MoveIntoRange(
+        AActor* Target,
+        float DesiredRange,
+        FOnMoveIntoRangeCompleted OnCompleted
+    );
+
+    void CancelMoveIntoRange();
 
 protected:
-
     virtual void BeginPlay() override;
-
     virtual void SetupInputComponent() override;
 
+    UPROPERTY(EditDefaultsOnly, Category = "Input")
+    TObjectPtr<UInputMappingContext> DefaultMappingContext;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Input")
+    TObjectPtr<UInputAction> ClickMoveAction;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Input")
+    TObjectPtr<UInputAction> BashAction;
+
 private:
+    void OnClickMove();
+    void OnBashPressed();
 
-    UPROPERTY(EditDefaultsOnly, Category = "Input")
-    UInputMappingContext* DefaultMappingContext;
+    void FinishMoveIntoRange(bool bSuccess);
 
-    UPROPERTY(EditDefaultsOnly, Category = "Input")
-    UInputAction* ClickMoveAction;
+    TWeakObjectPtr<AActor> MovementTarget;
 
-    void OnClickMove(const FInputActionValue& Value);
+    float MovementAcceptanceRadius = 0.0f;
+
+    bool bIsMovingToTarget = false;
+    FOnMoveIntoRangeCompleted MoveCompletedDelegate;
+
 };

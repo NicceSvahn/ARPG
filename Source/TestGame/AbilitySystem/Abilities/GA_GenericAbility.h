@@ -6,35 +6,14 @@
 
 class AGenericCharacter;
 
-UCLASS()
+UCLASS(Abstract)
 class TESTGAME_API UGA_GenericAbility : public UGameplayAbility
 {
-
-	GENERATED_BODY()
+    GENERATED_BODY()
 
 public:
-	
-	UGA_GenericAbility();
-	
+    UGA_GenericAbility();
+
 protected:
-
-	AGenericCharacter* GetGenericCharacter() const;
-
-	void SetAbilityTarget(AActor* Target);
-
-	AActor* GetAbilityTarget() const;
-
-	void MoveToTarget(AActor* Target);
-
-	virtual void OnTargetReached(AActor* Target);
-
-	void UpdateMoveToTarget();
-
-	UPROPERTY(EditDefaultsOnly, Category = "Ability|Movement")
-	float MoveStopDistance = 120.0f;
-
-	FTimerHandle MoveTimerHandle;
-
-	TWeakObjectPtr<AActor> CurrentTarget;
-
+    AGenericCharacter* GetGenericCharacter() const;
 };
