@@ -3,6 +3,9 @@
 
 #include "PlayerCharacter.h"
 #include "GenericCharacter.h"
+#include "EnhancedInputComponent.h"
+#include "InputAction.h"
+#include "GameFramework/PlayerController.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
 // Sets default values
@@ -27,6 +30,11 @@ void APlayerCharacter::BeginPlay()
     {
         AbilitySystemComponent->InitAbilityActorInfo(this, this);
         AbilitySystemComponent->SetNumericAttributeBase(UHealthAttributeSet::GetHealthAttribute(), InitialHealth);
+
+        if (HasAuthority() && BashAbility)
+        {
+            AbilitySystemComponent->GiveAbility(FGameplayAbilitySpec(BashAbility, 1, 0));
+        }
     }
 }
 
@@ -54,6 +62,29 @@ void APlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
 
+    UEnhancedInputComponent* EnhancedInput = Cast<UEnhancedInputComponent>(PlayerInputComponent);
+
+    if (!EnhancedInput)
+    {
+        UE_LOG(LogTemp, Error, TEXT("BASH: EnhancedInputComponent not found"));
+        return;
+    }
+
+    if (!BashInputAction)
+    {
+        UE_LOG(LogTemp, Error, TEXT("BASH: BashInputAction is not assigned!"));
+        return;
+    }
+
+    EnhancedInput->BindAction(
+        BashInputAction,
+        ETriggerEvent::Started,
+        this,
+        &APlayerCharacter::BashPressed
+    );
+
+    UE_LOG(LogTemp, Warning, TEXT("BASH: Input bound!"));
+
     //UE_LOG(LogTemp, Warning, TEXT("HELP ME"));
 }
 
@@ -61,4 +92,79 @@ void APlayerCharacter::MoveToLocation(FVector& NewTarget)
 {
     MovementTarget = NewTarget;
     bHasMovementTarget = true;
+}
+
+void APlayerCharacter::BashPressed()
+{
+    if (!AbilitySystemComponent)
+    {
+        UE_LOG(LogTemp, Error, TEXT("BASH: No AbilitySystemComponent!"));
+        return;
+    }
+
+    if (!BashAbility)
+    {
+        UE_LOG(LogTemp, Error, TEXT("BASH: BashAbility is NOT assigned!"));
+        return;
+    }
+
+    APlayerController* PlayerController = Cast<APlayerController>(GetController());
+
+    if (!PlayerController)
+    {
+        UE_LOG(LogTemp, Error, TEXT("BASH: No PlayerController!"))
+        return;
+    }
+
+    FHitResult HitResult;
+
+    bool bHit = PlayerController->GetHitResultUnderCursor(
+        ECC_Visibility,
+        false,
+        HitResult
+    );
+
+    if (!bHit)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("BASH: Mouse is not pointing at anything!"));
+        return;
+    }
+
+    AGenericCharacter* Target = Cast<AGenericCharacter>(HitResult.GetActor());
+
+    if (!Target)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("BASH: Mouse is not over a GenericCharacter!"));
+        return;
+    }
+
+    BashTarget = Target;
+
+    UE_LOG(
+        LogTemp,
+        Warning,
+        TEXT("BASH: Mouse is pointing at %s"),
+        *Target->GetName()
+    );
+
+    FGameplayEventData EventData;
+    EventData.Target = Target;
+
+    FGameplayAbilitySpec* Spec =
+        AbilitySystemComponent->FindAbilitySpecFromClass(BashAbility);
+
+    if (!Spec)
+    {
+        UE_LOG(LogTemp, Error, TEXT("BASH: Ability spec not found!"));
+        return;
+    }
+
+    const bool bActivated = AbilitySystemComponent->TryActivateAbility(Spec->Handle);
+
+    UE_LOG(
+        LogTemp,
+        Warning,
+        TEXT("BASH: TryActivateAbility = %s"),
+        bActivated ? TEXT("TRUE") : TEXT("FALSE")
+    );
 }

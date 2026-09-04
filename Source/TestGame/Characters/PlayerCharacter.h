@@ -8,6 +8,8 @@
 
 class UAbilitySystemComponent;
 class UHealthAttributeSet;
+class UInputAction;
+class UGameplayAbility;
 
 UCLASS()
 class TESTGAME_API APlayerCharacter : public AGenericCharacter
@@ -31,6 +33,9 @@ public:
 
 	void MoveToLocation(FVector& NewTarget);
 
+	UPROPERTY()
+	TWeakObjectPtr<AGenericCharacter> BashTarget;
+
 private:
 
 	FVector MovementTarget = FVector::ZeroVector;
@@ -38,4 +43,13 @@ private:
 
 	UPROPERTY(EditDefaultsOnly, Category = "Movement")
 	float AcceptanceRadius = 50.f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Abilities")
+	TSubclassOf<UGameplayAbility> BashAbility;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Input")
+	TObjectPtr<UInputAction> BashInputAction;
+
+	UFUNCTION()
+	void BashPressed();
 };
