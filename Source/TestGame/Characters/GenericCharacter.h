@@ -9,6 +9,7 @@
 #include "GenericCharacter.generated.h"
 
 class UAbilitySystemComponent;
+class UGameplayAbility;
 
 UCLASS()
 class TESTGAME_API AGenericCharacter : public ACharacter, public IAbilitySystemInterface
@@ -29,11 +30,15 @@ public:
 	UFUNCTION()
 	virtual void HandleHealthChanged(float Magnitude, float NewHealth);
 
-	// Sets default values for this character's properties
 	AGenericCharacter();
 
 
 protected:
+	UPROPERTY(EditDefaultsOnly, Category = "Abilities")
+	TArray<TSubclassOf<UGameplayAbility>> StartupAbilities;
+
+	void GrantStartupAbilities();
+
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
