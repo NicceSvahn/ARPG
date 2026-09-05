@@ -1,6 +1,7 @@
 #include "EnemyCharacter.h"
 #include "GenericCharacter.h"
 #include "../UI/EnemyHealthBarWidget.h"
+#include "TestGame/AbilitySystem/Attributes/HealthAttributeSet.h"
 #include "AbilitySystemComponent.h"
 #include "Components/WidgetComponent.h"
 
@@ -29,7 +30,10 @@ void AEnemyCharacter::BeginPlay()
 {
 	Super::BeginPlay();	
 
-    RefreshHealthBar(InitialHealth);
+    if (HealthAttributeSet)
+    {
+        RefreshHealthBar(HealthAttributeSet->GetHealth());
+    }
 }
 
 // Called every frame
@@ -53,9 +57,14 @@ void AEnemyCharacter::RefreshHealthBar(float CurrentHealth)
     }
 }
 
-void AEnemyCharacter::HandleHealthChanged(float Magnitude, float NewHealth)
+void AEnemyCharacter::HandleAttributeChanged(FGameplayAttribute Attribute, float Magnitude, float NewHealth)
 {
-    Super::HandleHealthChanged(Magnitude, NewHealth);
+    Super::HandleAttributeChanged(Attribute, Magnitude, NewHealth);
+
+    if (Attribute != UHealthAttributeSet::GetHealthAttribute())
+    {
+        return;
+    }
 
     RefreshHealthBar(NewHealth);
 }

@@ -20,6 +20,7 @@ void AGenericCharacter::BeginPlay()
 
 	if (AbilitySystemComponent)
 	{
+
 		AbilitySystemComponent->InitAbilityActorInfo(this, this);
 
 		GrantStartupAbilities();
@@ -27,21 +28,26 @@ void AGenericCharacter::BeginPlay()
 
 	if (HealthAttributeSet)
 	{
-		HealthAttributeSet->SetHealth(InitialHealth);
 
+		HealthAttributeSet->InitHealth(InitialHealth);
 		UE_LOG(LogTemp, Warning, TEXT("BeginPlay Health=%f"), HealthAttributeSet->GetHealth());
 
-		HealthAttributeSet->OnHealthChanged.AddDynamic(this, &AGenericCharacter::HandleHealthChanged);
+		HealthAttributeSet->OnAttributeChanged.AddDynamic(this, &AGenericCharacter::HandleAttributeChanged);
 	}
 }
 
-void AGenericCharacter::HandleHealthChanged(float Magnitude, float NewHealth)
+void AGenericCharacter::HandleAttributeChanged(FGameplayAttribute Attribute, float Magnitude, float NewValue)
 {
-	UE_LOG(LogTemp, Warning, TEXT("Actor name=%s,NewHealth=%f"), *GetName(), NewHealth);
+	UE_LOG(LogTemp, Warning, TEXT("Attribute=%s,NewValue=%f"),*Attribute.GetName(), NewValue);
 
-	if (NewHealth <= 0)
+	if (Attribute != UHealthAttributeSet::GetHealthAttribute())
 	{
-		UE_LOG(LogTemp, Error, TEXT("Actor name=%s, DEAD! NewHealth=%f"), *GetName(), NewHealth);
+		return;
+	}
+
+	if (NewValue <= 0)
+	{
+		UE_LOG(LogTemp, Error, TEXT("Actor name=%s, DEAD! NewHealth=%f"), *GetName(), NewValue);
 		Destroy();
 	}
 }

@@ -30,7 +30,7 @@ protected:
 
 	void RefreshHealthBar(float CurrentHealth);
 
-	virtual void HandleHealthChanged(float Magnitude, float NewHealth) override;
+	virtual void HandleAttributeChanged(FGameplayAttribute Attribute, float Magnitude, float NewHealth) override;
 
 public:	
 	// Called every frame

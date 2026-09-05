@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "AbilitySystemInterface.h"
+#include "AbilitySystemComponent.h"
 #include "TestGame/AbilitySystem/Attributes/HealthAttributeSet.h"
 #include "GenericCharacter.generated.h"
 
@@ -28,7 +29,7 @@ public:
 	float InitialHealth = 100.0f;
 
 	UFUNCTION()
-	virtual void HandleHealthChanged(float Magnitude, float NewHealth);
+	virtual void HandleAttributeChanged(FGameplayAttribute Attribute, float Magnitude, float NewValue);
 
 	AGenericCharacter();
 
