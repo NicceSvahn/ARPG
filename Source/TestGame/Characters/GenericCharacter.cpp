@@ -1,5 +1,7 @@
 #include "GenericCharacter.h"
 #include "AbilitySystemComponent.h"
+#include "Abilities/GameplayAbility.h"
+
 
 AGenericCharacter::AGenericCharacter()
 {
@@ -21,6 +23,7 @@ void AGenericCharacter::BeginPlay()
 
 		AbilitySystemComponent->InitAbilityActorInfo(this, this);
 
+		GrantStartupAbilities();
 	}
 
 	if (HealthAttributeSet)
@@ -57,4 +60,24 @@ UAbilitySystemComponent* AGenericCharacter::GetAbilitySystemComponent() const
 void AGenericCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+}
+
+void AGenericCharacter::GrantStartupAbilities()
+{
+	if (!AbilitySystemComponent)
+	{
+		return;
+	}
+
+	int32 inLevel = 1;
+
+	for (const TSubclassOf<UGameplayAbility>& AbilityClass : StartupAbilities)
+	{
+		if (!AbilityClass)
+		{
+			continue;
+		}
+
+		AbilitySystemComponent->GiveAbility(FGameplayAbilitySpec(AbilityClass, inLevel, INDEX_NONE, this));
+	}
 }
