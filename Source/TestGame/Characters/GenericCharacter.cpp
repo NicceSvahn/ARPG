@@ -29,17 +29,9 @@ void AGenericCharacter::BeginPlay()
 	{
 		HealthAttributeSet->SetHealth(InitialHealth);
 
-		UE_LOG(
-			LogTemp,
-			Warning,
-			TEXT("BeginPlay Health=%f"),
-			HealthAttributeSet->GetHealth()
-		);
+		UE_LOG(LogTemp, Warning, TEXT("BeginPlay Health=%f"), HealthAttributeSet->GetHealth());
 
-		HealthAttributeSet->OnHealthChanged.AddDynamic(
-			this,
-			&AGenericCharacter::HandleHealthChanged
-		);
+		HealthAttributeSet->OnHealthChanged.AddDynamic(this, &AGenericCharacter::HandleHealthChanged);
 	}
 }
 
@@ -71,6 +63,8 @@ void AGenericCharacter::GrantStartupAbilities()
 		return;
 	}
 
+	int32 inLevel = 1;
+
 	for (const TSubclassOf<UGameplayAbility>& AbilityClass : StartupAbilities)
 	{
 		if (!AbilityClass)
@@ -78,13 +72,6 @@ void AGenericCharacter::GrantStartupAbilities()
 			continue;
 		}
 
-		AbilitySystemComponent->GiveAbility(
-			FGameplayAbilitySpec(
-				AbilityClass,
-				1,
-				INDEX_NONE,
-				this
-			)
-		);
+		AbilitySystemComponent->GiveAbility(FGameplayAbilitySpec(AbilityClass, inLevel, INDEX_NONE, this));
 	}
 }

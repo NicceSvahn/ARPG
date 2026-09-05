@@ -23,28 +23,22 @@ public:
     ) override;
 
 protected:
-    UPROPERTY(
-        EditDefaultsOnly,
-        Category = "Bash"
-    )
+    UPROPERTY(EditDefaultsOnly, Category = "Bash")
     float BashRange = 150.0f;
 
-    UPROPERTY(
-        EditDefaultsOnly,
-        Category = "Bash"
-    )
+    UPROPERTY(EditDefaultsOnly, Category = "Bash")
+    float BashCooldown = 2.0f; // Seconds?
+
+    UPROPERTY(EditDefaultsOnly, Category = "Bash")
+    float BashResourceCost = 10.0f; 
+
+    UPROPERTY(EditDefaultsOnly, Category = "Bash")
     float BashDamage = 20.0f;
 
-    UPROPERTY(
-        EditDefaultsOnly,
-        Category = "Bash"
-    )
+    UPROPERTY(EditDefaultsOnly, Category = "Bash")
     TSubclassOf<UGameplayEffect> DamageEffect;
 
-    UPROPERTY(
-        EditDefaultsOnly,
-        Category = "Bash"
-    )
+    UPROPERTY(EditDefaultsOnly, Category = "Bash")
     TObjectPtr<UAnimMontage> BashMontage;
 
 private:

@@ -20,6 +20,8 @@ void ATestGamePlayerController::BeginPlay()
 {
     Super::BeginPlay();
 
+    int32 priority = 0; // Low numerical priority means high priority
+
     bShowMouseCursor = true;
     bEnableClickEvents = true;
     bEnableMouseOverEvents = true;
@@ -31,10 +33,7 @@ void ATestGamePlayerController::BeginPlay()
         {
             if (DefaultMappingContext)
             {
-                Subsystem->AddMappingContext(
-                    DefaultMappingContext,
-                    0
-                );
+                Subsystem->AddMappingContext(DefaultMappingContext, priority);
             }
         }
     }
@@ -44,17 +43,11 @@ void ATestGamePlayerController::SetupInputComponent()
 {
     Super::SetupInputComponent();
 
-    UEnhancedInputComponent* EnhancedInput =
-        Cast<UEnhancedInputComponent>(InputComponent);
+    UEnhancedInputComponent* EnhancedInput = Cast<UEnhancedInputComponent>(InputComponent);
 
     if (!EnhancedInput)
     {
-        UE_LOG(
-            LogTemp,
-            Error,
-            TEXT("EnhancedInputComponent not found")
-        );
-
+        UE_LOG(LogTemp, Error, TEXT("EnhancedInputComponent not found"));
         return;
     }
 
@@ -77,26 +70,13 @@ void ATestGamePlayerController::SetupInputComponent()
             &ATestGamePlayerController::OnBashPressed
         );
     }
-    else
-    {
-        UE_LOG(
-            LogTemp,
-            Error,
-            TEXT("BashAction is not assigned!")
-        );
-    }
 }
 
 void ATestGamePlayerController::OnClickMove()
 {
     FHitResult HitResult;
 
-    const bool bHit =
-        GetHitResultUnderCursor(
-            ECC_Visibility,
-            false,
-            HitResult
-        );
+    const bool bHit = GetHitResultUnderCursor(ECC_Visibility, false, HitResult);
 
     if (!bHit)
     {
@@ -106,16 +86,10 @@ void ATestGamePlayerController::OnClickMove()
     // Clicking somewhere else cancels any ability movement.
     CancelMoveIntoRange();
 
-    UAIBlueprintHelperLibrary::SimpleMoveToLocation(
-        this,
-        HitResult.ImpactPoint
-    );
+    UAIBlueprintHelperLibrary::SimpleMoveToLocation(this, HitResult.ImpactPoint);
 }
 
-void ATestGamePlayerController::MoveIntoRange(
-    AActor* Target,
-    float DesiredRange,
-    FOnMoveIntoRangeCompleted OnCompleted)
+void ATestGamePlayerController::MoveIntoRange(AActor* Target, float DesiredRange, FOnMoveIntoRangeCompleted OnCompleted)
 {
     if (!Target)
     {
@@ -134,10 +108,7 @@ void ATestGamePlayerController::MoveIntoRange(
     MoveCompletedDelegate = OnCompleted;
     bIsMovingToTarget = true;
 
-    UAIBlueprintHelperLibrary::SimpleMoveToActor(
-        this,
-        Target
-    );
+    UAIBlueprintHelperLibrary::SimpleMoveToActor(this, Target);
 }
 
 void ATestGamePlayerController::Tick(float DeltaTime)
@@ -158,11 +129,7 @@ void ATestGamePlayerController::Tick(float DeltaTime)
         return;
     }
 
-    const float Distance =
-        FVector::Dist2D(
-            ControlledCharacter->GetActorLocation(),
-            Target->GetActorLocation()
-        );
+    const float Distance = FVector::Dist2D(ControlledCharacter->GetActorLocation(), Target->GetActorLocation());
 
     if (Distance <= MovementAcceptanceRadius)
     {
@@ -170,8 +137,7 @@ void ATestGamePlayerController::Tick(float DeltaTime)
     }
 }
 
-void ATestGamePlayerController::FinishMoveIntoRange(
-    bool bSuccess)
+void ATestGamePlayerController::FinishMoveIntoRange(bool bSuccess)
 {
     if (!bIsMovingToTarget)
     {
@@ -180,17 +146,12 @@ void ATestGamePlayerController::FinishMoveIntoRange(
 
     bIsMovingToTarget = false;
 
-    // Stop the navigation movement when we've reached
-    // the range requested by the ability.
     StopMovement();
 
     MovementTarget.Reset();
-    MovementAcceptanceRadius = 0.0f;
+    MovementAcceptanceRadius = 0.0f; // Set zero when reached "into range of target"
 
-    // Copy before clearing because executing the callback
-    // can run arbitrary ability logic.
-    FOnMoveIntoRangeCompleted CompletedDelegate =
-        MoveCompletedDelegate;
+    FOnMoveIntoRangeCompleted CompletedDelegate = MoveCompletedDelegate;
 
     MoveCompletedDelegate.Unbind();
 
@@ -211,10 +172,7 @@ void ATestGamePlayerController::OnBashPressed()
 {
     FHitResult HitResult;
 
-    if (!GetHitResultUnderCursor(
-        ECC_Visibility,
-        false,
-        HitResult))
+    if (!GetHitResultUnderCursor(ECC_Visibility, false, HitResult))
     {
         return;
     }
@@ -226,8 +184,7 @@ void ATestGamePlayerController::OnBashPressed()
         return;
     }
 
-    AGenericCharacter* ControlledCharacter =
-        Cast<AGenericCharacter>(GetPawn());
+    AGenericCharacter* ControlledCharacter = Cast<AGenericCharacter>(GetPawn());
 
     if (!ControlledCharacter)
     {
@@ -235,8 +192,7 @@ void ATestGamePlayerController::OnBashPressed()
         return;
     }
 
-    UAbilitySystemComponent* ASC =
-        ControlledCharacter->GetAbilitySystemComponent();
+    UAbilitySystemComponent* ASC = ControlledCharacter->GetAbilitySystemComponent();
 
     if (!ASC)
     {
@@ -248,32 +204,9 @@ void ATestGamePlayerController::OnBashPressed()
     EventData.Instigator = ControlledCharacter;
     EventData.Target = TargetActor;
 
-    const FGameplayTag BashEventTag =
-        FGameplayTag::RequestGameplayTag(
-            FName("Event.Ability.Bash")
-        );
+    const FGameplayTag BashEventTag = FGameplayTag::RequestGameplayTag(FName("Event.Ability.Bash"));
 
-    const int32 ActivatedAbilities =
-        ASC->HandleGameplayEvent(
-            BashEventTag,
-            &EventData
-        );
+    const int32 ActivatedAbilities = ASC->HandleGameplayEvent(BashEventTag, &EventData);
 
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT("BASH: Gameplay event sent. Activated abilities: %d"),
-        ActivatedAbilities
-    );
+    UE_LOG(LogTemp, Warning, TEXT("BASH: Gameplay event sent. Activated abilities: %d"), ActivatedAbilities);
 }
-
-/*
-void ATestGamePlayerController::OnBashPressed()
-{
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT("BASH INPUT PRESSED")
-    );
-}
-*/

@@ -30,7 +30,6 @@ public:
 	UFUNCTION()
 	virtual void HandleHealthChanged(float Magnitude, float NewHealth);
 
-	// Sets default values for this character's properties
 	AGenericCharacter();
 
 

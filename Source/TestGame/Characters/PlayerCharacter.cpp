@@ -10,8 +10,7 @@ APlayerCharacter::APlayerCharacter()
 
     GetCharacterMovement()->bOrientRotationToMovement = true;
     GetCharacterMovement()->bUseControllerDesiredRotation = false;
-    GetCharacterMovement()->RotationRate =
-        FRotator(0.0f, 720.0f, 0.0f);
+    GetCharacterMovement()->RotationRate = FRotator(0.0f, 720.0f, 0.0f);
 }
 
 void APlayerCharacter::BeginPlay()
@@ -20,14 +19,8 @@ void APlayerCharacter::BeginPlay()
 
     if (AbilitySystemComponent)
     {
-        AbilitySystemComponent->InitAbilityActorInfo(
-            this,
-            this
-        );
+        AbilitySystemComponent->InitAbilityActorInfo(this, this);
 
-        AbilitySystemComponent->SetNumericAttributeBase(
-            UHealthAttributeSet::GetHealthAttribute(),
-            InitialHealth
-        );
+        AbilitySystemComponent->SetNumericAttributeBase(UHealthAttributeSet::GetHealthAttribute(), InitialHealth);
     }
 }

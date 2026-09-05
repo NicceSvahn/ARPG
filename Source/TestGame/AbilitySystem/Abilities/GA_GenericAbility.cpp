@@ -4,13 +4,10 @@
 
 UGA_GenericAbility::UGA_GenericAbility()
 {
-    InstancingPolicy =
-        EGameplayAbilityInstancingPolicy::InstancedPerActor;
+    InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 }
 
 AGenericCharacter* UGA_GenericAbility::GetGenericCharacter() const
 {
-    return Cast<AGenericCharacter>(
-        GetAvatarActorFromActorInfo()
-    );
+    return Cast<AGenericCharacter>(GetAvatarActorFromActorInfo());
 }
