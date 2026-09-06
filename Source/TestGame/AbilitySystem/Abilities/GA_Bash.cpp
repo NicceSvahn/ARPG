@@ -5,6 +5,7 @@
 #include "GameplayEffect.h"
 
 #include "../../Characters/GenericCharacter.h"
+#include "../../Characters/EnemyCharacter.h"
 #include "../../Player/TestGamePlayerController.h"
 
 UGA_Bash::UGA_Bash()
@@ -20,6 +21,16 @@ void UGA_Bash::ActivateAbility(
     const FGameplayEventData* TriggerEventData)
 {
     Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
+
+    AActor* AvatarActor = GetAvatarActorFromActorInfo();
+
+    UE_LOG(
+        LogTemp,
+        Error,
+        TEXT("=== BASH ACTIVATED === Avatar=%s Class=%s"),
+        AvatarActor ? *AvatarActor->GetName() : TEXT("NULL"),
+        AvatarActor ? *AvatarActor->GetClass()->GetName() : TEXT("NULL")
+    );
 
     if (!TriggerEventData)
     {
@@ -48,6 +59,13 @@ void UGA_Bash::ActivateAbility(
         PerformBash();
         return;
     }
+
+    if (Cast<AEnemyCharacter>(GetGenericCharacter()))
+    {
+        EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
+        return;
+    }
+
 
     RequestMoveIntoRange();
 }
