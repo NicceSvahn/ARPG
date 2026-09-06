@@ -43,9 +43,13 @@ protected:
     UPROPERTY(EditDefaultsOnly, Category = "Input")
     TObjectPtr<UInputAction> BashAction;
 
+    UPROPERTY(EditDefaultsOnly, Category = "Input")
+    TObjectPtr<UInputAction> FireballAction;
+
 private:
     void OnClickMove();
     void OnBashPressed();
+    void OnFireballPressed();
 
     void FinishMoveIntoRange(bool bSuccess);
 

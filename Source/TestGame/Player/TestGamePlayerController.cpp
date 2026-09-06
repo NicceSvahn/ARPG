@@ -8,6 +8,7 @@
 #include "GameFramework/PlayerController.h"
 #include "AbilitySystemComponent.h"
 #include "GameplayTagContainer.h"
+#include "AbilitySystemBlueprintLibrary.h"
 
 #include "../Characters/GenericCharacter.h"
 
@@ -69,6 +70,22 @@ void ATestGamePlayerController::SetupInputComponent()
             this,
             &ATestGamePlayerController::OnBashPressed
         );
+    }
+
+    if (FireballAction)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Binding FireballAction"));
+
+        EnhancedInput->BindAction(
+            FireballAction,
+            ETriggerEvent::Started,
+            this,
+            &ATestGamePlayerController::OnFireballPressed
+        );
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("FireballAction is not assigned"));
     }
 }
 
@@ -209,4 +226,87 @@ void ATestGamePlayerController::OnBashPressed()
     const int32 ActivatedAbilities = ASC->HandleGameplayEvent(BashEventTag, &EventData);
 
     UE_LOG(LogTemp, Warning, TEXT("BASH: Gameplay event sent. Activated abilities: %d"), ActivatedAbilities);
+}
+
+void ATestGamePlayerController::OnFireballPressed()
+{
+    UE_LOG(LogTemp, Warning, TEXT("FIREBALL INPUT PRESSED"));
+
+    FHitResult HitResult;
+
+    if (!GetHitResultUnderCursor(
+        ECC_Visibility,
+        false,
+        HitResult))
+    {
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT("FIREBALL: Nothing found under cursor"));
+
+        return;
+    }
+
+    AActor* TargetActor = HitResult.GetActor();
+
+    if (!IsValid(TargetActor))
+    {
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT("FIREBALL: No target actor"));
+
+        return;
+    }
+
+    AGenericCharacter* ControlledCharacter =
+        Cast<AGenericCharacter>(GetPawn());
+
+    if (!ControlledCharacter)
+    {
+        UE_LOG(
+            LogTemp,
+            Error,
+            TEXT("FIREBALL: No GenericCharacter pawn"));
+
+        return;
+    }
+
+    UAbilitySystemComponent* ASC =
+        ControlledCharacter->GetAbilitySystemComponent();
+
+    if (!ASC)
+    {
+        UE_LOG(
+            LogTemp,
+            Error,
+            TEXT("FIREBALL: No AbilitySystemComponent"));
+
+        return;
+    }
+
+    const FGameplayTag FireballEventTag =
+        FGameplayTag::RequestGameplayTag(
+            TEXT("Event.Ability.Fireball"));
+
+    FGameplayEventData EventData;
+    EventData.EventTag = FireballEventTag;
+    EventData.Instigator = ControlledCharacter;
+    EventData.Target = TargetActor;
+
+    // Store the mouse cursor's hit position in the event.
+    EventData.TargetData =
+        UAbilitySystemBlueprintLibrary::AbilityTargetDataFromHitResult(
+            HitResult);
+
+    const int32 ActivatedAbilities =
+        ASC->HandleGameplayEvent(
+            FireballEventTag,
+            &EventData);
+
+    UE_LOG(
+        LogTemp,
+        Warning,
+        TEXT("FIREBALL: Event sent. Activated abilities: %d"),
+        ActivatedAbilities);
 }
