@@ -1,5 +1,3 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
 #pragma once
 
 #include "CoreMinimal.h"
@@ -15,7 +13,7 @@ class TESTGAME_API AEnemyAIController : public AAIController
 	GENERATED_BODY()
 
 public:
-
+	AEnemyAIController();
 
 protected:
 	// Called when the game starts or when spawned
@@ -23,8 +21,23 @@ protected:
 
 	virtual void OnPossess(APawn* InPawn) override;
 
+	virtual void Tick(float DeltaSeconds) override;
 
-public:
-
+private:
 	
+	UPROPERTY()
+	TObjectPtr<APawn> PlayerPawn;
+
+	UPROPERTY(EditAnywhere, Category = "Combat")
+	float BashRange = 150.0f;
+
+	UPROPERTY(EditAnywhere, Category = "Combat")
+	float BashAttemptInterval = 2.0f;
+
+	float BashAttemptTimer = 0.0f;
+
+	void UpdateCombat(float DeltaSeconds);
+
+	void TryBash();
+
 };
