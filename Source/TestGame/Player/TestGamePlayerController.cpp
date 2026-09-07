@@ -232,43 +232,12 @@ void ATestGamePlayerController::OnFireballPressed()
 {
     UE_LOG(LogTemp, Warning, TEXT("FIREBALL INPUT PRESSED"));
 
-    FHitResult HitResult;
-
-    if (!GetHitResultUnderCursor(
-        ECC_Visibility,
-        false,
-        HitResult))
-    {
-        UE_LOG(
-            LogTemp,
-            Warning,
-            TEXT("FIREBALL: Nothing found under cursor"));
-
-        return;
-    }
-
-    AActor* TargetActor = HitResult.GetActor();
-
-    if (!IsValid(TargetActor))
-    {
-        UE_LOG(
-            LogTemp,
-            Warning,
-            TEXT("FIREBALL: No target actor"));
-
-        return;
-    }
-
     AGenericCharacter* ControlledCharacter =
         Cast<AGenericCharacter>(GetPawn());
 
     if (!ControlledCharacter)
     {
-        UE_LOG(
-            LogTemp,
-            Error,
-            TEXT("FIREBALL: No GenericCharacter pawn"));
-
+        UE_LOG(LogTemp, Error, TEXT("FIREBALL: No character"));
         return;
     }
 
@@ -277,13 +246,62 @@ void ATestGamePlayerController::OnFireballPressed()
 
     if (!ASC)
     {
+        UE_LOG(LogTemp, Error, TEXT("FIREBALL: No ASC"));
+        return;
+    }
+
+    FVector MouseWorldOrigin;
+    FVector MouseWorldDirection;
+
+    if (!DeprojectMousePositionToWorld(
+        MouseWorldOrigin,
+        MouseWorldDirection))
+    {
         UE_LOG(
             LogTemp,
             Error,
-            TEXT("FIREBALL: No AbilitySystemComponent"));
-
+            TEXT("FIREBALL: Could not deproject mouse"));
         return;
     }
+
+    /*
+     * Intersect the mouse ray with a horizontal plane passing
+     * through the character.
+     */
+    const float AimPlaneZ =
+        ControlledCharacter->GetActorLocation().Z + 50.0f;
+
+    if (FMath::IsNearlyZero(MouseWorldDirection.Z))
+    {
+        UE_LOG(
+            LogTemp,
+            Error,
+            TEXT("FIREBALL: Mouse ray is parallel to aim plane"));
+        return;
+    }
+
+    const float DistanceAlongRay =
+        (AimPlaneZ - MouseWorldOrigin.Z) /
+        MouseWorldDirection.Z;
+
+    if (DistanceAlongRay <= 0.0f)
+    {
+        UE_LOG(
+            LogTemp,
+            Error,
+            TEXT("FIREBALL: Aim plane is behind camera"));
+        return;
+    }
+
+    const FVector AimLocation =
+        MouseWorldOrigin +
+        MouseWorldDirection * DistanceAlongRay;
+
+    // Package the fixed aim location as target data.
+    FHitResult AimHit;
+    AimHit.bBlockingHit = true;
+    AimHit.Location = AimLocation;
+    AimHit.ImpactPoint = AimLocation;
 
     const FGameplayTag FireballEventTag =
         FGameplayTag::RequestGameplayTag(
@@ -292,12 +310,10 @@ void ATestGamePlayerController::OnFireballPressed()
     FGameplayEventData EventData;
     EventData.EventTag = FireballEventTag;
     EventData.Instigator = ControlledCharacter;
-    EventData.Target = TargetActor;
 
-    // Store the mouse cursor's hit position in the event.
     EventData.TargetData =
-        UAbilitySystemBlueprintLibrary::AbilityTargetDataFromHitResult(
-            HitResult);
+        UAbilitySystemBlueprintLibrary::
+        AbilityTargetDataFromHitResult(AimHit);
 
     const int32 ActivatedAbilities =
         ASC->HandleGameplayEvent(
@@ -307,6 +323,8 @@ void ATestGamePlayerController::OnFireballPressed()
     UE_LOG(
         LogTemp,
         Warning,
-        TEXT("FIREBALL: Event sent. Activated abilities: %d"),
-        ActivatedAbilities);
+        TEXT(
+            "FIREBALL: Activated=%d Aim=%s"),
+        ActivatedAbilities,
+        *AimLocation.ToString());
 }

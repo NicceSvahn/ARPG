@@ -25,6 +25,14 @@ void UGA_Fireball::ActivateAbility(
         ActivationInfo,
         TriggerEventData);
 
+    UE_LOG(
+        LogTemp,
+        Warning,
+        TEXT("FIREBALL: ActivateAbility called. Authority=%s"),
+        GetGenericCharacter() && GetGenericCharacter()->HasAuthority()
+        ? TEXT("true")
+        : TEXT("false"));
+
     AGenericCharacter* Character = GetGenericCharacter();
 
     UAbilitySystemComponent* SourceASC =
@@ -36,6 +44,19 @@ void UGA_Fireball::ActivateAbility(
         !DamageEffect ||
         !TriggerEventData)
     {
+        UE_LOG(
+            LogTemp,
+            Error,
+            TEXT(
+                "FIREBALL validation failed: "
+                "Character=%s ASC=%s ProjectileClass=%s "
+                "DamageEffect=%s EventData=%s"),
+            Character ? TEXT("valid") : TEXT("null"),
+            SourceASC ? TEXT("valid") : TEXT("null"),
+            ProjectileClass ? TEXT("valid") : TEXT("null"),
+            DamageEffect ? TEXT("valid") : TEXT("null"),
+            TriggerEventData ? TEXT("valid") : TEXT("null"));
+
         EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
         return;
     }
@@ -63,6 +84,8 @@ void UGA_Fireball::ActivateAbility(
     // Applies the configured Gameplay Ability cost and cooldown.
     if (!CommitAbility(Handle, ActorInfo, ActivationInfo))
     {
+        UE_LOG(LogTemp, Error, TEXT("FIREBALL: CommitAbility failed"));
+
         EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
         return;
     }
@@ -78,9 +101,34 @@ void UGA_Fireball::ActivateAbility(
             Character->GetMesh()->GetSocketLocation(MuzzleSocketName);
     }
 
+    FVector AdjustedTargetLocation = TargetLocation;
+
+    FVector AimLocation = TargetLocation;
+
+    // Guarantee horizontal movement from the actual spawn position.
+    AimLocation.Z = SpawnLocation.Z;
 
     const FVector Direction =
-        (TargetLocation - SpawnLocation).GetSafeNormal();
+        (AimLocation - SpawnLocation).GetSafeNormal2D();
+
+    if (Direction.IsNearlyZero())
+    {
+        UE_LOG(
+            LogTemp,
+            Error,
+            TEXT("FIREBALL: Invalid launch direction"));
+
+        EndAbility(
+            Handle,
+            ActorInfo,
+            ActivationInfo,
+            true,
+            true);
+
+        return;
+    }
+
+    Character->SetActorRotation(Direction.Rotation());
 
     Character->SetActorRotation(Direction.Rotation());
 
@@ -104,15 +152,6 @@ void UGA_Fireball::ActivateAbility(
 
         if (DamageSpec.IsValid())
         {
-            // Add this only if the damage Gameplay Effect uses this tag.
-            const FGameplayTag DamageTag =
-                FGameplayTag::RequestGameplayTag(
-                    TEXT("Data.Damage"));
-
-            DamageSpec.Data->SetSetByCallerMagnitude(
-                DamageTag,
-                FireballDamage);
-
             const FTransform SpawnTransform(
                 Direction.Rotation(),
                 SpawnLocation);
@@ -127,12 +166,12 @@ void UGA_Fireball::ActivateAbility(
 
             if (Projectile)
             {
+                Projectile->FinishSpawning(SpawnTransform);
+
                 Projectile->InitializeProjectile(
                     SourceASC,
                     DamageSpec,
-                    nullptr);
-
-                Projectile->FinishSpawning(SpawnTransform);
+                    Direction);
             }
         }
     }
