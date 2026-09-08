@@ -37,6 +37,7 @@ AGenericProjectile::AGenericProjectile()
     ProjectileMovement->MaxSpeed = 1200.0f;
     ProjectileMovement->ProjectileGravityScale = 0.0f;
     ProjectileMovement->bRotationFollowsVelocity = true;
+    ProjectileMovement->bInitialVelocityInLocalSpace = false;
     ProjectileMovement->bShouldBounce = false;
 }
 
@@ -66,8 +67,25 @@ void AGenericProjectile::InitializeProjectile(
         );
     }
 
-    ProjectileMovement->bIsHomingProjectile = false;
-    ProjectileMovement->HomingTargetComponent = nullptr;
+    ProjectileMovement->bShouldBounce = false;
+    ProjectileMovement->ProjectileGravityScale = 0.0f;
+    ProjectileMovement->bInitialVelocityInLocalSpace = false;
+
+    const FVector LaunchDirection =
+        InDirection.GetSafeNormal2D();
+
+    if (LaunchDirection.IsNearlyZero())
+    {
+        UE_LOG(
+            LogTemp,
+            Error,
+            TEXT("PROJECTILE: Invalid launch direction"));
+
+        Destroy();
+        return;
+    }
+
+    SetActorRotation(LaunchDirection.Rotation());
 
     const FVector LaunchDirection =
         InLaunchDirection.GetSafeNormal();
@@ -75,6 +93,16 @@ void AGenericProjectile::InitializeProjectile(
     ProjectileMovement->Velocity =
         LaunchDirection *
         ProjectileMovement->InitialSpeed;
+
+    ProjectileMovement->UpdateComponentVelocity();
+    ProjectileMovement->Activate(true);
+
+    UE_LOG(
+        LogTemp,
+        Warning,
+        TEXT("PROJECTILE: Direction=%s Velocity=%s"),
+        *LaunchDirection.ToString(),
+        *ProjectileMovement->Velocity.ToString());
 
     SetLifeSpan(LifeSeconds);
 }

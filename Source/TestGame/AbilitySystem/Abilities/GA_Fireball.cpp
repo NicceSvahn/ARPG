@@ -110,7 +110,26 @@ void UGA_Fireball::ActivateAbility(
 
     // Actual projectile aim.
     const FVector ProjectileDirection =
-        (TargetLocation - SpawnLocation).GetSafeNormal();
+        (AimLocation - SpawnLocation).GetSafeNormal2D();
+
+    if (Direction.IsNearlyZero())
+    {
+        UE_LOG(
+            LogTemp,
+            Error,
+            TEXT("FIREBALL: Invalid launch direction"));
+
+        EndAbility(
+            Handle,
+            ActorInfo,
+            ActivationInfo,
+            true,
+            true);
+
+        return;
+    }
+
+    Character->SetActorRotation(Direction.Rotation());
 
     if (ProjectileDirection.IsNearlyZero())
     {

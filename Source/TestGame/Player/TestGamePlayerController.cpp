@@ -188,7 +188,7 @@ void ATestGamePlayerController::OnAbilityInputPressed(FGameplayTag InputTag)
     AGenericCharacter* ControlledCharacter =
         Cast<AGenericCharacter>(GetPawn());
 
-    if (!ControlledCharacter)
+    if (FMath::IsNearlyZero(MouseWorldDirection.Z))
     {
         UE_LOG(LogTemp, Error, TEXT("NO CHARACTER"));
         return;
@@ -197,7 +197,7 @@ void ATestGamePlayerController::OnAbilityInputPressed(FGameplayTag InputTag)
     UTestGameAbilitySystemComponent* ASC =
         ControlledCharacter->GetAbilitySystemComponent();
 
-    if (!ASC)
+    if (DistanceAlongRay <= 0.0f)
     {
         UE_LOG(LogTemp, Error, TEXT("NO ASC"));
         return;
