@@ -6,10 +6,9 @@
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/PlayerController.h"
-#include "AbilitySystemComponent.h"
-#include "GameplayTagContainer.h"
-#include "AbilitySystemBlueprintLibrary.h"
 
+#include "../AbilitySystem/AbilityInputContext.h"
+#include "../AbilitySystem/TestGameAbilitySystemComponent.h"
 #include "../Characters/GenericCharacter.h"
 
 ATestGamePlayerController::ATestGamePlayerController()
@@ -48,7 +47,6 @@ void ATestGamePlayerController::SetupInputComponent()
 
     if (!EnhancedInput)
     {
-        UE_LOG(LogTemp, Error, TEXT("EnhancedInputComponent not found"));
         return;
     }
 
@@ -62,30 +60,23 @@ void ATestGamePlayerController::SetupInputComponent()
         );
     }
 
-    if (BashAction)
+    // Ability activation
+    for (const FAbilityInputBinding& Binding : AbilityInputBindings)
     {
-        EnhancedInput->BindAction(
-            BashAction,
-            ETriggerEvent::Started,
-            this,
-            &ATestGamePlayerController::OnBashPressed
-        );
-    }
-
-    if (FireballAction)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("Binding FireballAction"));
+        if (!Binding.InputAction || !Binding.InputTag.IsValid())
+        {
+            UE_LOG(LogTemp, Error, TEXT("Setup 1"));
+            continue;
+        }
+        UE_LOG(LogTemp, Warning, TEXT("INPUT: Binding %s -> %s"), *Binding.InputAction->GetName(), *Binding.InputTag.ToString());
 
         EnhancedInput->BindAction(
-            FireballAction,
+            Binding.InputAction,
             ETriggerEvent::Started,
             this,
-            &ATestGamePlayerController::OnFireballPressed
+            &ATestGamePlayerController::OnAbilityInputPressed,
+            Binding.InputTag
         );
-    }
-    else
-    {
-        UE_LOG(LogTemp, Error, TEXT("FireballAction is not assigned"));
     }
 }
 
@@ -185,128 +176,42 @@ void ATestGamePlayerController::CancelMoveIntoRange()
     FinishMoveIntoRange(false);
 }
 
-void ATestGamePlayerController::OnBashPressed()
+void ATestGamePlayerController::OnAbilityInputPressed(FGameplayTag InputTag)
 {
-    FHitResult HitResult;
-
-    if (!GetHitResultUnderCursor(ECC_Visibility, false, HitResult))
-    {
-        return;
-    }
-
-    AActor* TargetActor = HitResult.GetActor();
-
-    if (!TargetActor)
-    {
-        return;
-    }
-
-    AGenericCharacter* ControlledCharacter = Cast<AGenericCharacter>(GetPawn());
-
-    if (!ControlledCharacter)
-    {
-        UE_LOG(LogTemp, Error, TEXT("BASH: No GenericCharacter pawn"));
-        return;
-    }
-
-    UAbilitySystemComponent* ASC = ControlledCharacter->GetAbilitySystemComponent();
-
-    if (!ASC)
-    {
-        UE_LOG(LogTemp, Error, TEXT("BASH: No AbilitySystemComponent"));
-        return;
-    }
-
-    FGameplayEventData EventData;
-    EventData.Instigator = ControlledCharacter;
-    EventData.Target = TargetActor;
-
-    const FGameplayTag BashEventTag = FGameplayTag::RequestGameplayTag(FName("Event.Ability.Bash"));
-
-    const int32 ActivatedAbilities = ASC->HandleGameplayEvent(BashEventTag, &EventData);
-
-    UE_LOG(LogTemp, Warning, TEXT("BASH: Gameplay event sent. Activated abilities: %d"), ActivatedAbilities);
-}
-
-void ATestGamePlayerController::OnFireballPressed()
-{
-    UE_LOG(LogTemp, Warning, TEXT("FIREBALL INPUT PRESSED"));
-
-    FHitResult HitResult;
-
-    if (!GetHitResultUnderCursor(
-        ECC_Visibility,
-        false,
-        HitResult))
-    {
-        UE_LOG(
-            LogTemp,
-            Warning,
-            TEXT("FIREBALL: Nothing found under cursor"));
-
-        return;
-    }
-
-    AActor* TargetActor = HitResult.GetActor();
-
-    if (!IsValid(TargetActor))
-    {
-        UE_LOG(
-            LogTemp,
-            Warning,
-            TEXT("FIREBALL: No target actor"));
-
-        return;
-    }
+    UE_LOG(
+        LogTemp,
+        Warning,
+        TEXT("1 CONTROLLER: %s"),
+        *InputTag.ToString()
+    );
 
     AGenericCharacter* ControlledCharacter =
         Cast<AGenericCharacter>(GetPawn());
 
     if (!ControlledCharacter)
     {
-        UE_LOG(
-            LogTemp,
-            Error,
-            TEXT("FIREBALL: No GenericCharacter pawn"));
-
+        UE_LOG(LogTemp, Error, TEXT("NO CHARACTER"));
         return;
     }
 
-    UAbilitySystemComponent* ASC =
+    UTestGameAbilitySystemComponent* ASC =
         ControlledCharacter->GetAbilitySystemComponent();
 
     if (!ASC)
     {
-        UE_LOG(
-            LogTemp,
-            Error,
-            TEXT("FIREBALL: No AbilitySystemComponent"));
-
+        UE_LOG(LogTemp, Error, TEXT("NO ASC"));
         return;
     }
 
-    const FGameplayTag FireballEventTag =
-        FGameplayTag::RequestGameplayTag(
-            TEXT("Event.Ability.Fireball"));
+    FAbilityInputContext Context;
+    FHitResult HitResult;
 
-    FGameplayEventData EventData;
-    EventData.EventTag = FireballEventTag;
-    EventData.Instigator = ControlledCharacter;
-    EventData.Target = TargetActor;
+    if (GetHitResultUnderCursor(ECC_Visibility, false, HitResult))
+    {
+        Context.HitResult = HitResult;
+        Context.TargetActor = HitResult.GetActor();
+        Context.HitLocation = HitResult.ImpactPoint;
+    }
 
-    // Store the mouse cursor's hit position in the event.
-    EventData.TargetData =
-        UAbilitySystemBlueprintLibrary::AbilityTargetDataFromHitResult(
-            HitResult);
-
-    const int32 ActivatedAbilities =
-        ASC->HandleGameplayEvent(
-            FireballEventTag,
-            &EventData);
-
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT("FIREBALL: Event sent. Activated abilities: %d"),
-        ActivatedAbilities);
+    ASC->AbilityInputTagPressed(InputTag, Context);
 }

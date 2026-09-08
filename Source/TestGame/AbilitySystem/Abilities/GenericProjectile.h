@@ -18,7 +18,8 @@ public:
 	void InitializeProjectile(
 		UAbilitySystemComponent* InSourceASC,
 		const FGameplayEffectSpecHandle& InEffectSpec,
-		AActor* ImTarget = nullptr);
+		AActor* InTarget,
+		const FVector& InLaunchDirection);
 
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Projectile",

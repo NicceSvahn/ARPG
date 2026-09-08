@@ -53,4 +53,7 @@ private:
     void PerformBash();
 
     void ApplyBashDamage();
+
+    UPROPERTY()
+    TObjectPtr<AActor> CurrentTargetActor = nullptr;
 };

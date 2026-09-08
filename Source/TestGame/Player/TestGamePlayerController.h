@@ -2,6 +2,9 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
+#include "GameplayTagContainer.h"
+#include "AbilitySystemBlueprintLibrary.h"
+#include "../AbilitySystem/AbilityInputContext.h"
 #include "TestGamePlayerController.generated.h"
 
 class UInputMappingContext;
@@ -11,6 +14,18 @@ DECLARE_DELEGATE_OneParam(
     FOnMoveIntoRangeCompleted,
     bool
 );
+
+USTRUCT(BlueprintType)
+struct FAbilityInputBinding
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+    TObjectPtr<UInputAction> InputAction;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta = (Categories = "Input.Ability"))
+    FGameplayTag InputTag;
+};
 
 UCLASS()
 class TESTGAME_API ATestGamePlayerController : public APlayerController
@@ -40,16 +55,13 @@ protected:
     UPROPERTY(EditDefaultsOnly, Category = "Input")
     TObjectPtr<UInputAction> ClickMoveAction;
 
-    UPROPERTY(EditDefaultsOnly, Category = "Input")
-    TObjectPtr<UInputAction> BashAction;
-
-    UPROPERTY(EditDefaultsOnly, Category = "Input")
-    TObjectPtr<UInputAction> FireballAction;
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+    TArray<FAbilityInputBinding> AbilityInputBindings;
 
 private:
     void OnClickMove();
-    void OnBashPressed();
-    void OnFireballPressed();
+
+    void OnAbilityInputPressed(FGameplayTag InputTag);
 
     void FinishMoveIntoRange(bool bSuccess);
 
@@ -59,5 +71,6 @@ private:
 
     bool bIsMovingToTarget = false;
     FOnMoveIntoRangeCompleted MoveCompletedDelegate;
+
 
 };
