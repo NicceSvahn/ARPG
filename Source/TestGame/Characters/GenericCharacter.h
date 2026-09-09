@@ -33,7 +33,6 @@ public:
 
 	AGenericCharacter();
 
-
 protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Abilities")
 	TArray<TSubclassOf<UGameplayAbility>> StartupAbilities;
