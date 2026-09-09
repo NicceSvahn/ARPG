@@ -1,0 +1,105 @@
+= Classes and Gameplay Abilities
+
+== Warrior
+
+*Attribute:* Strength
+
+*Resource:* Rage
+
+*Combat Type:* Melee
+
+=== Abilities
+
+* Bash
+
+
+== Mage
+
+*Attribute:* Intellect
+
+*Resource:* Mana
+
+*Combat Type:* Magic
+
+=== Abilities
+
+* Fireball
+
+
+== Ranger
+
+*Attribute:* Dexterity
+
+*Resource:* Energy / Mana
+
+*Combat Type:* Projectiles
+
+=== Abilities
+
+* Multishot
+
+
+== Creating and Assigning Gameplay Abilities
+
+The general flow for activating a Gameplay Ability is:
+
+[source,text]
+----
+Input / Event
+    -> Ability System Component (ASC)
+    -> Gameplay Ability
+    -> Gameplay Effect / World Effect
+----
+
+=== Creating a New Ability
+
+To create and assign a new Gameplay Ability:
+
+. Create `GA_<AbilityName>` in C++.
+. Implement the ability behavior in `ActivateAbility()`.
+. Create the relevant Gameplay Tags, for example:
++
+[source,text]
+----
+Input.Ability.Incinerate
+----
++
+Gameplay Tags can be created in:
++
+[source,text]
+----
+Edit -> Project Settings -> Gameplay Tags
+----
+
+. Add any required components or assets, such as:
+** Animation Montage
+** Projectile
+** Gameplay Effect
+** Cooldown
+** Resource Cost
+. Add the ability class to `StartupAbilities` on the character that should have access to the ability.
+. Connect an input or event to the ability's Gameplay Tag if the ability should be usable by the player.
+. Test the ability.
+
+
+=== Example: Whirlwind
+
+To create a new ability called `Whirlwind`:
+
+. Create `GA_Whirlwind` in C++ and implement `ActivateAbility()`.
+. Create the Gameplay Tag:
++
+[source,text]
+----
+Input.Ability.Whirlwind
+----
+
+. Add `GA_Whirlwind` to `StartupAbilities` on `BP_PlayerCharacter`.
+. Bind key `4` to:
++
+[source,text]
+----
+Input.Ability.Whirlwind
+----
+
+The ability is now assigned to the player and can be activated through the existing Gameplay Ability System.
