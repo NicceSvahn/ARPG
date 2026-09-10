@@ -30,8 +30,6 @@ AGenericProjectile::AGenericProjectile()
 
     ProjectileMovement = CreateDefaultSubobject<UProjectileMovementComponent>(TEXT("ProjectileMovement"));
 
-    ProjectileMovement->bInitialVelocityInLocalSpace = false;
-
     ProjectileMovement->UpdatedComponent = Collision;
     ProjectileMovement->InitialSpeed = 1200.0f;
     ProjectileMovement->MaxSpeed = 1200.0f;
@@ -69,10 +67,9 @@ void AGenericProjectile::InitializeProjectile(
 
     ProjectileMovement->bShouldBounce = false;
     ProjectileMovement->ProjectileGravityScale = 0.0f;
-    ProjectileMovement->bInitialVelocityInLocalSpace = false;
 
     const FVector LaunchDirection =
-        InDirection.GetSafeNormal2D();
+        InLaunchDirection.GetSafeNormal2D();
 
     if (LaunchDirection.IsNearlyZero())
     {
@@ -86,9 +83,6 @@ void AGenericProjectile::InitializeProjectile(
     }
 
     SetActorRotation(LaunchDirection.Rotation());
-
-    const FVector LaunchDirection =
-        InLaunchDirection.GetSafeNormal();
 
     ProjectileMovement->Velocity =
         LaunchDirection *
