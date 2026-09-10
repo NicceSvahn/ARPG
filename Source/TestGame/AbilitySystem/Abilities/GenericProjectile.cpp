@@ -72,7 +72,7 @@ void AGenericProjectile::InitializeProjectile(
     ProjectileMovement->bInitialVelocityInLocalSpace = false;
 
     const FVector LaunchDirection =
-        InDirection.GetSafeNormal2D();
+        InLaunchDirection.GetSafeNormal2D();
 
     if (LaunchDirection.IsNearlyZero())
     {
@@ -86,9 +86,6 @@ void AGenericProjectile::InitializeProjectile(
     }
 
     SetActorRotation(LaunchDirection.Rotation());
-
-    const FVector LaunchDirection =
-        InLaunchDirection.GetSafeNormal();
 
     ProjectileMovement->Velocity =
         LaunchDirection *

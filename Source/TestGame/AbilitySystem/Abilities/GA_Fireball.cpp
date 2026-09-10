@@ -110,9 +110,9 @@ void UGA_Fireball::ActivateAbility(
 
     // Actual projectile aim.
     const FVector ProjectileDirection =
-        (AimLocation - SpawnLocation).GetSafeNormal2D();
+        (TargetLocation - SpawnLocation).GetSafeNormal2D();
 
-    if (Direction.IsNearlyZero())
+    if (ProjectileDirection.IsNearlyZero())
     {
         UE_LOG(
             LogTemp,
@@ -129,7 +129,7 @@ void UGA_Fireball::ActivateAbility(
         return;
     }
 
-    Character->SetActorRotation(Direction.Rotation());
+    Character->SetActorRotation(ProjectileDirection.Rotation());
 
     if (ProjectileDirection.IsNearlyZero())
     {
