@@ -3,6 +3,7 @@
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
 
+#include "../../AI/EnemyAIController.h"
 #include "../../Characters/GenericCharacter.h"
 #include "../../Characters/EnemyCharacter.h"
 #include "../../Player/TestGamePlayerController.h"
@@ -37,6 +38,12 @@ void UGA_Bash::ActivateAbility(
 
     if (!ASC)
     {
+        UE_LOG(
+            LogTemp,
+            Error,
+            TEXT("BASH: Invalid TestGame ASC")
+        );
+
         EndAbility(
             Handle,
             ActorInfo,
@@ -48,17 +55,27 @@ void UGA_Bash::ActivateAbility(
         return;
     }
 
-    const FAbilityInputContext& Context =
+    // This context is populated by AbilityInputTagPressed().
+    const FAbilityInputContext& InputContext =
         ASC->GetAbilityInputContext();
 
-    CurrentTargetActor = Context.TargetActor;
+    CurrentTargetActor =
+        InputContext.TargetActor;
+
+    UE_LOG(
+        LogTemp,
+        Warning,
+        TEXT("BASH: User=%s Target=%s"),
+        *GetNameSafe(GetAvatarActorFromActorInfo()),
+        *GetNameSafe(CurrentTargetActor)
+    );
 
     if (!IsValid(CurrentTargetActor))
     {
         UE_LOG(
             LogTemp,
-            Warning,
-            TEXT("BASH: No valid target")
+            Error,
+            TEXT("BASH: Ability input context has no valid target")
         );
 
         EndAbility(
@@ -71,13 +88,6 @@ void UGA_Bash::ActivateAbility(
 
         return;
     }
-
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT("BASH: Target = %s"),
-        *GetNameSafe(CurrentTargetActor)
-    );
 
     if (IsTargetInRange())
     {
@@ -85,12 +95,20 @@ void UGA_Bash::ActivateAbility(
         return;
     }
 
+    // The enemy controller already handles its movement.
+    // If the target is outside Bash range, cancel this attempt.
     if (Cast<AEnemyCharacter>(GetGenericCharacter()))
     {
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT("BASH: Enemy target is outside range")
+        );
+
         EndAbility(
-            CurrentSpecHandle,
-            CurrentActorInfo,
-            CurrentActivationInfo,
+            Handle,
+            ActorInfo,
+            ActivationInfo,
             true,
             true
         );
@@ -98,6 +116,7 @@ void UGA_Bash::ActivateAbility(
         return;
     }
 
+    // Player-controlled characters can automatically move into range.
     RequestMoveIntoRange();
 }
 

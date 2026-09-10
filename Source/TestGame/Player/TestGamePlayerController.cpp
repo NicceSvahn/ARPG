@@ -244,5 +244,8 @@ void ATestGamePlayerController::OnAbilityInputPressed(FGameplayTag InputTag)
         Context.HitLocation = HitResult.ImpactPoint;
     }
 
-    ASC->AbilityInputTagPressed(InputTag, Context);
+    ASC->AbilityInputTagPressed(
+        InputTag,
+        Context
+    );
 }

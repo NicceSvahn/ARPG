@@ -15,13 +15,17 @@ class TESTGAME_API UTestGameAbilitySystemComponent : public UAbilitySystemCompon
     GENERATED_BODY()
 
 public:
-    
     const FAbilityInputContext& GetAbilityInputContext() const
     {
         return AbilityInputContext;
     }
 
     void AbilityInputTagPressed(const FGameplayTag& InputTag, const FAbilityInputContext& Context);
+
+    void SendAbilityEvent(
+        const FGameplayTag& EventTag,
+        const FAbilityInputContext& Context
+    );
 
 private:
 

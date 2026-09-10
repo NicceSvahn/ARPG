@@ -15,4 +15,11 @@ struct FGrantedAbility
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta = (Categories = "Input.Ability"))
     FGameplayTag InputTag;
+
+    UPROPERTY(
+        EditDefaultsOnly,
+        BlueprintReadOnly,
+        meta = (Categories = "Event.Ability")
+    )
+    FGameplayTag EventTag;
 };
