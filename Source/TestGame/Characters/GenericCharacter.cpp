@@ -48,6 +48,7 @@ void AGenericCharacter::BeginPlay()
 		HealthAttributeSet->OnAttributeChanged.AddDynamic(this, &AGenericCharacter::HandleAttributeChanged);
 
 		HealthAttributeSet->InitHealth(GetMaxHealth());
+		PreviousHealth = HealthAttributeSet->GetHealth();
 
 		OnHealthChanged.Broadcast(GetCurrentHealth(), GetMaxHealth());
 
@@ -69,6 +70,10 @@ void AGenericCharacter::HandleAttributeChanged(FGameplayAttribute Attribute, flo
 {
 	UE_LOG(LogTemp, Warning, TEXT("Attribute=%s,NewValue=%f"),*Attribute.GetName(), NewValue);
 
+	const float OldHealth = PreviousHealth;
+
+	PreviousHealth = NewValue;
+
 	OnHealthChanged.Broadcast(NewValue, GetMaxHealth());
 
 	if (Attribute == UHealthAttributeSet::GetHealthAttribute())
@@ -77,6 +82,21 @@ void AGenericCharacter::HandleAttributeChanged(FGameplayAttribute Attribute, flo
 		{
 			UE_LOG(LogTemp, Error, TEXT("Actor name=%s, DEAD! NewHealth=%f"), *GetName(), NewValue);
 			Destroy();
+		}
+
+		if (NewValue < OldHealth)
+		{
+			const float DamageAmount = OldHealth - NewValue;
+
+			OnDamageReceived.Broadcast(DamageAmount);
+
+			UE_LOG(
+				LogTemp,
+				Warning,
+				TEXT("%s RECEIVED DAMAGE: %f"),
+				*GetName(),
+				DamageAmount
+			);
 		}
 
 		return;

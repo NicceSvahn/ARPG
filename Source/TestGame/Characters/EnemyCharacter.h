@@ -9,6 +9,7 @@ class UAbilitySystemComponent;
 class UHealthAttributeSet;
 class UWidgetComponent;
 class UEnemyHealthBarWidget;
+class ADamageNumberActor;
 
 UCLASS()
 class TESTGAME_API AEnemyCharacter : public AGenericCharacter
@@ -18,6 +19,8 @@ class TESTGAME_API AEnemyCharacter : public AGenericCharacter
 public:
 	// Sets default values for this character's properties
 	AEnemyCharacter();
+
+	virtual void Tick(float DeltaTime) override;
 
 protected:
 	// Called when the game starts or when spawned
@@ -30,7 +33,13 @@ protected:
 
 	virtual void HandleAttributeChanged(FGameplayAttribute Attribute, float Magnitude, float NewHealth) override;
 
-public:
+	UPROPERTY(
+		EditDefaultsOnly,
+		Category = "Combat Text"
+	)
+	TSubclassOf<ADamageNumberActor> DamageNumberActorClass;
 
-	virtual void Tick(float DeltaTime) override;
+private:
+
+	void HandleDamageReceived(float DamageAmount);
 };
