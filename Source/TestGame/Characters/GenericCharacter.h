@@ -21,6 +21,11 @@ DECLARE_MULTICAST_DELEGATE_TwoParams(
 	float
 );
 
+DECLARE_MULTICAST_DELEGATE_OneParam(
+	FOnDamageReceived,
+	float
+);
+
 UCLASS()
 class TESTGAME_API AGenericCharacter : public ACharacter, public IAbilitySystemInterface
 {
@@ -46,7 +51,12 @@ public:
 	UFUNCTION()
 	virtual void HandleAttributeChanged(FGameplayAttribute Attribute, float Magnitude, float NewValue);
 
+	FOnDamageReceived OnDamageReceived;
+
 	AGenericCharacter();
+
+	// Called every frame
+	virtual void Tick(float DeltaTime) override;
 
 protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Abilities")
@@ -57,9 +67,7 @@ protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
-public:	
-	// Called every frame
-	virtual void Tick(float DeltaTime) override;
+private:	
 
-
+	float PreviousHealth = 0.0f;
 };

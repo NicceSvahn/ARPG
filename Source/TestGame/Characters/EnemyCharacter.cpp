@@ -4,6 +4,7 @@
 #include "TestGame/AbilitySystem/Attributes/HealthAttributeSet.h"
 #include "AbilitySystemComponent.h"
 #include "Components/WidgetComponent.h"
+#include "../UI/FloatingCombatText/DamageNumberActor.h"
 
 // Sets default values
 AEnemyCharacter::AEnemyCharacter()
@@ -29,6 +30,18 @@ AEnemyCharacter::AEnemyCharacter()
 void AEnemyCharacter::BeginPlay()
 {
 	Super::BeginPlay();	
+
+    UE_LOG(
+        LogTemp,
+        Warning,
+        TEXT("ENEMY BEGINPLAY: Binding damage event for %s"),
+        *GetName()
+    );
+
+    OnDamageReceived.AddUObject(
+        this,
+        &AEnemyCharacter::HandleDamageReceived
+    );
 
     if (HealthAttributeSet)
     {
@@ -67,4 +80,48 @@ void AEnemyCharacter::HandleAttributeChanged(FGameplayAttribute Attribute, float
     }
 
     RefreshHealthBar(NewHealth);
+}
+
+void AEnemyCharacter::HandleDamageReceived(
+    float DamageAmount)
+{
+
+    UE_LOG(
+        LogTemp,
+        Warning,
+        TEXT("ENEMY SCT DAMAGE: %f"),
+        DamageAmount
+    );
+
+    if (!DamageNumberActorClass)
+    {
+        return;
+    }
+
+    UWorld* World = GetWorld();
+
+    if (!World)
+    {
+        return;
+    }
+
+    const FVector SpawnLocation =
+        GetActorLocation() +
+        FVector(0.0f, 0.0f, 120.0f);
+
+    ADamageNumberActor* DamageNumber =
+        World->SpawnActor<ADamageNumberActor>(
+            DamageNumberActorClass,
+            SpawnLocation,
+            FRotator::ZeroRotator
+        );
+
+    if (!DamageNumber)
+    {
+        return;
+    }
+
+    DamageNumber->InitializeDamage(
+        DamageAmount
+    );
 }
