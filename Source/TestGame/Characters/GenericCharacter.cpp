@@ -81,82 +81,31 @@ void AGenericCharacter::Tick(float DeltaTime)
 
 void AGenericCharacter::GrantStartupAbilities()
 {
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT("GRANT START: %s | Count=%d"),
-        *GetName(),
-        StartupAbilities.Num()
-    );
+	if (!AbilitySystemComponent)
+	{
+		return;
+	}
 
-    if (!AbilitySystemComponent)
-    {
-        UE_LOG(
-            LogTemp,
-            Error,
-            TEXT("GRANT FAILED: NO ASC")
-        );
+	for (const FGrantedAbility& StartupAbility : StartupAbilities)
+	{
+		if (!StartupAbility.AbilityClass)
+		{
+			continue;
+		}
 
-        return;
-    }
+		FGameplayAbilitySpec AbilitySpec(
+			StartupAbility.AbilityClass);
 
-    for (int32 Index = 0; Index < StartupAbilities.Num(); ++Index)
-    {
-        const FGrantedAbility& StartupAbility = StartupAbilities[Index];
+		if (StartupAbility.InputTag.IsValid())
+		{
+			AbilitySpec
+				.GetDynamicSpecSourceTags()
+				.AddTag(StartupAbility.InputTag);
+		}
 
-        UE_LOG(
-            LogTemp,
-            Warning,
-            TEXT("GRANT ENTRY %d: Class=%s Tag=%s"),
-            Index,
-            *GetNameSafe(StartupAbility.AbilityClass),
-            *StartupAbility.InputTag.ToString()
-        );
+		AbilitySystemComponent->GiveAbility(
+			AbilitySpec);
+	}
 
-        if (!StartupAbility.AbilityClass)
-        {
-            UE_LOG(
-                LogTemp,
-                Error,
-                TEXT("GRANT ENTRY %d: AbilityClass is NULL"),
-                Index
-            );
-
-            continue;
-        }
-
-        FGameplayAbilitySpec AbilitySpec(
-            StartupAbility.AbilityClass
-        );
-
-        if (StartupAbility.InputTag.IsValid())
-        {
-            AbilitySpec
-                .GetDynamicSpecSourceTags()
-                .AddTag(StartupAbility.InputTag);
-        }
-
-        AbilitySystemComponent->GiveAbility(
-            AbilitySpec
-        );
-
-        UE_LOG(
-            LogTemp,
-            Warning,
-            TEXT("GRANTED: %s | Tag=%s"),
-            *GetNameSafe(StartupAbility.AbilityClass),
-            *StartupAbility.InputTag.ToString()
-        );
-    }
-
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT("GRANT END: ASC now has %d abilities"),
-        AbilitySystemComponent
-        ->GetActivatableAbilities()
-        .Num()
-    );
-
-    OnAbilitiesGranted.Broadcast();
+	AbilitySystemComponent->NotifyAbilityBarChanged();
 }

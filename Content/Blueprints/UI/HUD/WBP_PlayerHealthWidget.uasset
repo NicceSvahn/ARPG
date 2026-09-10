@@ -1,0 +1,178 @@
+  *     `
+ ׏v/  
+k  U  4  s[< ^7 H    ~q*& ` Od       
+  }i AO  QJ (   {" T  O& F ! Ђ a, 2ذ
+O  ~Ϭ J 6
+?t πD C   s %B^  FM $   yd D h   B  
+ 1 A F.(,/Game/Blueprints/UI/HUD/WBP_PlayerHealthBar  !CA8B103532BA15A008EBA13879A878CF !  + +w + , , 4 ,    <r{E 7rp .  4a++UE5+Release-5.8I++UE5+Release-5.8   Mh5z}    [ ~},/Game/Blueprints/UI/HUD/WBP_PlayerHealthBar `K /Script/CoreUObject I->/Script/Engine @ I/Script/SlateCore4az{/Script/UMGEditor ^I 
+AllWidgets % ArrayPropertyI  i
+BackgroundG  :bAllowDeletion   (bCanCallInitializedWithoutPlayerContext ha+bClassRequiresNativeTick iqbCommentBubblePinnedq.%LbCommentBubbleVisibleQ$<<bExpandedInDesigner  _ObHasScriptImplementedPaintM4 lbHasScriptImplementedTickK gLbIsVariable   UbLegacyNeedToPurgeSkelRefs  \;BlueprintGuid  UBlueprintSystemVersion t	+BlueprintType  bool.
+d 
+BoolProperty   Bottom  z bOverride_HeightOverride   bOverride_WidthOverrideiW  bOverrideFunction  [BPVariableDescription&BPVariableMetaDataEntryҖp 
+ByteProperty N- 	Category ~  CategorySorting Comment   
+COND_None  2)
+Constructwo  Content M6 CurrentHealth   ADefault  o>DefaultGraphNode   v
+DefaultValue  3	delegate    DeprecateSlateVector2De  K
+DisplayLabel  v DisplayNamez  B doubleۜ  DoubleProperty.tX EdGraphPinType w EEditedDocumentInfo _ EditedObjectPath A  EHorizontalAlignment ՋkELifetimeCondition d 
+EnabledState %N  Engine D ENodeEnabledState @  ENodeEnabledState::Disabled    
+EnumPropertyQם@Event Graph   EventReference   EVerticalAlignment=  !EWidgetCompileTimeTickPrediction  R+EWidgetCompileTimeTickPrediction::WillTickuƻ exec|  FillColorAndOpacity$j  floaty  FloatProperty    
+FriendlyName  
+GeneratedClass XT
+GraphGuid   vGuidCP hHAlign_FillA  
+HealthBarA  HeightOverride  W{HorizontalAlignment   6InDeltaTimeD 1TIntProperty  6J
+IsDesignTime  J	KeywordsC-N LastEditedDocuments Left/   LinearColorCsFMapProperty5    Margin  U
+MaxHealthPT/
+MemberName   
+MemberParent~ }<MemberReference~  ?MetaDataArrayRf ModuleRelativePathp" a
+MyGeometry  
+NameProperty  J
+NewVariables   NodeComment`$_ 	NodeGuidѬ 	NodePosYrF eNodes   lNone  
+ObjectPropertyA۳ OutputDelegatem MOverlayLlr PackageLocalizationNamespacety Padding4jq Parent; ӌParentClassݥ[Percent U 
+PreConstruct
+ $PPropertyFlags o PropertyGuids w realVɩ.ReplicationConditiono   RepNotifyFunc  ԒRight
+ )l
+RootWidgete 9SavedViewOffset|  DSavedZoomAmount_   Schema   wSizeBox v SKEL_WBP_PlayerHealthBar_C   SlotQ!  SlotsO Z SoftObjectPath ۡStrProperty; r$ struct ! XStructProperty0  
+TextProperty :t then  ҀTick uNTickPrediction/| mTickPredictionReason = |ToolTip    Top _  UbergraphPages# 3UInt64Property^p\lVAlign_Fill 1 VarGuid 1ĀVarName |1VarTypeG'L
+VerticalAlignment4  0WBP Player Health BarԀH WBP_PlayerHealthBar   WBP_PlayerHealthBar_C    
+WidgetTreek)  WidgetVariableNameToGuidMap  | WidthOverride & 9/Script/BlueprintGraph  |D/Script/TestGameZfG/Script/UMG6]  Classtwx Default__HealthBarWidget;<ɑDefault__WBP_PlayerHealthBar_C+I  Default__WidgetBlueprintL 9EdGrapho ]EdGraphSchema_K2   
+
+EventGraph] ]	GeometryWB{HealthBarWidget8 1Image>E 
+K2Node_Events Z ObjecteK OverlaySlot \lPackagesG ProgressBarW#Q 
+ScriptStructK  SizeBoxSlot 7 )
+UserWidget
+ }vWidgetBlueprintO^əWidgetBlueprintGeneratedClassv̠ 
+EventGrapht  EventGraph.K2Node_Event_0 EventGraph.K2Node_Event_1 EventGraph.K2Node_Event_2tTickt	ConstructtPreConstruct NewMacro.K2Node_Tunnel_0 NewMacro.K2Node_Tunnel_1 "NewFunction.K2Node_FunctionEntry_0
+truetrue&true&true&trueUser Interface  /**
+	 * Ticks this widget.  Override in derived classes, but always call the parent implementation.
+	 *
+	 * @param  MyGeometry The space allotted for this widget
+	 * @param  InDeltaTime  Real time passed since last tick
+	 */WPublic/Blueprint/UserWidget.h  Ticks this widget.  Override in derived classes, but always call the parent implementation.
+
+@param  MyGeometry The space allotted for this widget
+@param  InDeltaTime  Real time passed since last tick User Interface /**
+	 * Called after the underlying slate widget is constructed.  Depending on how the slate object is used
+	 * this event may be called multiple times due to adding and removing from the hierarchy.
+	 * If you need a true called-once-when-created event, use OnInitialized.
+	 */L
+Begin PlayWPublic/Blueprint/UserWidget.h Called after the underlying slate widget is constructed.  Depending on how the slate object is used
+this event may be called multiple times due to adding and removing from the hierarchy.
+If you need a true called-once-when-created event, use OnInitialized.User Interface  /**
+	 * Called by both the game and the editor.  Allows users to run initial setup for their widgets to better preview
+	 * the setup in the designer and since generally that same setup code is required at runtime, it's called there
+	 * as well.
+	 *
+	 * **WARNING**
+	 * This is intended purely for cosmetic updates using locally owned data, you can not safely access any game related
+	 * state, if you call something that doesn't expect to be run at editor time, you may crash the editor.
+	 *
+	 * In the event you save the asset with blueprint code that causes a crash on evaluation.  You can turn off
+	 * PreConstruct evaluation in the Widget Designer settings in the Editor Preferences.
+	 */WPublic/Blueprint/UserWidget.h  Called by both the game and the editor.  Allows users to run initial setup for their widgets to better preview
+the setup in the designer and since generally that same setup code is required at runtime, it's called there
+as well.
+
+**WARNING**
+This is intended purely for cosmetic updates using locally owned data, you can not safely access any game related
+state, if you call something that doesn't expect to be run at editor time, you may crash the editor.
+
+In the event you save the asset with blueprint code that causes a crash on evaluation.  You can turn off
+PreConstruct evaluation in the Widget Designer settings in the Editor Preferences.	&true
+&true
+&truec!CA8B103532BA15A008EBA13879A878CF      _      _      _      _      _      _     b_      _      _     s_      _      _      _      _      _       _  _ _ _ _  _  _ _      _      _       _      [          k [    g     k4\    g     = \          s `           Od         b
+t i    p    b
+tRj    p        j           fk    b       l          f m    b    F o         F  o         s$ bp         s$ !q          G q    C     G'r    C 9 nr          
+  s               	 {          	c |    _     *P}    &		
+  
+
+      
+   >    JFIF  C
+
+ 
+
+	
+
+
+
+")$+*($''-2@7-0=0''8L9=CEHIH+6OUNFT@GHE  C
+
+!!E.'.EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE  "   	
+
+   }!1AQa "q2   #B  R  $3br 	
+%&'()*456789:CDEFGHIJSTUVWXYZcdefghijstuvwxyz                                                                            	
+
+    w!1AQ aq"2 B    	#3R br 
+$4 % &'()*56789:CDEFGHIJSTUVWXYZcdefghijstuvwxyz                                                                          ? h  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  ( rhɯ            H  rhɣ   ~ C   H  rhɣ   ~ C   H  rhɣ   ~ C   H  rhɣ   ~ C   H  rhɣ   ~ C   H  rhɣ   ~ C   H  rhɣ   ~ C   H  rhɣ   ~ C   H  rhɣ   ~ C   H  rhɣ   ~ C   H  rhɣ   ~ C   H  rhɣ   ~ C   H  rhɣ   ~ C   H  rhɣ   ~ C   H  rhɣ   ~ C   B (  8  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (   )QEQEQEQEQEQEQEQEQEQEQEQEQEQEQEQE(  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (    J(h    J(h    J(h    J(h    J(h    J(h    J(h    J(  )QEQEQEQEQEQEQEQEQEQEQEQEQEQEQEQEQEQEQEQEQEQEQEQEQEQEQEQEQEQEQEQE (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  @QEQEQEQEQEQEQEQEQEQEQEQEQEQEQE&E +            2) Q      }W vE (      >  ;"  ml s   U  FE6 ?        ȣ" E ?     | dQ M    ~?  c (Ȧ G   ?  _1 dSh  g        2) Q      }W vE (      >  ;"  ml s   U  FE6 ?        ȣ" E ?     | dQ M    ~?  c (Ȧ G   ?  _0  + ; (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (  (   WidgetBlueprintWBP_PlayerHealthBar ,WidgetBlueprintGeneratedClassWBP_PlayerHealthBar_C 4 ZWBP_PlayerHealthBar"/Script/UMGEditor.WidgetBlueprintAvailableNamedSlotsBlueprintCategoryBlueprintDescriptionBlueprintDisplayNameBlueprintNamespaceBlueprintPathWBP_PlayerHealthBarBlueprintTypeBPTYPE_Normal
+ClassFlags	14948352FiBData     
+:	GjoeJoCmvfqsjouNbobhfsQspqfsujftQspqfsujft	GjoeJoCmvfqsjouNbobhfsObnfObnfDvssfou!Ifbmui	GjoeJoCmvfqsjouNbobhfs	Uppmujq	Uppmujq	GjoeJoCmvfqsjouNbobhfs
+QjoDbufhpsz
+QjoDbufhpsz sfbm	GjoeJoCmvfqsjouNbobhfs
+TvcDbufhpsz
+TvcDbufhpsz	epvcmf
+	GjoeJoCmvfqsjouNbobhfs	JtBssbz	JtBssbz
+	GjoeJoCmvfqsjouNbobhfs
+JtSfgfsfodf
+JtSfgfsfodfEfgbvmuWbmvf
+Nby!Ifbmui	GjoeJoCmvfqsjouNbobhfsVcfsVcfs	LjtnfuTdifnbHsbqiEjtqmbzObnf`FwfouHsbqiFwfouHsbqi	GjoeJoCmvfqsjouNbobhfs
+Eftdsjqujpo
+Eftdsjqujpo	
+CmvfqsjouOpHsbqiUppmujq)Opof*	GjoeJoCmvfqsjouNbobhfs Opeft Opeft	L3OpefFwfou`ObnfFwfou!|GvodujpoObnf~GvodujpoObnfQsfDpotusvdu	GjoeJoCmvfqsjouNbobhfs
+DmbttObnf
+DmbttObnfL3Opef`Fwfou	GjoeJoCmvfqsjouNbobhfs
+OpefHvje
+OpefHvje"1E::F32B5F31D91CF56GC4CG42712DD1	GjoeJoCmvfqsjouNbobhfsTdifnbObnfTdifnbObnfFeHsbqiTdifnb`L3	GjoeJoCmvfqsjouNbobhfs Hmzqi HmzqiHsbqiFejups/Fwfou`27y	GjoeJoCmvfqsjouNbobhfsHmzqiTuzmfTfuHmzqiTuzmfTfu
+FejupsTuzmf	GjoeJoCmvfqsjouNbobhfsHmzqiDpmpsHmzqiDpmps/)S>2/111111-H>2/111111-C>2/111111-B>2/111111* 	GjoeJoCmvfqsjouNbobhfs	Dpnnfou	Dpnnfou!UUijt!opef!jt!ejtbcmfe!boe!xjmm!opu!cf!dbmmfe/
+Esbh!pgg!qjot!up!cvjme!gvodujpobmjuz/"	GjoeJoCmvfqsjouNbobhfsObujwfObnf
+Obujwf!Obnf#QsfDpotusvdu$	GjoeJoCmvfqsjouNbobhfsGvodPsjhjoDmbttGvodPsjhjoDmbtt%0Tdsjqu0VNH/VtfsXjehfu&	GjoeJoCmvfqsjouNbobhfsQjotQjot'Pvuqvu!Efmfhbuf(
+efmfhbuf)fyfd*Jt!Eftjho!Ujnf+ gbmtf,cppm-	L3OpefFwfou`ObnfFwfou!|GvodujpoObnf~GvodujpoObnf
+Dpotusvdu."37686DG:57BBE38:11B12F9E769462C9/
+Dpotusvdu0	L3OpefFwfou`ObnfFwfou!|GvodujpoObnf~GvodujpoObnfUjdl1"C27GC:125DG88:42:6DEECBCD657:37:2Ujdl3
+Nz!Hfpnfusz4tusvdu5	GjoeJoCmvfqsjouNbobhfs
+PckfduDmbtt
+PckfduDmbtt60Tdsjqu0TmbufDpsf/Hfpnfusz7Jo!Efmub!Ujnf81/19 gmpbu{"0":[{"1":"2","3":"4","5":"6","7":"8","9":false,"10":0,"11":75},{"1":"12","3":"4","5":"6","7":"8","9":false,"10":0,"11":100}],"13":[{"1":"14","15":"16","17":[{"1":"18","19":"20","21":"22","23":"24","25":"26","27":"28","29":"30","31":"32","33":"34","35":"36","37":[{"1":"38","11":"4","5":"39","9":false,"10":0},{"1":"4","11":"4","5":"40","9":false,"10":0},{"1":"41","11":"42","5":"43","9":false,"10":0}]},{"1":"44","19":"20","21":"45","23":"24","25":"26","27":"28","29":"30","31":"32","33":"46","35":"36","37":[{"1":"38","11":"4","5":"39","9":false,"10":0},{"1":"4","11":"4","5":"40","9":false,"10":0}]},{"1":"47","19":"20","21":"48","23":"24","25":"26","27":"28","29":"30","31":"32","33":"49","35":"36","37":[{"1":"38","11":"4","5":"39","9":false,"10":0},{"1":"4","11":"4","5":"40","9":false,"10":0},{"1":"50","11":"4","5":"51","52":"53","9":false,"10":0},{"1":"54","11":"55","5":"6","7":"56","9":false,"10":0}]}],"0":[]}]}GeneratedClassm/Script/UMG.WidgetBlueprintGeneratedClass'/Game/Blueprints/UI/HUD/WBP_PlayerHealthBar.WBP_PlayerHealthBar_C'ImplementedInterfacesImportedNamespaces()
+IsDataOnlyFalseNativeParentClass</Script/CoreUObject.Class'/Script/TestGame.HealthBarWidget'NumReplicatedProperties0PaletteCategoryParentClass</Script/CoreUObject.Class'/Script/TestGame.HealthBarWidget'PropertyBindings0TickFrequencyAutoTickPrediction	WillTickTickPredictionReason NativeWBP_PlayerHealthBar_C*/Script/UMG.WidgetBlueprintGeneratedClassAvailableNamedSlotsBlueprintTypeBPTYPE_Normal
+ClassFlags	14948352
+ModuleNameWBP_PlayerHealthBarModuleRelativePathNativeParentClass</Script/CoreUObject.Class'/Script/TestGame.HealthBarWidget'NumReplicatedProperties0ParentClass</Script/CoreUObject.Class'/Script/TestGame.HealthBarWidget'  2r`    ^`CzDu~$  i4I  ϐAM_u`	*x
+Background_u`
+*x
+Background_9zUFT`    SYh_3756
+[xXTThis node is disabled and will not be called.
+Drag off pins to build functionality.\zD 
+
+  N  _  `1_g b2E ;C   @ g b2E ;C   @ a     (_    h  ƞ l}I  M͇ r  ƞ l}I  M͇ r |     =__ I-"7f @ } @  FI-"7f @ } @  FK     Is Design Time
+Boolean__falsefalse 9zUFT`    SY"_]J 3756
+[xXTThis node is disabled and will not be called.
+Drag off pins to build functionality.\zD \W&yҪF   Q e_ 
+ #
+eG   _:  S 
+ #
+eG   _:  Sa     (_    "     .4N    ,      .4N    ,  |     =__ 9zUFT`    SY}_]J 3756
+[xXTThis node is disabled and will not be called.
+Drag off pins to build functionality.\zD o 1y L  ͕i F _ O%t # C LU nn O%t # C LU nna     (_    } T 7    @ ^ _  T 7    @ ^ _  |     =__ d쐵b  H 6r c$ d쐵b  H 6r c$ X     CMy Geometry
+Geometry Structure
+
+The space allotted for this widgety_    _  w   8@ IWv}   w   8@ IWv}  I     IIn Delta Time
+Float (single-precision)
+
+Real time passed since last tickk?_0.00.0 v`	
+u`
+_v`
+u`
+_H1E : e` #`_dzQ|N@@@ @@@n@@@@@@_H1E : e` #`
+_H1E : e`#`_dzQ|N@@@ @@@n@@@@@@_H1E : e`#`_g@ ?>zO ?  += ?u`
+*x
+HealthBar_g@ ?>zO ?  += ?u`*x
+HealthBar_ @HCG@ Bv`
+_ @HCG@ Bv`
+_e`#` _e`#`_$-[ W
+ LC f % sa R@R-53 bg C  8   %Y@_ PYzDhs$= `1W G       nb
+ ɻ  cK ;  섲   X2  6D  Y F |GR3 J  JS)C 	~7;<x
+ Native `f`    J `Zz` Y$ zD[ W
+ LC f % sa z.Ek,_AxCurrent Health{2
+KismetSchemaDefaultDefaulti mY_l2!Vz'x_ YR zD53 bg C  8   % z.Ek,_Ax
+Max Health{2
+KismetSchemaDefaultDefaulti mY_l2!Vz'x_Y$8%_ Mz/ 0zwpz)  o Ь q@ ?_B`zDoh-`   G ?  <  _ `
+	jPYzD8R53 bg C  8   %$[ W
+ LC f % sa_    -$+Current HealthDefault_-R+
+Max HealthDefault_     4_o`` 
+_o`_  *     .;  v 8Qʿ)0  * 

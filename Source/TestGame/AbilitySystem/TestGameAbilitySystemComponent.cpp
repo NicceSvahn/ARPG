@@ -26,39 +26,30 @@ void UTestGameAbilitySystemComponent::AbilityInputTagPressed(
     }
 }
 
-UGameplayAbility* UTestGameAbilitySystemComponent::GetAbilityForInputTag(
+UGameplayAbility*
+UTestGameAbilitySystemComponent::GetAbilityForInputTag(
     const FGameplayTag& InputTag) const
 {
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT("LOOKUP TAG: %s | Ability count: %d"),
-        *InputTag.ToString(),
-        GetActivatableAbilities().Num()
-    );
-
-    for (const FGameplayAbilitySpec& AbilitySpec : GetActivatableAbilities())
+    if (!InputTag.IsValid())
     {
-        UE_LOG(
-            LogTemp,
-            Warning,
-            TEXT("ABILITY: %s | Tags: %s"),
-            *GetNameSafe(AbilitySpec.Ability),
-            *AbilitySpec.GetDynamicSpecSourceTags().ToString()
-        );
+        return nullptr;
+    }
 
-        if (AbilitySpec.GetDynamicSpecSourceTags().HasTagExact(InputTag))
+    for (const FGameplayAbilitySpec& AbilitySpec :
+        GetActivatableAbilities())
+    {
+        if (AbilitySpec
+            .GetDynamicSpecSourceTags()
+            .HasTagExact(InputTag))
         {
-            UE_LOG(
-                LogTemp,
-                Warning,
-                TEXT("FOUND: %s"),
-                *GetNameSafe(AbilitySpec.Ability)
-            );
-
             return AbilitySpec.Ability;
         }
     }
 
     return nullptr;
+}
+
+void UTestGameAbilitySystemComponent::NotifyAbilityBarChanged()
+{
+    OnAbilityBarChanged.Broadcast();
 }

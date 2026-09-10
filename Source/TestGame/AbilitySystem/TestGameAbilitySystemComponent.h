@@ -8,6 +8,9 @@
 
 #include "TestGameAbilitySystemComponent.generated.h"
 
+class UGameplayAbility;
+
+DECLARE_MULTICAST_DELEGATE(FOnAbilityBarChanged);
 
 UCLASS()
 class TESTGAME_API UTestGameAbilitySystemComponent : public UAbilitySystemComponent
@@ -23,8 +26,11 @@ public:
 
     void AbilityInputTagPressed(const FGameplayTag& InputTag, const FAbilityInputContext& Context);
 
-    UFUNCTION(BlueprintCallable, Category = "Abilities")
     UGameplayAbility* GetAbilityForInputTag(const FGameplayTag& InputTag) const;
+
+    void NotifyAbilityBarChanged();
+
+    FOnAbilityBarChanged OnAbilityBarChanged;
 
 private:
 

@@ -5,10 +5,13 @@
 #include "GameplayTagContainer.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "../AbilitySystem/AbilityInputContext.h"
+#include "../UI/PlayerHudWidget.h"
+
 #include "TestGamePlayerController.generated.h"
 
 class UInputMappingContext;
 class UInputAction;
+class UPlayerHudWidget;
 
 DECLARE_DELEGATE_OneParam(
     FOnMoveIntoRangeCompleted,
@@ -58,6 +61,12 @@ protected:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
     TArray<FAbilityInputBinding> AbilityInputBindings;
 
+    virtual void OnPossess(APawn* InPawn) override;
+    virtual void OnRep_Pawn() override;
+
+    UPROPERTY(EditDefaultsOnly, Category = "UI")
+    TSubclassOf<UPlayerHudWidget> PlayerHudWidgetClass;
+
 private:
     void OnClickMove();
 
@@ -72,5 +81,9 @@ private:
     bool bIsMovingToTarget = false;
     FOnMoveIntoRangeCompleted MoveCompletedDelegate;
 
+    void TryInitializeHud();
+
+    UPROPERTY()
+    TObjectPtr<UPlayerHudWidget> PlayerHudWidget;
 
 };
