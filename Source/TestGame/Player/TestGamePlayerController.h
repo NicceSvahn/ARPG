@@ -6,6 +6,7 @@
 
 class UInputMappingContext;
 class UInputAction;
+class UPlayerHudWidget;
 
 DECLARE_DELEGATE_OneParam(
     FOnMoveIntoRangeCompleted,
@@ -45,6 +46,12 @@ protected:
 
     UPROPERTY(EditDefaultsOnly, Category = "Input")
     TObjectPtr<UInputAction> FireballAction;
+
+    UPROPERTY(EditDefaultsOnly, Category = "HUD")
+    TSubclassOf<UPlayerHudWidget> PlayerHudWidgetClass;
+
+    UPROPERTY()
+    TObjectPtr<UPlayerHudWidget> PlayerHudWidget;
 
 private:
     void OnClickMove();
