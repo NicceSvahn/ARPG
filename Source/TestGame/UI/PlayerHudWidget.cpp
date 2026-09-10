@@ -1,4 +1,4 @@
-#include "PlayerHUDWidget.h"
+#include "PlayerHudWidget.h"
 
 #include "AbilitySlotWidget.h"
 
@@ -117,7 +117,7 @@ void UPlayerHudWidget::NativeDestruct()
 {
     if (AbilitySystemComponent &&
         AbilityBarChangedHandle.IsValid())
-    {
+{
         AbilitySystemComponent
             ->OnAbilityBarChanged
             .Remove(AbilityBarChangedHandle);

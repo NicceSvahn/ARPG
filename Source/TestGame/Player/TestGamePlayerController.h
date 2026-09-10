@@ -64,7 +64,7 @@ protected:
     virtual void OnPossess(APawn* InPawn) override;
     virtual void OnRep_Pawn() override;
 
-    UPROPERTY(EditDefaultsOnly, Category = "UI")
+    UPROPERTY(EditDefaultsOnly, Category = "HUD")
     TSubclassOf<UPlayerHudWidget> PlayerHudWidgetClass;
 
 private:

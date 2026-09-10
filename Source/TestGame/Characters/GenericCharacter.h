@@ -37,7 +37,6 @@ public:
 
 	AGenericCharacter();
 
-
 protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Abilities")
 	TArray<FGrantedAbility> StartupAbilities;

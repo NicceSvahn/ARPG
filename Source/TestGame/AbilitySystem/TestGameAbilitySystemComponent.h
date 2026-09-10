@@ -18,7 +18,6 @@ class TESTGAME_API UTestGameAbilitySystemComponent : public UAbilitySystemCompon
     GENERATED_BODY()
 
 public:
-    
     const FAbilityInputContext& GetAbilityInputContext() const
     {
         return AbilityInputContext;
@@ -31,6 +30,11 @@ public:
     void NotifyAbilityBarChanged();
 
     FOnAbilityBarChanged OnAbilityBarChanged;
+
+    void SendAbilityEvent(
+        const FGameplayTag& EventTag,
+        const FAbilityInputContext& Context
+    );
 
 private:
 

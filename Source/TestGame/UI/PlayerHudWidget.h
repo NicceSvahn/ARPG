@@ -29,7 +29,7 @@ protected:
 
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UHealthBarWidget> WBP_PlayerHealthBar;
-
+	
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UHorizontalBox> HP_AbilityBar;
 
