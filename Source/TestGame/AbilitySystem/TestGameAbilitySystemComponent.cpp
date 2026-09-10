@@ -1,4 +1,6 @@
 #include "TestGameAbilitySystemComponent.h"
+#include "GameplayEffect.h"
+#include "GameplayEffectTypes.h"
 
 #include "Abilities/GameplayAbilityTypes.h"
 
@@ -97,4 +99,37 @@ void UTestGameAbilitySystemComponent::SendAbilityEvent(
         EventTag,
         &EventData
     );
+}
+
+float UTestGameAbilitySystemComponent::GetRemainingCooldown(
+    const FGameplayTag& CooldownTag) const
+{
+    if (!CooldownTag.IsValid())
+    {
+        return 0.0f;
+    }
+
+    FGameplayTagContainer Tags;
+    Tags.AddTag(CooldownTag);
+
+    const FGameplayEffectQuery Query =
+        FGameplayEffectQuery::MakeQuery_MatchAnyOwningTags(
+            Tags
+        );
+
+    const TArray<float> Times =
+        GetActiveEffectsTimeRemaining(Query);
+
+    float LongestRemainingTime = 0.0f;
+
+    for (const float TimeRemaining : Times)
+    {
+        LongestRemainingTime =
+            FMath::Max(
+                LongestRemainingTime,
+                TimeRemaining
+            );
+    }
+
+    return LongestRemainingTime;
 }

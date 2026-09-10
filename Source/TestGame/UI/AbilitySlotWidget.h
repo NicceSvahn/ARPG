@@ -8,6 +8,7 @@
 class UImage;
 class UTextBlock;
 class UTestGameAbilitySystemComponent;
+class UBorder;
 
 UCLASS()
 class TESTGAME_API UAbilitySlotWidget : public UUserWidget
@@ -29,10 +30,23 @@ protected:
     UPROPERTY(meta = (BindWidget))
     TObjectPtr<UTextBlock> InputText;
 
+    UPROPERTY(meta = (BindWidget))
+    TObjectPtr<UBorder> CooldownOverlay;
+
+    UPROPERTY(meta = (BindWidget))
+    TObjectPtr<UTextBlock> CooldownText;
+
+    virtual void NativeTick(
+        const FGeometry& MyGeometry,
+        float InDeltaTime
+    ) override;
+
 private:
     UPROPERTY()
     TObjectPtr<UTestGameAbilitySystemComponent>
         AbilitySystemComponent;
 
     FGameplayTag InputTag;
+
+    void RefreshCooldown();
 };

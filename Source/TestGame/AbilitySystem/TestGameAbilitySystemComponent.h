@@ -36,6 +36,10 @@ public:
         const FAbilityInputContext& Context
     );
 
+    float GetRemainingCooldown(
+        const FGameplayTag& CooldownTag
+    ) const;
+
 private:
 
     FAbilityInputContext AbilityInputContext;
