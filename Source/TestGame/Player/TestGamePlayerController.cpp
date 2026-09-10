@@ -315,5 +315,5 @@ void ATestGamePlayerController::TryInitializeHud()
         PlayerHudWidget->AddToViewport();
     }
 
-    PlayerHudWidget->InitializeHud(ASC);
+    PlayerHudWidget->InitializeHud(PlayerCharacter);
 }

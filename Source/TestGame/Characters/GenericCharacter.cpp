@@ -45,17 +45,31 @@ void AGenericCharacter::BeginPlay()
 
 	if (HealthAttributeSet)
 	{
-
-		HealthAttributeSet->InitHealth(InitialHealth);
-		UE_LOG(LogTemp, Warning, TEXT("BeginPlay Health=%f"), HealthAttributeSet->GetHealth());
-
 		HealthAttributeSet->OnAttributeChanged.AddDynamic(this, &AGenericCharacter::HandleAttributeChanged);
+
+		HealthAttributeSet->InitHealth(GetMaxHealth());
+
+		OnHealthChanged.Broadcast(GetCurrentHealth(), GetMaxHealth());
+
+		UE_LOG(LogTemp, Warning, TEXT("BeginPlay Health=%f"), HealthAttributeSet->GetHealth());
 	}
+}
+
+float AGenericCharacter::GetCurrentHealth() const
+{
+	return HealthAttributeSet ? HealthAttributeSet->GetHealth() : 0.0f;
+}
+
+float AGenericCharacter::GetMaxHealth() const
+{
+	return InitialHealth;
 }
 
 void AGenericCharacter::HandleAttributeChanged(FGameplayAttribute Attribute, float Magnitude, float NewValue)
 {
 	UE_LOG(LogTemp, Warning, TEXT("Attribute=%s,NewValue=%f"),*Attribute.GetName(), NewValue);
+
+	OnHealthChanged.Broadcast(NewValue, GetMaxHealth());
 
 	if (Attribute == UHealthAttributeSet::GetHealthAttribute())
 	{

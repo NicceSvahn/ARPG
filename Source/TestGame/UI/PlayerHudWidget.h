@@ -8,6 +8,7 @@
 class UHorizontalBox;
 class UAbilitySlotWidget;
 class UTestGameAbilitySystemComponent;
+class AGenericCharacter;
 
 UCLASS()
 class TESTGAME_API UPlayerHudWidget : public UUserWidget
@@ -18,7 +19,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "HUD|Health")
 	void SetHealth(float CurrentHealth, float MaxHealth);
 
-	void InitializeHud(UTestGameAbilitySystemComponent* InASC);
+	void InitializeHud(AGenericCharacter* InCharacter);
 
 	void RefreshAbilitySlots();
 
@@ -27,7 +28,7 @@ protected:
 
 	virtual void NativeDestruct() override;
 
-	UPROPERTY(meta = (BindWidget))
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	TObjectPtr<UHealthBarWidget> WBP_PlayerHealthBar;
 	
 	UPROPERTY(meta = (BindWidget))
@@ -50,4 +51,8 @@ private:
 
 	FDelegateHandle AbilityBarChangedHandle;
 
+	UPROPERTY()
+	TObjectPtr<AGenericCharacter> PlayerCharacter;
+
+	FDelegateHandle HealthChangedHandle;
 };

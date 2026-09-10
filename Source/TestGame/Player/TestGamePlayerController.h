@@ -67,6 +67,9 @@ protected:
     UPROPERTY(EditDefaultsOnly, Category = "HUD")
     TSubclassOf<UPlayerHudWidget> PlayerHudWidgetClass;
 
+    UPROPERTY()
+    TObjectPtr<UPlayerHudWidget> PlayerHudWidget;
+
 private:
     void OnClickMove();
 
@@ -82,8 +85,5 @@ private:
     FOnMoveIntoRangeCompleted MoveCompletedDelegate;
 
     void TryInitializeHud();
-
-    UPROPERTY()
-    TObjectPtr<UPlayerHudWidget> PlayerHudWidget;
 
 };

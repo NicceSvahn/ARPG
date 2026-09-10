@@ -65,13 +65,6 @@ void UTestGameAbilitySystemComponent::NotifyAbilityBarChanged()
 {
     OnAbilityBarChanged.Broadcast();
 }
-    UE_LOG(
-        LogTemp,
-        Error,
-        TEXT("No granted ability found for tag %s"),
-        *InputTag.ToString()
-    );
-}
 
 void UTestGameAbilitySystemComponent::SendAbilityEvent(
     const FGameplayTag& EventTag,

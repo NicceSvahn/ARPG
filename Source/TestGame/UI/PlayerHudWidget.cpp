@@ -5,13 +5,14 @@
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
 
+#include "../Characters/GenericCharacter.h"
 #include "../AbilitySystem/TestGameAbilitySystemComponent.h"
 #include "HealthBarWidget.h"
 
 void UPlayerHudWidget::InitializeHud(
-    UTestGameAbilitySystemComponent* InASC)
+    AGenericCharacter* InCharacter)
 {
-    if (!InASC)
+    if (!InCharacter)
     {
         return;
     }
@@ -24,7 +25,23 @@ void UPlayerHudWidget::InitializeHud(
             .Remove(AbilityBarChangedHandle);
     }
 
-    AbilitySystemComponent = InASC;
+    if (PlayerCharacter &&
+        HealthChangedHandle.IsValid())
+    {
+        PlayerCharacter
+            ->OnHealthChanged
+            .Remove(HealthChangedHandle);
+    }
+
+    PlayerCharacter = InCharacter;
+
+    AbilitySystemComponent =
+        PlayerCharacter->GetAbilitySystemComponent();
+
+    if (!AbilitySystemComponent)
+    {
+        return;
+    }
 
     AbilityBarChangedHandle =
         AbilitySystemComponent
@@ -33,9 +50,21 @@ void UPlayerHudWidget::InitializeHud(
             this,
             &UPlayerHudWidget::RefreshAbilitySlots);
 
+    HealthChangedHandle =
+        PlayerCharacter
+        ->OnHealthChanged
+        .AddUObject(
+            this,
+            &UPlayerHudWidget::SetHealth);
+
     BuildAbilitySlots();
 
     RefreshAbilitySlots();
+
+    SetHealth(
+        PlayerCharacter->GetCurrentHealth(),
+        PlayerCharacter->GetMaxHealth()
+    );
 }
 
 void UPlayerHudWidget::BuildAbilitySlots()
@@ -113,18 +142,6 @@ void UPlayerHudWidget::RefreshAbilitySlots()
     }
 }
 
-void UPlayerHudWidget::NativeDestruct()
-{
-    if (AbilitySystemComponent &&
-        AbilityBarChangedHandle.IsValid())
-{
-        AbilitySystemComponent
-            ->OnAbilityBarChanged
-            .Remove(AbilityBarChangedHandle);
-    }
-
-    Super::NativeDestruct();
-}
 
 void UPlayerHudWidget::SetHealth(float CurrentHealth, float MaxHealth)
 {
@@ -147,5 +164,26 @@ void UPlayerHudWidget::NativeConstruct()
 {
     Super::NativeConstruct();
 
-    SetHealth(100.0f, 100.0f);
+    SetHealth(100.f, 100.f);
+}
+
+void UPlayerHudWidget::NativeDestruct()
+{
+    if (AbilitySystemComponent &&
+        AbilityBarChangedHandle.IsValid())
+    {
+        AbilitySystemComponent
+            ->OnAbilityBarChanged
+            .Remove(AbilityBarChangedHandle);
+    }
+
+    if (PlayerCharacter &&
+        HealthChangedHandle.IsValid())
+    {
+        PlayerCharacter
+            ->OnHealthChanged
+            .Remove(HealthChangedHandle);
+    }
+
+    Super::NativeDestruct();
 }
