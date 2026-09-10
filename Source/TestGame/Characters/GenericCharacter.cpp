@@ -29,6 +29,14 @@ void AGenericCharacter::BeginPlay()
 			*GetNameSafe(AbilitySystemComponent->GetAvatarActor())
 		);
 
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("STARTUP COUNT=%d AUTHORITY=%s"),
+			StartupAbilities.Num(),
+			HasAuthority() ? TEXT("TRUE") : TEXT("FALSE")
+		);
+
 		if (HasAuthority())
 		{
 			GrantStartupAbilities();
@@ -73,34 +81,82 @@ void AGenericCharacter::Tick(float DeltaTime)
 
 void AGenericCharacter::GrantStartupAbilities()
 {
-	if (!AbilitySystemComponent)
-	{
-		return;
-	}
+    UE_LOG(
+        LogTemp,
+        Warning,
+        TEXT("GRANT START: %s | Count=%d"),
+        *GetName(),
+        StartupAbilities.Num()
+    );
 
-	for (const FGrantedAbility& StartupAbility : StartupAbilities)
-	{
-		if (!StartupAbility.AbilityClass)
-		{
-			continue;
-		}
+    if (!AbilitySystemComponent)
+    {
+        UE_LOG(
+            LogTemp,
+            Error,
+            TEXT("GRANT FAILED: NO ASC")
+        );
 
-		FGameplayAbilitySpec AbilitySpec(StartupAbility.AbilityClass);
+        return;
+    }
 
-		if (StartupAbility.InputTag.IsValid())
-		{
-			AbilitySpec.GetDynamicSpecSourceTags().AddTag(StartupAbility.InputTag);
-		}
+    for (int32 Index = 0; Index < StartupAbilities.Num(); ++Index)
+    {
+        const FGrantedAbility& StartupAbility = StartupAbilities[Index];
 
-		UE_LOG(
-			LogTemp,
-			Warning,
-			TEXT("GRANTING: %s | ASC Owner=%s Avatar=%s"),
-			*GetNameSafe(StartupAbility.AbilityClass),
-			*GetNameSafe(AbilitySystemComponent->GetOwnerActor()),
-			*GetNameSafe(AbilitySystemComponent->GetAvatarActor())
-		);
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT("GRANT ENTRY %d: Class=%s Tag=%s"),
+            Index,
+            *GetNameSafe(StartupAbility.AbilityClass),
+            *StartupAbility.InputTag.ToString()
+        );
 
-		AbilitySystemComponent->GiveAbility(AbilitySpec);
-	}
+        if (!StartupAbility.AbilityClass)
+        {
+            UE_LOG(
+                LogTemp,
+                Error,
+                TEXT("GRANT ENTRY %d: AbilityClass is NULL"),
+                Index
+            );
+
+            continue;
+        }
+
+        FGameplayAbilitySpec AbilitySpec(
+            StartupAbility.AbilityClass
+        );
+
+        if (StartupAbility.InputTag.IsValid())
+        {
+            AbilitySpec
+                .GetDynamicSpecSourceTags()
+                .AddTag(StartupAbility.InputTag);
+        }
+
+        AbilitySystemComponent->GiveAbility(
+            AbilitySpec
+        );
+
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT("GRANTED: %s | Tag=%s"),
+            *GetNameSafe(StartupAbility.AbilityClass),
+            *StartupAbility.InputTag.ToString()
+        );
+    }
+
+    UE_LOG(
+        LogTemp,
+        Warning,
+        TEXT("GRANT END: ASC now has %d abilities"),
+        AbilitySystemComponent
+        ->GetActivatableAbilities()
+        .Num()
+    );
+
+    OnAbilitiesGranted.Broadcast();
 }

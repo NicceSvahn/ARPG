@@ -15,6 +15,8 @@
 class UTestGameAbilitySystemComponent;
 class UGameplayAbility;
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnAbilitiesGranted);
+
 UCLASS()
 class TESTGAME_API AGenericCharacter : public ACharacter, public IAbilitySystemInterface
 {
@@ -34,6 +36,9 @@ public:
 
 	UFUNCTION()
 	virtual void HandleAttributeChanged(FGameplayAttribute Attribute, float Magnitude, float NewValue);
+
+	UPROPERTY(BlueprintAssignable, Category = "Abilities")
+	FOnAbilitiesGranted OnAbilitiesGranted;
 
 	AGenericCharacter();
 
