@@ -15,6 +15,12 @@
 class UTestGameAbilitySystemComponent;
 class UGameplayAbility;
 
+DECLARE_MULTICAST_DELEGATE_TwoParams(
+	FOnHealthChanged,
+	float,
+	float
+);
+
 UCLASS()
 class TESTGAME_API AGenericCharacter : public ACharacter, public IAbilitySystemInterface
 {
@@ -25,6 +31,11 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly) 
 	TObjectPtr<UTestGameAbilitySystemComponent> AbilitySystemComponent;
+
+	FOnHealthChanged OnHealthChanged;
+
+	float GetCurrentHealth() const;
+	float GetMaxHealth() const;
 
 	UPROPERTY()
 	TObjectPtr<UHealthAttributeSet> HealthAttributeSet;

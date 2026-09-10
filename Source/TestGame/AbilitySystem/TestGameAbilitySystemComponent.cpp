@@ -36,12 +36,34 @@ void UTestGameAbilitySystemComponent::AbilityInputTagPressed(
 
         return;
     }
-    UE_LOG(
-        LogTemp,
-        Error,
-        TEXT("No granted ability found for tag %s"),
-        *InputTag.ToString()
-    );
+}
+
+UGameplayAbility*
+UTestGameAbilitySystemComponent::GetAbilityForInputTag(
+    const FGameplayTag& InputTag) const
+{
+    if (!InputTag.IsValid())
+    {
+        return nullptr;
+    }
+
+    for (const FGameplayAbilitySpec& AbilitySpec :
+        GetActivatableAbilities())
+    {
+        if (AbilitySpec
+            .GetDynamicSpecSourceTags()
+            .HasTagExact(InputTag))
+        {
+            return AbilitySpec.Ability;
+        }
+    }
+
+    return nullptr;
+}
+
+void UTestGameAbilitySystemComponent::NotifyAbilityBarChanged()
+{
+    OnAbilityBarChanged.Broadcast();
 }
 
 void UTestGameAbilitySystemComponent::SendAbilityEvent(

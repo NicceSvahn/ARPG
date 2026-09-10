@@ -29,6 +29,14 @@ void AGenericCharacter::BeginPlay()
 			*GetNameSafe(AbilitySystemComponent->GetAvatarActor())
 		);
 
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("STARTUP COUNT=%d AUTHORITY=%s"),
+			StartupAbilities.Num(),
+			HasAuthority() ? TEXT("TRUE") : TEXT("FALSE")
+		);
+
 		if (HasAuthority())
 		{
 			GrantStartupAbilities();
@@ -37,17 +45,31 @@ void AGenericCharacter::BeginPlay()
 
 	if (HealthAttributeSet)
 	{
-
-		HealthAttributeSet->InitHealth(InitialHealth);
-		UE_LOG(LogTemp, Warning, TEXT("BeginPlay Health=%f"), HealthAttributeSet->GetHealth());
-
 		HealthAttributeSet->OnAttributeChanged.AddDynamic(this, &AGenericCharacter::HandleAttributeChanged);
+
+		HealthAttributeSet->InitHealth(GetMaxHealth());
+
+		OnHealthChanged.Broadcast(GetCurrentHealth(), GetMaxHealth());
+
+		UE_LOG(LogTemp, Warning, TEXT("BeginPlay Health=%f"), HealthAttributeSet->GetHealth());
 	}
+}
+
+float AGenericCharacter::GetCurrentHealth() const
+{
+	return HealthAttributeSet ? HealthAttributeSet->GetHealth() : 0.0f;
+}
+
+float AGenericCharacter::GetMaxHealth() const
+{
+	return InitialHealth;
 }
 
 void AGenericCharacter::HandleAttributeChanged(FGameplayAttribute Attribute, float Magnitude, float NewValue)
 {
 	UE_LOG(LogTemp, Warning, TEXT("Attribute=%s,NewValue=%f"),*Attribute.GetName(), NewValue);
+
+	OnHealthChanged.Broadcast(NewValue, GetMaxHealth());
 
 	if (Attribute == UHealthAttributeSet::GetHealthAttribute())
 	{
@@ -86,22 +108,19 @@ void AGenericCharacter::GrantStartupAbilities()
 			continue;
 		}
 
-		FGameplayAbilitySpec AbilitySpec(StartupAbility.AbilityClass);
+		FGameplayAbilitySpec AbilitySpec(
+			StartupAbility.AbilityClass);
 
 		if (StartupAbility.InputTag.IsValid())
 		{
-			AbilitySpec.GetDynamicSpecSourceTags().AddTag(StartupAbility.InputTag);
+			AbilitySpec
+				.GetDynamicSpecSourceTags()
+				.AddTag(StartupAbility.InputTag);
 		}
 
-		UE_LOG(
-			LogTemp,
-			Warning,
-			TEXT("GRANTING: %s | ASC Owner=%s Avatar=%s"),
-			*GetNameSafe(StartupAbility.AbilityClass),
-			*GetNameSafe(AbilitySystemComponent->GetOwnerActor()),
-			*GetNameSafe(AbilitySystemComponent->GetAvatarActor())
-		);
-
-		AbilitySystemComponent->GiveAbility(AbilitySpec);
+		AbilitySystemComponent->GiveAbility(
+			AbilitySpec);
 	}
+
+	AbilitySystemComponent->NotifyAbilityBarChanged();
 }

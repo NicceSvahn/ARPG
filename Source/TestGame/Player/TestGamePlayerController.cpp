@@ -11,6 +11,7 @@
 #include "../AbilitySystem/AbilityInputContext.h"
 #include "../AbilitySystem/TestGameAbilitySystemComponent.h"
 #include "../Characters/GenericCharacter.h"
+#include "../UI/PlayerHudWidget.h"
 
 ATestGamePlayerController::ATestGamePlayerController()
 {
@@ -70,6 +71,23 @@ void ATestGamePlayerController::BeginPlay()
             UE_LOG(LogTemp, Error, TEXT("Added to viewport?"));
         }
     }
+
+    TryInitializeHud();
+}
+
+void ATestGamePlayerController::OnPossess(
+    APawn* InPawn)
+{
+    Super::OnPossess(InPawn);
+
+    TryInitializeHud();
+}
+
+void ATestGamePlayerController::OnRep_Pawn()
+{
+    Super::OnRep_Pawn();
+
+    TryInitializeHud();
 }
 
 void ATestGamePlayerController::SetupInputComponent()
@@ -244,8 +262,58 @@ void ATestGamePlayerController::OnAbilityInputPressed(FGameplayTag InputTag)
         Context.HitLocation = HitResult.ImpactPoint;
     }
 
-    ASC->AbilityInputTagPressed(
-        InputTag,
-        Context
-    );
+    ASC->AbilityInputTagPressed(InputTag, Context);
+}
+
+void ATestGamePlayerController::TryInitializeHud()
+{
+    if (!IsLocalController())
+    {
+        return;
+    }
+
+    AGenericCharacter* PlayerCharacter =
+        Cast<AGenericCharacter>(GetPawn());
+
+    if (!PlayerCharacter)
+    {
+        return;
+    }
+
+    UTestGameAbilitySystemComponent* ASC =
+        PlayerCharacter->GetAbilitySystemComponent();
+
+    if (!ASC)
+    {
+        return;
+    }
+
+    if (!PlayerHudWidget)
+    {
+        if (!PlayerHudWidgetClass)
+        {
+            UE_LOG(
+                LogTemp,
+                Error,
+                TEXT("PlayerHudClass is not set")
+            );
+
+            return;
+        }
+
+        PlayerHudWidget =
+            CreateWidget<UPlayerHudWidget>(
+                this,
+                PlayerHudWidgetClass
+            );
+
+        if (!PlayerHudWidget)
+        {
+            return;
+        }
+
+        PlayerHudWidget->AddToViewport();
+    }
+
+    PlayerHudWidget->InitializeHud(PlayerCharacter);
 }

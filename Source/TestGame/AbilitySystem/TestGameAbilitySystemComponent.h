@@ -8,6 +8,9 @@
 
 #include "TestGameAbilitySystemComponent.generated.h"
 
+class UGameplayAbility;
+
+DECLARE_MULTICAST_DELEGATE(FOnAbilityBarChanged);
 
 UCLASS()
 class TESTGAME_API UTestGameAbilitySystemComponent : public UAbilitySystemComponent
@@ -22,6 +25,12 @@ public:
 
     void AbilityInputTagPressed(const FGameplayTag& InputTag, const FAbilityInputContext& Context);
 
+    UGameplayAbility* GetAbilityForInputTag(const FGameplayTag& InputTag) const;
+
+    void NotifyAbilityBarChanged();
+
+    FOnAbilityBarChanged OnAbilityBarChanged;
+
     void SendAbilityEvent(
         const FGameplayTag& EventTag,
         const FAbilityInputContext& Context
@@ -30,4 +39,7 @@ public:
 private:
 
     FAbilityInputContext AbilityInputContext;
+
+protected:
+
 };

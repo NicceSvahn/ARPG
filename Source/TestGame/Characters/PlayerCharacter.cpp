@@ -11,8 +11,6 @@ APlayerCharacter::APlayerCharacter()
 
     bUseControllerRotationYaw = false;
 
-    HealthWidget = CreateDefaultSubobject<UWidgetComponent>(TEXT("HealthWidget"));
-
     GetCharacterMovement()->bOrientRotationToMovement = true;
     GetCharacterMovement()->bUseControllerDesiredRotation = false;
     GetCharacterMovement()->RotationRate = FRotator(0.0f, 720.0f, 0.0f);
@@ -21,21 +19,6 @@ APlayerCharacter::APlayerCharacter()
 void APlayerCharacter::BeginPlay()
 {
     Super::BeginPlay();
-
-    HealthWidget->InitWidget();
-    RefreshHealthBar(HealthAttributeSet->GetHealth());
-}
-
-void APlayerCharacter::RefreshHealthBar(float CurrentHealth)
-{
-    if (!AbilitySystemComponent)
-    {
-        return;
-    }
-
-    const float MaxHealth = 100.0f;
-
-    UpdatePlayerHealthUI(CurrentHealth, MaxHealth);
 }
 
 void APlayerCharacter::HandleAttributeChanged(
@@ -55,7 +38,6 @@ void APlayerCharacter::HandleAttributeChanged(
 
     if (Attribute == UHealthAttributeSet::GetHealthAttribute())
     {
-        RefreshHealthBar(NewValue);
         return;
     }
 
