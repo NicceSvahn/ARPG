@@ -49,16 +49,17 @@ void AGenericCharacter::HandleAttributeChanged(FGameplayAttribute Attribute, flo
 {
 	UE_LOG(LogTemp, Warning, TEXT("Attribute=%s,NewValue=%f"),*Attribute.GetName(), NewValue);
 
-	if (Attribute != UHealthAttributeSet::GetHealthAttribute())
+	if (Attribute == UHealthAttributeSet::GetHealthAttribute())
 	{
+		if (NewValue <= 0)
+		{
+			UE_LOG(LogTemp, Error, TEXT("Actor name=%s, DEAD! NewHealth=%f"), *GetName(), NewValue);
+			Destroy();
+		}
+
 		return;
 	}
-
-	if (NewValue <= 0)
-	{
-		UE_LOG(LogTemp, Error, TEXT("Actor name=%s, DEAD! NewHealth=%f"), *GetName(), NewValue);
-		Destroy();
-	}
+	return;
 }
 
 UTestGameAbilitySystemComponent* AGenericCharacter::GetAbilitySystemComponent() const

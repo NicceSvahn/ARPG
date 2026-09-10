@@ -9,6 +9,7 @@
 
 class UInputMappingContext;
 class UInputAction;
+class UPlayerHudWidget;
 
 DECLARE_DELEGATE_OneParam(
     FOnMoveIntoRangeCompleted,
@@ -57,6 +58,12 @@ protected:
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
     TArray<FAbilityInputBinding> AbilityInputBindings;
+
+    UPROPERTY(EditDefaultsOnly, Category = "HUD")
+    TSubclassOf<UPlayerHudWidget> PlayerHudWidgetClass;
+
+    UPROPERTY()
+    TObjectPtr<UPlayerHudWidget> PlayerHudWidget;
 
 private:
     void OnClickMove();

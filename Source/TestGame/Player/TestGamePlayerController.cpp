@@ -6,6 +6,7 @@
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/PlayerController.h"
+#include "../UI/PlayerHudWidget.h"
 
 #include "../AbilitySystem/AbilityInputContext.h"
 #include "../AbilitySystem/TestGameAbilitySystemComponent.h"
@@ -19,6 +20,24 @@ ATestGamePlayerController::ATestGamePlayerController()
 void ATestGamePlayerController::BeginPlay()
 {
     Super::BeginPlay();
+
+    UE_LOG(
+        LogTemp,
+        Warning,
+        TEXT("PlayerController BeginPlay: %s"),
+        *GetNameSafe(this));
+
+    UE_LOG(
+        LogTemp,
+        Warning,
+        TEXT("IsLocalController: %s"),
+        IsLocalController() ? TEXT("true") : TEXT("false"));
+
+    UE_LOG(
+        LogTemp,
+        Warning,
+        TEXT("PlayerHudWidgetClass: %s"),
+        *GetNameSafe(PlayerHudWidgetClass));
 
     int32 priority = 0; // Low numerical priority means high priority
 
@@ -35,6 +54,20 @@ void ATestGamePlayerController::BeginPlay()
             {
                 Subsystem->AddMappingContext(DefaultMappingContext, priority);
             }
+        }
+    }
+
+    if (IsLocalController() && PlayerHudWidgetClass)
+    {
+        PlayerHudWidget =
+                CreateWidget<UPlayerHudWidget>(
+                this,
+                PlayerHudWidgetClass);
+
+        if (PlayerHudWidget)
+        {
+            PlayerHudWidget->AddToViewport();
+            UE_LOG(LogTemp, Error, TEXT("Added to viewport?"));
         }
     }
 }
@@ -211,5 +244,8 @@ void ATestGamePlayerController::OnAbilityInputPressed(FGameplayTag InputTag)
         Context.HitLocation = HitResult.ImpactPoint;
     }
 
-    ASC->AbilityInputTagPressed(InputTag, Context);
+    ASC->AbilityInputTagPressed(
+        InputTag,
+        Context
+    );
 }

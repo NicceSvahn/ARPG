@@ -1,5 +1,8 @@
 #include "EnemyAIController.h"
 #include "Kismet/GameplayStatics.h"
+#include "AbilitySystemComponent.h"
+#include "../AbilitySystem/AbilityInputContext.h"
+#include "../AbilitySystem/TestGameAbilitySystemComponent.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "GameplayTagContainer.h"
 
@@ -117,20 +120,35 @@ void AEnemyAIController::TryBash()
 		*PlayerPawn->GetName()
 	);
 
-	FGameplayEventData EventData;
-
-	EventData.Instigator = ControlledPawn;
-	EventData.Target = PlayerPawn;
-
-	const FGameplayTag BashTag =
-		FGameplayTag::RequestGameplayTag(
-			FName("Event.Ability.Bash")
+	UTestGameAbilitySystemComponent* ASC =
+		Cast<UTestGameAbilitySystemComponent>(
+			UAbilitySystemBlueprintLibrary::
+			GetAbilitySystemComponent(ControlledPawn)
 		);
 
-	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(
-		ControlledPawn,
-		BashTag,
-		EventData
+	if (!ASC)
+	{
+		UE_LOG(
+			LogTemp,
+			Error,
+			TEXT("BASH: Enemy has no TestGame ASC")
+		);
+
+		return;
+	}
+
+	FAbilityInputContext Context;
+	Context.TargetActor = PlayerPawn;
+	Context.HitLocation = PlayerPawn->GetActorLocation();
+
+	const FGameplayTag BashInputTag =
+		FGameplayTag::RequestGameplayTag(
+			FName("Input.Ability.Bash")
+		);
+
+	ASC->AbilityInputTagPressed(
+		BashInputTag,
+		Context
 	);
 }
 
