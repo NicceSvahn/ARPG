@@ -5,11 +5,14 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "AbilitySystemInterface.h"
-#include "AbilitySystemComponent.h"
-#include "TestGame/AbilitySystem/Attributes/HealthAttributeSet.h"
+
+#include "../AbilitySystem/Attributes/HealthAttributeSet.h"
+#include "../AbilitySystem/TestGameAbilitySystemComponent.h"
+#include "../AbilitySystem/GrantedAbility.h"
+
 #include "GenericCharacter.generated.h"
 
-class UAbilitySystemComponent;
+class UTestGameAbilitySystemComponent;
 class UGameplayAbility;
 
 UCLASS()
@@ -18,9 +21,10 @@ class TESTGAME_API AGenericCharacter : public ACharacter, public IAbilitySystemI
 	GENERATED_BODY()
 
 public:
-	UAbilitySystemComponent* GetAbilitySystemComponent() const override;
+	UTestGameAbilitySystemComponent* GetAbilitySystemComponent() const override;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly) TObjectPtr<UAbilitySystemComponent> AbilitySystemComponent;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly) 
+	TObjectPtr<UTestGameAbilitySystemComponent> AbilitySystemComponent;
 
 	UPROPERTY()
 	TObjectPtr<UHealthAttributeSet> HealthAttributeSet;
@@ -34,8 +38,8 @@ public:
 	AGenericCharacter();
 
 protected:
-	UPROPERTY(EditDefaultsOnly, Category = "Abilities")
-	TArray<TSubclassOf<UGameplayAbility>> StartupAbilities;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Abilities")
+	TArray<FGrantedAbility> StartupAbilities;
 
 	void GrantStartupAbilities();
 

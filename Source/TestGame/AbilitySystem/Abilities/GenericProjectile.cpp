@@ -30,6 +30,8 @@ AGenericProjectile::AGenericProjectile()
 
     ProjectileMovement = CreateDefaultSubobject<UProjectileMovementComponent>(TEXT("ProjectileMovement"));
 
+    ProjectileMovement->bInitialVelocityInLocalSpace = false;
+
     ProjectileMovement->UpdatedComponent = Collision;
     ProjectileMovement->InitialSpeed = 1200.0f;
     ProjectileMovement->MaxSpeed = 1200.0f;
@@ -42,7 +44,8 @@ AGenericProjectile::AGenericProjectile()
 void AGenericProjectile::InitializeProjectile(
     UAbilitySystemComponent* InSourceASC,
     const FGameplayEffectSpecHandle& InEffectSpec,
-    const FVector& InDirection)
+    AActor* InTarget,
+    const FVector& InLaunchDirection)
 {
     SourceASC = InSourceASC;
     EffectSpec = InEffectSpec;
@@ -50,12 +53,18 @@ void AGenericProjectile::InitializeProjectile(
     // Prevent immediate collision with the caster.
     if (AActor* OwnerActor = GetOwner())
     {
-        Collision->IgnoreActorWhenMoving(OwnerActor, true);
+        Collision->IgnoreActorWhenMoving(
+            OwnerActor,
+            true
+        );
     }
 
     if (AActor* InstigatorActor = GetInstigator())
     {
-        Collision->IgnoreActorWhenMoving(InstigatorActor, true);
+        Collision->IgnoreActorWhenMoving(
+            InstigatorActor,
+            true
+        );
     }
 
     ProjectileMovement->bShouldBounce = false;
@@ -77,6 +86,9 @@ void AGenericProjectile::InitializeProjectile(
     }
 
     SetActorRotation(LaunchDirection.Rotation());
+
+    const FVector LaunchDirection =
+        InLaunchDirection.GetSafeNormal();
 
     ProjectileMovement->Velocity =
         LaunchDirection *

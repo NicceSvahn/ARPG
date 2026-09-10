@@ -1,5 +1,4 @@
 #include "GenericCharacter.h"
-#include "AbilitySystemComponent.h"
 #include "Abilities/GameplayAbility.h"
 
 
@@ -7,9 +6,7 @@ AGenericCharacter::AGenericCharacter()
 {
 	PrimaryActorTick.bCanEverTick = false;
 
-	AbilitySystemComponent = CreateDefaultSubobject<UAbilitySystemComponent>(
-		TEXT("AbilitySystemComponent")
-	);
+	AbilitySystemComponent = CreateDefaultSubobject<UTestGameAbilitySystemComponent>(TEXT("AbilitySystemComponent"));
 
 	HealthAttributeSet = CreateDefaultSubobject<UHealthAttributeSet>(TEXT("HealthAttributeSet"));
 }
@@ -23,7 +20,19 @@ void AGenericCharacter::BeginPlay()
 
 		AbilitySystemComponent->InitAbilityActorInfo(this, this);
 
-		GrantStartupAbilities();
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("ASC AFTER INIT: Character=%s Owner=%s Avatar=%s"),
+			*GetNameSafe(this),
+			*GetNameSafe(AbilitySystemComponent->GetOwnerActor()),
+			*GetNameSafe(AbilitySystemComponent->GetAvatarActor())
+		);
+
+		if (HasAuthority())
+		{
+			GrantStartupAbilities();
+		}
 	}
 
 	if (HealthAttributeSet)
@@ -53,7 +62,7 @@ void AGenericCharacter::HandleAttributeChanged(FGameplayAttribute Attribute, flo
 	return;
 }
 
-UAbilitySystemComponent* AGenericCharacter::GetAbilitySystemComponent() const
+UTestGameAbilitySystemComponent* AGenericCharacter::GetAbilitySystemComponent() const
 {
 	return AbilitySystemComponent;
 }
@@ -70,15 +79,29 @@ void AGenericCharacter::GrantStartupAbilities()
 		return;
 	}
 
-	int32 inLevel = 1;
-
-	for (const TSubclassOf<UGameplayAbility>& AbilityClass : StartupAbilities)
+	for (const FGrantedAbility& StartupAbility : StartupAbilities)
 	{
-		if (!AbilityClass)
+		if (!StartupAbility.AbilityClass)
 		{
 			continue;
 		}
 
-		AbilitySystemComponent->GiveAbility(FGameplayAbilitySpec(AbilityClass, inLevel, INDEX_NONE, this));
+		FGameplayAbilitySpec AbilitySpec(StartupAbility.AbilityClass);
+
+		if (StartupAbility.InputTag.IsValid())
+		{
+			AbilitySpec.GetDynamicSpecSourceTags().AddTag(StartupAbility.InputTag);
+		}
+
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("GRANTING: %s | ASC Owner=%s Avatar=%s"),
+			*GetNameSafe(StartupAbility.AbilityClass),
+			*GetNameSafe(AbilitySystemComponent->GetOwnerActor()),
+			*GetNameSafe(AbilitySystemComponent->GetAvatarActor())
+		);
+
+		AbilitySystemComponent->GiveAbility(AbilitySpec);
 	}
 }

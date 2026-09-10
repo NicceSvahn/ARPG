@@ -2,11 +2,13 @@
 
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
-#include "GameplayEffect.h"
 
 #include "../../Characters/GenericCharacter.h"
 #include "../../Characters/EnemyCharacter.h"
 #include "../../Player/TestGamePlayerController.h"
+#include "../../AbilitySystem/TestGameAbilitySystemComponent.h"
+#include "../../AbilitySystem/AbilityInputContext.h"
+
 
 UGA_Bash::UGA_Bash()
 {
@@ -14,45 +16,68 @@ UGA_Bash::UGA_Bash()
         EGameplayAbilityInstancingPolicy::InstancedPerActor;
 }
 
+
 void UGA_Bash::ActivateAbility(
     const FGameplayAbilitySpecHandle Handle,
     const FGameplayAbilityActorInfo* ActorInfo,
     const FGameplayAbilityActivationInfo ActivationInfo,
     const FGameplayEventData* TriggerEventData)
 {
-    Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
+    Super::ActivateAbility(
+        Handle,
+        ActorInfo,
+        ActivationInfo,
+        TriggerEventData
+    );
 
-    AActor* AvatarActor = GetAvatarActorFromActorInfo();
+    UTestGameAbilitySystemComponent* ASC =
+        Cast<UTestGameAbilitySystemComponent>(
+            GetAbilitySystemComponentFromActorInfo()
+        );
+
+    if (!ASC)
+    {
+        EndAbility(
+            Handle,
+            ActorInfo,
+            ActivationInfo,
+            true,
+            true
+        );
+
+        return;
+    }
+
+    const FAbilityInputContext& Context =
+        ASC->GetAbilityInputContext();
+
+    CurrentTargetActor = Context.TargetActor;
+
+    if (!IsValid(CurrentTargetActor))
+    {
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT("BASH: No valid target")
+        );
+
+        EndAbility(
+            Handle,
+            ActorInfo,
+            ActivationInfo,
+            true,
+            true
+        );
+
+        return;
+    }
 
     UE_LOG(
         LogTemp,
-        Error,
-        TEXT("=== BASH ACTIVATED === Avatar=%s Class=%s"),
-        AvatarActor ? *AvatarActor->GetName() : TEXT("NULL"),
-        AvatarActor ? *AvatarActor->GetClass()->GetName() : TEXT("NULL")
+        Warning,
+        TEXT("BASH: Target = %s"),
+        *GetNameSafe(CurrentTargetActor)
     );
-
-    if (!TriggerEventData)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("Bash activated without TriggerEventData"));
-
-        EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
-
-        return;
-    }
-
-    const AActor* EventTarget = TriggerEventData->Target.Get();
-
-    if (!EventTarget)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("Bash activated without a target"));
-
-        EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
-
-        return;
-    }
-
-    Target = const_cast<AActor*>(EventTarget);
 
     if (IsTargetInRange())
     {
@@ -62,68 +87,120 @@ void UGA_Bash::ActivateAbility(
 
     if (Cast<AEnemyCharacter>(GetGenericCharacter()))
     {
-        EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
+        EndAbility(
+            CurrentSpecHandle,
+            CurrentActorInfo,
+            CurrentActivationInfo,
+            true,
+            true
+        );
+
         return;
     }
-
 
     RequestMoveIntoRange();
 }
 
+
 bool UGA_Bash::IsTargetInRange() const
 {
-    const AGenericCharacter* Character = GetGenericCharacter();
+    const AActor* OwnerActor =
+        GetAvatarActorFromActorInfo();
 
-    const AActor* TargetActor = Target.Get();
-
-    if (!Character || !TargetActor)
+    if (!IsValid(OwnerActor) ||
+        !IsValid(CurrentTargetActor))
     {
         return false;
     }
 
-    const float Distance = FVector::Dist2D(Character->GetActorLocation(), TargetActor->GetActorLocation());
+    const float Distance = FVector::Dist2D(
+        OwnerActor->GetActorLocation(),
+        CurrentTargetActor->GetActorLocation()
+    );
 
     return Distance <= BashRange;
 }
 
+
 void UGA_Bash::RequestMoveIntoRange()
 {
-    AGenericCharacter* Character = GetGenericCharacter();
+    AGenericCharacter* Character =
+        GetGenericCharacter();
 
-    if (!Character || !Target.IsValid())
+    if (!Character ||
+        !IsValid(CurrentTargetActor))
     {
-        EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
+        EndAbility(
+            CurrentSpecHandle,
+            CurrentActorInfo,
+            CurrentActivationInfo,
+            true,
+            true
+        );
 
         return;
     }
 
-    ATestGamePlayerController* Controller = Cast<ATestGamePlayerController>(Character->GetController());
+    ATestGamePlayerController* Controller =
+        Cast<ATestGamePlayerController>(
+            Character->GetController()
+        );
 
     if (!Controller)
     {
-        UE_LOG(LogTemp, Warning, TEXT("Bash: Avatar is not controlled by TestGamePlayerController"));
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT("BASH: Avatar is not controlled by TestGamePlayerController")
+        );
 
-        EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
-
+        EndAbility(
+            CurrentSpecHandle,
+            CurrentActorInfo,
+            CurrentActivationInfo,
+            true,
+            true
+        );
 
         return;
     }
 
-    Controller->MoveIntoRange(Target.Get(), BashRange, FOnMoveIntoRangeCompleted::CreateUObject(this, &UGA_Bash::OnMovementCompleted));
+    Controller->MoveIntoRange(
+        CurrentTargetActor,
+        BashRange,
+        FOnMoveIntoRangeCompleted::CreateUObject(
+            this,
+            &UGA_Bash::OnMovementCompleted
+        )
+    );
 }
+
 
 void UGA_Bash::OnMovementCompleted(bool bSuccess)
 {
     if (!bSuccess)
     {
-        EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
+        EndAbility(
+            CurrentSpecHandle,
+            CurrentActorInfo,
+            CurrentActivationInfo,
+            true,
+            true
+        );
+
         return;
     }
 
-    // Target may have moved/died/become invalid while walking.
-    if (!Target.IsValid() || !IsTargetInRange())
+    if (!IsValid(CurrentTargetActor) ||
+        !IsTargetInRange())
     {
-        EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
+        EndAbility(
+            CurrentSpecHandle,
+            CurrentActorInfo,
+            CurrentActivationInfo,
+            true,
+            true
+        );
 
         return;
     }
@@ -131,73 +208,116 @@ void UGA_Bash::OnMovementCompleted(bool bSuccess)
     PerformBash();
 }
 
+
 void UGA_Bash::PerformBash()
 {
-    AGenericCharacter* Character = GetGenericCharacter();
+    AGenericCharacter* Character =
+        GetGenericCharacter();
 
-    AActor* TargetActor = Target.Get();
-
-    if (!Character || !TargetActor)
+    if (!Character ||
+        !IsValid(CurrentTargetActor))
     {
-        EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
+        EndAbility(
+            CurrentSpecHandle,
+            CurrentActorInfo,
+            CurrentActivationInfo,
+            true,
+            true
+        );
 
         return;
     }
 
-    if (!CommitAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo))
+    if (!CommitAbility(
+        CurrentSpecHandle,
+        CurrentActorInfo,
+        CurrentActivationInfo))
     {
-        EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
+        EndAbility(
+            CurrentSpecHandle,
+            CurrentActorInfo,
+            CurrentActivationInfo,
+            true,
+            true
+        );
 
         return;
     }
 
-    FVector Direction = TargetActor->GetActorLocation() - Character->GetActorLocation();
+    FVector Direction =
+        CurrentTargetActor->GetActorLocation() -
+        Character->GetActorLocation();
 
     Direction.Z = 0.0f;
 
     if (!Direction.IsNearlyZero())
     {
-        Character->SetActorRotation(Direction.Rotation());
+        Character->SetActorRotation(
+            Direction.Rotation()
+        );
     }
 
     if (BashMontage)
     {
-        Character->PlayAnimMontage(BashMontage);
+        Character->PlayAnimMontage(
+            BashMontage
+        );
     }
 
     ApplyBashDamage();
 
-    EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
+    EndAbility(
+        CurrentSpecHandle,
+        CurrentActorInfo,
+        CurrentActivationInfo,
+        true,
+        false
+    );
 }
+
 
 void UGA_Bash::ApplyBashDamage()
 {
-    AActor* TargetActor = Target.Get();
-
-    if (!TargetActor || !DamageEffect)
+    if (!IsValid(CurrentTargetActor) ||
+        !DamageEffect)
     {
         return;
     }
 
-    UAbilitySystemComponent* SourceASC = GetAbilitySystemComponentFromActorInfo();
+    UAbilitySystemComponent* SourceASC =
+        GetAbilitySystemComponentFromActorInfo();
 
-    UAbilitySystemComponent* TargetASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(TargetActor);
+    UAbilitySystemComponent* TargetASC =
+        UAbilitySystemBlueprintLibrary::
+        GetAbilitySystemComponent(
+            CurrentTargetActor
+        );
 
-    if (!SourceASC || !TargetASC)
+    if (!SourceASC ||
+        !TargetASC)
     {
         return;
     }
 
-    FGameplayEffectContextHandle Context = SourceASC->MakeEffectContext();
+    FGameplayEffectContextHandle EffectContext =
+        SourceASC->MakeEffectContext();
 
-    Context.AddSourceObject(this);
+    EffectContext.AddSourceObject(this);
 
-    FGameplayEffectSpecHandle Spec = SourceASC->MakeOutgoingSpec(DamageEffect, 1.0f, Context);
+    FGameplayEffectSpecHandle Spec =
+        SourceASC->MakeOutgoingSpec(
+            DamageEffect,
+            1.0f,
+            EffectContext
+        );
 
     if (!Spec.IsValid())
     {
         return;
     }
 
-    SourceASC->ApplyGameplayEffectSpecToTarget(*Spec.Data.Get(), TargetASC);
+    SourceASC->ApplyGameplayEffectSpecToTarget(
+        *Spec.Data.Get(),
+        TargetASC
+    );
 }

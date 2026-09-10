@@ -6,12 +6,10 @@
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/PlayerController.h"
-#include "AbilitySystemComponent.h"
-#include "GameplayTagContainer.h"
-#include "AbilitySystemBlueprintLibrary.h"
 #include "../UI/PlayerHudWidget.h"
 
-
+#include "../AbilitySystem/AbilityInputContext.h"
+#include "../AbilitySystem/TestGameAbilitySystemComponent.h"
 #include "../Characters/GenericCharacter.h"
 
 ATestGamePlayerController::ATestGamePlayerController()
@@ -82,7 +80,6 @@ void ATestGamePlayerController::SetupInputComponent()
 
     if (!EnhancedInput)
     {
-        UE_LOG(LogTemp, Error, TEXT("EnhancedInputComponent not found"));
         return;
     }
 
@@ -96,30 +93,23 @@ void ATestGamePlayerController::SetupInputComponent()
         );
     }
 
-    if (BashAction)
+    // Ability activation
+    for (const FAbilityInputBinding& Binding : AbilityInputBindings)
     {
-        EnhancedInput->BindAction(
-            BashAction,
-            ETriggerEvent::Started,
-            this,
-            &ATestGamePlayerController::OnBashPressed
-        );
-    }
-
-    if (FireballAction)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("Binding FireballAction"));
+        if (!Binding.InputAction || !Binding.InputTag.IsValid())
+        {
+            UE_LOG(LogTemp, Error, TEXT("Setup 1"));
+            continue;
+        }
+        UE_LOG(LogTemp, Warning, TEXT("INPUT: Binding %s -> %s"), *Binding.InputAction->GetName(), *Binding.InputTag.ToString());
 
         EnhancedInput->BindAction(
-            FireballAction,
+            Binding.InputAction,
             ETriggerEvent::Started,
             this,
-            &ATestGamePlayerController::OnFireballPressed
+            &ATestGamePlayerController::OnAbilityInputPressed,
+            Binding.InputTag
         );
-    }
-    else
-    {
-        UE_LOG(LogTemp, Error, TEXT("FireballAction is not assigned"));
     }
 }
 
@@ -219,146 +209,42 @@ void ATestGamePlayerController::CancelMoveIntoRange()
     FinishMoveIntoRange(false);
 }
 
-void ATestGamePlayerController::OnBashPressed()
+void ATestGamePlayerController::OnAbilityInputPressed(FGameplayTag InputTag)
 {
-    FHitResult HitResult;
-
-    if (!GetHitResultUnderCursor(ECC_Visibility, false, HitResult))
-    {
-        return;
-    }
-
-    AActor* TargetActor = HitResult.GetActor();
-
-    if (!TargetActor)
-    {
-        return;
-    }
-
-    AGenericCharacter* ControlledCharacter = Cast<AGenericCharacter>(GetPawn());
-
-    if (!ControlledCharacter)
-    {
-        UE_LOG(LogTemp, Error, TEXT("BASH: No GenericCharacter pawn"));
-        return;
-    }
-
-    UAbilitySystemComponent* ASC = ControlledCharacter->GetAbilitySystemComponent();
-
-    if (!ASC)
-    {
-        UE_LOG(LogTemp, Error, TEXT("BASH: No AbilitySystemComponent"));
-        return;
-    }
-
-    FGameplayEventData EventData;
-    EventData.Instigator = ControlledCharacter;
-    EventData.Target = TargetActor;
-
-    const FGameplayTag BashEventTag = FGameplayTag::RequestGameplayTag(FName("Event.Ability.Bash"));
-
-    const int32 ActivatedAbilities = ASC->HandleGameplayEvent(BashEventTag, &EventData);
-
-    UE_LOG(LogTemp, Warning, TEXT("BASH: Gameplay event sent. Activated abilities: %d"), ActivatedAbilities);
-}
-
-void ATestGamePlayerController::OnFireballPressed()
-{
-    UE_LOG(LogTemp, Warning, TEXT("FIREBALL INPUT PRESSED"));
+    UE_LOG(
+        LogTemp,
+        Warning,
+        TEXT("1 CONTROLLER: %s"),
+        *InputTag.ToString()
+    );
 
     AGenericCharacter* ControlledCharacter =
         Cast<AGenericCharacter>(GetPawn());
 
-    if (!ControlledCharacter)
-    {
-        UE_LOG(LogTemp, Error, TEXT("FIREBALL: No character"));
-        return;
-    }
-
-    UAbilitySystemComponent* ASC =
-        ControlledCharacter->GetAbilitySystemComponent();
-
-    if (!ASC)
-    {
-        UE_LOG(LogTemp, Error, TEXT("FIREBALL: No ASC"));
-        return;
-    }
-
-    FVector MouseWorldOrigin;
-    FVector MouseWorldDirection;
-
-    if (!DeprojectMousePositionToWorld(
-        MouseWorldOrigin,
-        MouseWorldDirection))
-    {
-        UE_LOG(
-            LogTemp,
-            Error,
-            TEXT("FIREBALL: Could not deproject mouse"));
-        return;
-    }
-
-    /*
-     * Intersect the mouse ray with a horizontal plane passing
-     * through the character.
-     */
-    const float AimPlaneZ =
-        ControlledCharacter->GetActorLocation().Z + 50.0f;
-
     if (FMath::IsNearlyZero(MouseWorldDirection.Z))
     {
-        UE_LOG(
-            LogTemp,
-            Error,
-            TEXT("FIREBALL: Mouse ray is parallel to aim plane"));
+        UE_LOG(LogTemp, Error, TEXT("NO CHARACTER"));
         return;
     }
 
-    const float DistanceAlongRay =
-        (AimPlaneZ - MouseWorldOrigin.Z) /
-        MouseWorldDirection.Z;
+    UTestGameAbilitySystemComponent* ASC =
+        ControlledCharacter->GetAbilitySystemComponent();
 
     if (DistanceAlongRay <= 0.0f)
     {
-        UE_LOG(
-            LogTemp,
-            Error,
-            TEXT("FIREBALL: Aim plane is behind camera"));
+        UE_LOG(LogTemp, Error, TEXT("NO ASC"));
         return;
     }
 
-    const FVector AimLocation =
-        MouseWorldOrigin +
-        MouseWorldDirection * DistanceAlongRay;
+    FAbilityInputContext Context;
+    FHitResult HitResult;
 
-    // Package the fixed aim location as target data.
-    FHitResult AimHit;
-    AimHit.bBlockingHit = true;
-    AimHit.Location = AimLocation;
-    AimHit.ImpactPoint = AimLocation;
+    if (GetHitResultUnderCursor(ECC_Visibility, false, HitResult))
+    {
+        Context.HitResult = HitResult;
+        Context.TargetActor = HitResult.GetActor();
+        Context.HitLocation = HitResult.ImpactPoint;
+    }
 
-    const FGameplayTag FireballEventTag =
-        FGameplayTag::RequestGameplayTag(
-            TEXT("Event.Ability.Fireball"));
-
-    FGameplayEventData EventData;
-    EventData.EventTag = FireballEventTag;
-    EventData.Instigator = ControlledCharacter;
-
-    EventData.TargetData =
-        UAbilitySystemBlueprintLibrary::
-        AbilityTargetDataFromHitResult(AimHit);
-
-    const int32 ActivatedAbilities =
-        ASC->HandleGameplayEvent(
-            FireballEventTag,
-            &EventData);
-
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT(
-            "FIREBALL: Activated=%d Aim=%s"),
-        ActivatedAbilities,
-        *AimLocation.ToString());
+    ASC->AbilityInputTagPressed(InputTag, Context);
 }

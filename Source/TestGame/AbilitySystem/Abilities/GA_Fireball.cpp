@@ -2,16 +2,19 @@
 
 #include "AbilitySystemComponent.h"
 #include "GameplayEffect.h"
-#include "AbilitySystemBlueprintLibrary.h"
 
 #include "../../Characters/GenericCharacter.h"
 #include "../../AbilitySystem/Abilities/GenericProjectile.h"
+#include "../../AbilitySystem/TestGameAbilitySystemComponent.h"
+#include "../../AbilitySystem/AbilityInputContext.h"
+
 
 UGA_Fireball::UGA_Fireball()
 {
     InstancingPolicy =
         EGameplayAbilityInstancingPolicy::InstancedPerActor;
 }
+
 
 void UGA_Fireball::ActivateAbility(
     const FGameplayAbilitySpecHandle Handle,
@@ -23,73 +26,75 @@ void UGA_Fireball::ActivateAbility(
         Handle,
         ActorInfo,
         ActivationInfo,
-        TriggerEventData);
+        TriggerEventData
+    );
 
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT("FIREBALL: ActivateAbility called. Authority=%s"),
-        GetGenericCharacter() && GetGenericCharacter()->HasAuthority()
-        ? TEXT("true")
-        : TEXT("false"));
+    AGenericCharacter* Character =
+        GetGenericCharacter();
 
-    AGenericCharacter* Character = GetGenericCharacter();
-
-    UAbilitySystemComponent* SourceASC =
-        GetAbilitySystemComponentFromActorInfo();
+    UTestGameAbilitySystemComponent* ASC =
+        Cast<UTestGameAbilitySystemComponent>(
+            GetAbilitySystemComponentFromActorInfo()
+        );
 
     if (!Character ||
-        !SourceASC ||
+        !ASC ||
         !ProjectileClass ||
-        !DamageEffect ||
-        !TriggerEventData)
+        !DamageEffect)
     {
-        UE_LOG(
-            LogTemp,
-            Error,
-            TEXT(
-                "FIREBALL validation failed: "
-                "Character=%s ASC=%s ProjectileClass=%s "
-                "DamageEffect=%s EventData=%s"),
-            Character ? TEXT("valid") : TEXT("null"),
-            SourceASC ? TEXT("valid") : TEXT("null"),
-            ProjectileClass ? TEXT("valid") : TEXT("null"),
-            DamageEffect ? TEXT("valid") : TEXT("null"),
-            TriggerEventData ? TEXT("valid") : TEXT("null"));
+        EndAbility(
+            Handle,
+            ActorInfo,
+            ActivationInfo,
+            true,
+            true
+        );
 
-        EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
         return;
     }
 
-    if (!UAbilitySystemBlueprintLibrary::TargetDataHasHitResult(
-        TriggerEventData->TargetData,
-        0))
+    const FAbilityInputContext& Context =
+        ASC->GetAbilityInputContext();
+
+    const FHitResult& CursorHit =
+        Context.HitResult;
+
+    if (!CursorHit.bBlockingHit)
     {
         UE_LOG(
             LogTemp,
             Warning,
-            TEXT("FIREBALL: Gameplay event has no cursor hit result"));
+            TEXT("FIREBALL: No valid cursor hit")
+        );
 
-        EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+        EndAbility(
+            Handle,
+            ActorInfo,
+            ActivationInfo,
+            true,
+            true
+        );
+
         return;
     }
 
-    const FHitResult CursorHit =
-        UAbilitySystemBlueprintLibrary::GetHitResultFromTargetData(
-            TriggerEventData->TargetData,
-            0);
+    const FVector TargetLocation =
+        Context.HitLocation;
 
-    const FVector TargetLocation = CursorHit.ImpactPoint;
+    // Face cursor horizontally.
+    FVector CharacterAimDirection =
+        TargetLocation - Character->GetActorLocation();
 
-    // Applies the configured Gameplay Ability cost and cooldown.
-    if (!CommitAbility(Handle, ActorInfo, ActivationInfo))
+    CharacterAimDirection.Z = 0.0f;
+
+    if (!CharacterAimDirection.IsNearlyZero())
     {
-        UE_LOG(LogTemp, Error, TEXT("FIREBALL: CommitAbility failed"));
-
-        EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
-        return;
+        Character->SetActorRotation(
+            CharacterAimDirection.Rotation()
+        );
     }
 
+    // Get muzzle AFTER rotation.
     FVector SpawnLocation =
         Character->GetActorLocation() +
         Character->GetActorForwardVector() * 100.0f;
@@ -98,17 +103,13 @@ void UGA_Fireball::ActivateAbility(
         Character->GetMesh()->DoesSocketExist(MuzzleSocketName))
     {
         SpawnLocation =
-            Character->GetMesh()->GetSocketLocation(MuzzleSocketName);
+            Character->GetMesh()->GetSocketLocation(
+                MuzzleSocketName
+            );
     }
 
-    FVector AdjustedTargetLocation = TargetLocation;
-
-    FVector AimLocation = TargetLocation;
-
-    // Guarantee horizontal movement from the actual spawn position.
-    AimLocation.Z = SpawnLocation.Z;
-
-    const FVector Direction =
+    // Actual projectile aim.
+    const FVector ProjectileDirection =
         (AimLocation - SpawnLocation).GetSafeNormal2D();
 
     if (Direction.IsNearlyZero())
@@ -130,7 +131,18 @@ void UGA_Fireball::ActivateAbility(
 
     Character->SetActorRotation(Direction.Rotation());
 
-    Character->SetActorRotation(Direction.Rotation());
+    if (ProjectileDirection.IsNearlyZero())
+    {
+        EndAbility(
+            Handle,
+            ActorInfo,
+            ActivationInfo,
+            true,
+            true
+        );
+
+        return;
+    }
 
     if (CastMontage)
     {
@@ -140,41 +152,68 @@ void UGA_Fireball::ActivateAbility(
     if (Character->HasAuthority())
     {
         FGameplayEffectContextHandle EffectContext =
-            SourceASC->MakeEffectContext();
+            ASC->MakeEffectContext();
 
-        EffectContext.AddSourceObject(Character);
+        EffectContext.AddSourceObject(
+            Character
+        );
 
         FGameplayEffectSpecHandle DamageSpec =
-            SourceASC->MakeOutgoingSpec(
+            ASC->MakeOutgoingSpec(
                 DamageEffect,
                 GetAbilityLevel(),
-                EffectContext);
+                EffectContext
+            );
 
         if (DamageSpec.IsValid())
         {
+            const FGameplayTag DamageTag =
+                FGameplayTag::RequestGameplayTag(
+                    TEXT("Data.Damage")
+                );
+
+            DamageSpec.Data->SetSetByCallerMagnitude(
+                DamageTag,
+                FireballDamage
+            );
+
             const FTransform SpawnTransform(
-                Direction.Rotation(),
-                SpawnLocation);
+                ProjectileDirection.Rotation(),
+                SpawnLocation
+            );
 
             AGenericProjectile* Projectile =
-                GetWorld()->SpawnActorDeferred<AGenericProjectile>(
+                GetWorld()->SpawnActorDeferred<
+                AGenericProjectile
+                >(
                     ProjectileClass,
                     SpawnTransform,
                     Character,
                     Character,
-                    ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+                    ESpawnActorCollisionHandlingMethod::AlwaysSpawn
+                );
 
             if (Projectile)
             {
-                Projectile->FinishSpawning(SpawnTransform);
+                Projectile->FinishSpawning(
+                    SpawnTransform
+                );
 
                 Projectile->InitializeProjectile(
-                    SourceASC,
+                    ASC,
                     DamageSpec,
-                    Direction);
+                    nullptr,
+                    ProjectileDirection
+                );
             }
         }
     }
 
-    EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
+    EndAbility(
+        Handle,
+        ActorInfo,
+        ActivationInfo,
+        true,
+        false
+    );
 }
