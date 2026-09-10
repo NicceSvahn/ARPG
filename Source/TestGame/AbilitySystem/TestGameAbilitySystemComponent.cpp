@@ -25,3 +25,26 @@ void UTestGameAbilitySystemComponent::AbilityInputTagPressed(
         return;
     }
 }
+
+UGameplayAbility* UTestGameAbilitySystemComponent::GetAbilityForInputTag(const FGameplayTag& InputTag) const
+{
+    if (!InputTag.IsValid())
+    {
+        return nullptr;
+    }
+
+    for (const FGameplayAbilitySpec& AbilitySpec : GetActivatableAbilities())
+    {
+        if (!AbilitySpec.GetDynamicSpecSourceTags().HasTagExact(InputTag))
+        {
+            continue;
+        }
+
+        if (AbilitySpec.Ability)
+        {
+            return AbilitySpec.Ability;
+        }
+    }
+
+    return nullptr;
+}

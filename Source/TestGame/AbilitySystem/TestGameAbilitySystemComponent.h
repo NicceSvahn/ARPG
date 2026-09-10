@@ -23,7 +23,13 @@ public:
 
     void AbilityInputTagPressed(const FGameplayTag& InputTag, const FAbilityInputContext& Context);
 
+    UFUNCTION(BlueprintCallable, Category = "Abilities")
+    UGameplayAbility* GetAbilityForInputTag(const FGameplayTag& InputTag) const;
+
 private:
 
     FAbilityInputContext AbilityInputContext;
+
+protected:
+
 };
