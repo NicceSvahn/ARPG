@@ -27,9 +27,6 @@ protected:
     float BashRange = 150.0f;
 
     UPROPERTY(EditDefaultsOnly, Category = "Bash")
-    float BashCooldown = 2.0f; // Seconds?
-
-    UPROPERTY(EditDefaultsOnly, Category = "Bash")
     float BashResourceCost = 10.0f; 
 
     UPROPERTY(EditDefaultsOnly, Category = "Bash")
