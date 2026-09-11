@@ -40,6 +40,7 @@ public:
         const FGameplayTag& CooldownTag
     ) const;
 
+
 private:
 
     FAbilityInputContext AbilityInputContext;
