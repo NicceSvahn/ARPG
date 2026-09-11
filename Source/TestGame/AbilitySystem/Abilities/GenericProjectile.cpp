@@ -7,7 +7,7 @@
 
 AGenericProjectile::AGenericProjectile()
 {
-	PrimaryActorTick.bCanEverTick = false;
+	PrimaryActorTick.bCanEverTick = true;
 
     // The server creates the projectile and replicates it to clients.
     bReplicates = true;
@@ -17,7 +17,7 @@ AGenericProjectile::AGenericProjectile()
     SetRootComponent(Collision);
 
     Collision->InitSphereRadius(16.0f);
-    Collision->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+    Collision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
     Collision->SetCollisionObjectType(ECC_WorldDynamic);
     Collision->SetCollisionResponseToAllChannels(ECR_Ignore);
     Collision->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Block);
@@ -39,6 +39,27 @@ AGenericProjectile::AGenericProjectile()
     ProjectileMovement->bShouldBounce = false;
 }
 
+void AGenericProjectile::Tick(float DeltaTime)
+{
+    Super::Tick(DeltaTime);
+
+    if (!HasAuthority())
+    {
+        return;
+    }
+
+    const float DistanceTravelled =
+        FVector::Dist(
+            SpawnLocation,
+            GetActorLocation()
+        );
+
+    if (DistanceTravelled >= MaxRange)
+    {
+        Destroy();
+    }
+}
+
 void AGenericProjectile::InitializeProjectile(
     UAbilitySystemComponent* InSourceASC,
     const FGameplayEffectSpecHandle& InEffectSpec,
@@ -58,6 +79,17 @@ void AGenericProjectile::InitializeProjectile(
             Source,
             true
         );
+
+        if (UPrimitiveComponent* SourceRoot =
+            Cast<UPrimitiveComponent>(
+                Source->GetRootComponent()
+            ))
+        {
+            SourceRoot->IgnoreActorWhenMoving(
+                this,
+                true
+            );
+        }
     }
 
     // Prevent immediate collision with the caster.
@@ -76,6 +108,8 @@ void AGenericProjectile::InitializeProjectile(
             true
         );
     }
+
+    SpawnLocation = GetActorLocation();
 
     ProjectileMovement->bShouldBounce = false;
     ProjectileMovement->ProjectileGravityScale = 0.0f;
