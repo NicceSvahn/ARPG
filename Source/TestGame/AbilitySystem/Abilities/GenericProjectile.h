@@ -18,18 +18,20 @@ public:
 	void InitializeProjectile(
 		UAbilitySystemComponent* InSourceASC,
 		const FGameplayEffectSpecHandle& InEffectSpec,
-		AActor* InTarget,
 		const FVector& InLaunchDirection);
 
 protected:
+	UPROPERTY(
+		VisibleAnywhere,
+		BlueprintReadOnly,
+		Category = "Projectile",
+		meta = (AllowPrivateAccess = "true")
+	)
+	TObjectPtr<USphereComponent> Collision;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Projectile",
 		meta = (AllowPrivateAccess = "true"))
-	USphereComponent* Collision = nullptr;
-
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Projectile",
-		meta = (AllowPrivateAccess = "true"))
-	UProjectileMovementComponent* ProjectileMovement = nullptr;
+	TObjectPtr<UProjectileMovementComponent> ProjectileMovement = nullptr;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Projectile")
 	float LifeSeconds = 10.0f;
@@ -50,4 +52,7 @@ private:
 	FGameplayEffectSpecHandle EffectSpec;
 
 	bool bHasImpacted = false;
+
+	TWeakObjectPtr<AActor> SourceActor;
+
 };

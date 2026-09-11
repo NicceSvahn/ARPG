@@ -87,12 +87,20 @@ void UGA_Fireball::ActivateAbility(
 
     CharacterAimDirection.Z = 0.0f;
 
-    if (!CharacterAimDirection.IsNearlyZero())
+    if (CharacterAimDirection.IsNearlyZero())
     {
-        Character->SetActorRotation(
-            CharacterAimDirection.Rotation()
+        EndAbility(
+            Handle,
+            ActorInfo,
+            ActivationInfo,
+            true,
+            true
         );
+
+        return;
     }
+
+    Character->SetActorRotation(CharacterAimDirection.Rotation());
 
     // Get muzzle AFTER rotation.
     FVector SpawnLocation =
@@ -112,26 +120,25 @@ void UGA_Fireball::ActivateAbility(
     const FVector ProjectileDirection =
         (TargetLocation - SpawnLocation).GetSafeNormal2D();
 
-    if (CharacterAimDirection.IsNearlyZero())
+    if (ProjectileDirection.IsNearlyZero())
     {
-        UE_LOG(
-            LogTemp,
-            Error,
-            TEXT("FIREBALL: Invalid launch direction"));
+        UE_LOG(LogTemp, Error, TEXT("FIREBALL: Invalid projectile direction"));
 
         EndAbility(
             Handle,
             ActorInfo,
             ActivationInfo,
             true,
-            true);
+            true
+        );
 
         return;
     }
 
-    Character->SetActorRotation(CharacterAimDirection.Rotation());
-
-    if (ProjectileDirection.IsNearlyZero())
+    if (!CommitAbility(
+        Handle,
+        ActorInfo,
+        ActivationInfo))
     {
         EndAbility(
             Handle,
@@ -195,15 +202,14 @@ void UGA_Fireball::ActivateAbility(
 
             if (Projectile)
             {
-                Projectile->FinishSpawning(
-                    SpawnTransform
-                );
-
                 Projectile->InitializeProjectile(
                     ASC,
                     DamageSpec,
-                    nullptr,
                     ProjectileDirection
+                );
+
+                Projectile->FinishSpawning(
+                    SpawnTransform
                 );
             }
         }
