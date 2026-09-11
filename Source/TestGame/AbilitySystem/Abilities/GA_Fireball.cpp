@@ -87,51 +87,55 @@ void UGA_Fireball::ActivateAbility(
 
     CharacterAimDirection.Z = 0.0f;
 
-    if (!CharacterAimDirection.IsNearlyZero())
-    {
-        Character->SetActorRotation(
-            CharacterAimDirection.Rotation()
-        );
-    }
-
-    // Get muzzle AFTER rotation.
-    FVector SpawnLocation =
-        Character->GetActorLocation() +
-        Character->GetActorForwardVector() * 100.0f;
-
-    if (Character->GetMesh() &&
-        Character->GetMesh()->DoesSocketExist(MuzzleSocketName))
-    {
-        SpawnLocation =
-            Character->GetMesh()->GetSocketLocation(
-                MuzzleSocketName
-            );
-    }
-
-    // Actual projectile aim.
-    const FVector ProjectileDirection =
-        (TargetLocation - SpawnLocation).GetSafeNormal2D();
-
     if (CharacterAimDirection.IsNearlyZero())
     {
-        UE_LOG(
-            LogTemp,
-            Error,
-            TEXT("FIREBALL: Invalid launch direction"));
-
         EndAbility(
             Handle,
             ActorInfo,
             ActivationInfo,
             true,
-            true);
+            true
+        );
 
         return;
     }
 
     Character->SetActorRotation(CharacterAimDirection.Rotation());
 
+    // Get muzzle AFTER rotation.
+    FVector SpawnLocation =
+        Character->GetActorLocation();
+
+    if (Character->GetMesh() && Character->GetMesh()->DoesSocketExist(MuzzleSocketName))
+    {
+        SpawnLocation = Character->GetMesh()->GetSocketLocation(MuzzleSocketName);
+    }
+
+    SpawnLocation += Character->GetActorForwardVector() * 30.0f;
+
+    // Actual projectile aim.
+    const FVector ProjectileDirection =
+        (TargetLocation - SpawnLocation).GetSafeNormal2D();
+
     if (ProjectileDirection.IsNearlyZero())
+    {
+        UE_LOG(LogTemp, Error, TEXT("FIREBALL: Invalid projectile direction"));
+
+        EndAbility(
+            Handle,
+            ActorInfo,
+            ActivationInfo,
+            true,
+            true
+        );
+
+        return;
+    }
+
+    if (!CommitAbility(
+        Handle,
+        ActorInfo,
+        ActivationInfo))
     {
         EndAbility(
             Handle,
@@ -195,15 +199,14 @@ void UGA_Fireball::ActivateAbility(
 
             if (Projectile)
             {
-                Projectile->FinishSpawning(
-                    SpawnTransform
-                );
-
                 Projectile->InitializeProjectile(
                     ASC,
                     DamageSpec,
-                    nullptr,
                     ProjectileDirection
+                );
+
+                Projectile->FinishSpawning(
+                    SpawnTransform
                 );
             }
         }

@@ -7,7 +7,7 @@
 
 AGenericProjectile::AGenericProjectile()
 {
-	PrimaryActorTick.bCanEverTick = false;
+	PrimaryActorTick.bCanEverTick = true;
 
     // The server creates the projectile and replicates it to clients.
     bReplicates = true;
@@ -17,11 +17,11 @@ AGenericProjectile::AGenericProjectile()
     SetRootComponent(Collision);
 
     Collision->InitSphereRadius(16.0f);
-    Collision->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+    Collision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
     Collision->SetCollisionObjectType(ECC_WorldDynamic);
     Collision->SetCollisionResponseToAllChannels(ECR_Ignore);
     Collision->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Block);
-    Collision->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Block);
+    Collision->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Ignore);
     Collision->SetCollisionResponseToChannel(ECC_Pawn, ECR_Block);
 
     Collision->OnComponentHit.AddDynamic(
@@ -39,14 +39,58 @@ AGenericProjectile::AGenericProjectile()
     ProjectileMovement->bShouldBounce = false;
 }
 
+void AGenericProjectile::Tick(float DeltaTime)
+{
+    Super::Tick(DeltaTime);
+
+    if (!HasAuthority())
+    {
+        return;
+    }
+
+    const float DistanceTravelled =
+        FVector::Dist(
+            SpawnLocation,
+            GetActorLocation()
+        );
+
+    if (DistanceTravelled >= MaxRange)
+    {
+        Destroy();
+    }
+}
+
 void AGenericProjectile::InitializeProjectile(
     UAbilitySystemComponent* InSourceASC,
     const FGameplayEffectSpecHandle& InEffectSpec,
-    AActor* InTarget,
     const FVector& InLaunchDirection)
 {
     SourceASC = InSourceASC;
     EffectSpec = InEffectSpec;
+
+    if (InSourceASC)
+    {
+        SourceActor = InSourceASC->GetAvatarActor();
+    }
+
+    if (AActor* Source = SourceActor.Get())
+    {
+        Collision->IgnoreActorWhenMoving(
+            Source,
+            true
+        );
+
+        if (UPrimitiveComponent* SourceRoot =
+            Cast<UPrimitiveComponent>(
+                Source->GetRootComponent()
+            ))
+        {
+            SourceRoot->IgnoreActorWhenMoving(
+                this,
+                true
+            );
+        }
+    }
 
     // Prevent immediate collision with the caster.
     if (AActor* OwnerActor = GetOwner())
@@ -64,6 +108,8 @@ void AGenericProjectile::InitializeProjectile(
             true
         );
     }
+
+    SpawnLocation = GetActorLocation();
 
     ProjectileMovement->bShouldBounce = false;
     ProjectileMovement->ProjectileGravityScale = 0.0f;
@@ -103,10 +149,32 @@ void AGenericProjectile::InitializeProjectile(
 
 bool AGenericProjectile::CanHitActor(const AActor* OtherActor) const
 {
-    return IsValid(OtherActor)
-        && OtherActor != this
-        && OtherActor != GetOwner()
-        && OtherActor != GetInstigator();
+    if (!IsValid(OtherActor))
+    {
+        return false;
+    }
+
+    if (OtherActor == this)
+    {
+        return false;
+    }
+
+    if (OtherActor == SourceActor.Get())
+    {
+        return false;
+    }
+
+    if (OtherActor == GetOwner())
+    {
+        return false;
+    }
+
+    if (OtherActor == GetInstigator())
+    {
+        return false;
+    }
+
+    return true;
 }
 
 void AGenericProjectile::OnProjectileHit(
@@ -116,22 +184,38 @@ void AGenericProjectile::OnProjectileHit(
     FVector NormalImpulse,
     const FHitResult& Hit)
 {
-    if (bHasImpacted || !CanHitActor(OtherActor))
+    if (!HasAuthority() || bHasImpacted)
+    {
+        return;
+    }
+
+    // Ignore source without consuming projectile.
+    if (OtherActor == SourceActor.Get() ||
+        OtherActor == GetOwner() ||
+        OtherActor == GetInstigator())
     {
         return;
     }
 
     bHasImpacted = true;
 
-    // Gameplay Effects must be applied by the server.
-    if (HasAuthority())
+    Collision->SetCollisionEnabled(
+        ECollisionEnabled::NoCollision
+    );
+
+    ProjectileMovement->StopMovementImmediately();
+    ProjectileMovement->Deactivate();
+
+    // Only apply damage if this is a valid damage target.
+    if (CanHitActor(OtherActor))
     {
-        HandleImpact(OtherActor, Hit);
+        HandleImpact(
+            OtherActor,
+            Hit
+        );
     }
 
-    Collision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-    ProjectileMovement->StopMovementImmediately();
-
+    // Any other real impact consumes the projectile.
     Destroy();
 }
 
