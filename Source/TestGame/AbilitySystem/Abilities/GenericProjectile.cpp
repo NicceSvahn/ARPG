@@ -21,7 +21,7 @@ AGenericProjectile::AGenericProjectile()
     Collision->SetCollisionObjectType(ECC_WorldDynamic);
     Collision->SetCollisionResponseToAllChannels(ECR_Ignore);
     Collision->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Block);
-    Collision->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Block);
+    Collision->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Ignore);
     Collision->SetCollisionResponseToChannel(ECC_Pawn, ECR_Block);
 
     Collision->OnComponentHit.AddDynamic(
