@@ -104,17 +104,14 @@ void UGA_Fireball::ActivateAbility(
 
     // Get muzzle AFTER rotation.
     FVector SpawnLocation =
-        Character->GetActorLocation() +
-        Character->GetActorForwardVector() * 100.0f;
+        Character->GetActorLocation();
 
-    if (Character->GetMesh() &&
-        Character->GetMesh()->DoesSocketExist(MuzzleSocketName))
+    if (Character->GetMesh() && Character->GetMesh()->DoesSocketExist(MuzzleSocketName))
     {
-        SpawnLocation =
-            Character->GetMesh()->GetSocketLocation(
-                MuzzleSocketName
-            );
+        SpawnLocation = Character->GetMesh()->GetSocketLocation(MuzzleSocketName);
     }
+
+    SpawnLocation += Character->GetActorForwardVector() * 30.0f;
 
     // Actual projectile aim.
     const FVector ProjectileDirection =
