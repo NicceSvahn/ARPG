@@ -262,7 +262,7 @@ void ATestGamePlayerController::OnAbilityInputPressed(FGameplayTag InputTag)
         Context.HitLocation = HitResult.ImpactPoint;
     }
 
-    ASC->AbilityInputTagPressed(InputTag, Context);
+    ASC->RequestAbility(InputTag, Context);
 }
 
 void ATestGamePlayerController::TryInitializeHud()
