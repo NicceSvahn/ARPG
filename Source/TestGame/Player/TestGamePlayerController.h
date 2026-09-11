@@ -50,8 +50,6 @@ public:
     );
 
     void CancelMoveIntoRange();
-
-    void TryInitializeHud();
     
     // For Debugging
     AGenericCharacter* GetCharacterUnderCursor() const;
@@ -97,6 +95,8 @@ private:
     void OnAbilityInputPressed(FGameplayTag InputTag);
 
     void FinishMoveIntoRange(bool bSuccess);
+
+    void TryInitializeHud();
 
     TWeakObjectPtr<AActor> MovementTarget;
 
