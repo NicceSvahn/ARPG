@@ -12,6 +12,7 @@
 #include "../AbilitySystem/TestGameAbilitySystemComponent.h"
 #include "../Characters/GenericCharacter.h"
 #include "../UI/PlayerHudWidget.h"
+#include "../UI/CombatDebugWidget.h"
 
 ATestGamePlayerController::ATestGamePlayerController()
 {
@@ -127,6 +128,16 @@ void ATestGamePlayerController::SetupInputComponent()
             this,
             &ATestGamePlayerController::OnAbilityInputPressed,
             Binding.InputTag
+        );
+    }
+
+    if (ToggleCombatDebugAction)
+    {
+        EnhancedInput->BindAction(
+            ToggleCombatDebugAction,
+            ETriggerEvent::Started,
+            this,
+            &ATestGamePlayerController::ToggleCombatDebug
         );
     }
 }
@@ -316,4 +327,80 @@ void ATestGamePlayerController::TryInitializeHud()
     }
 
     PlayerHudWidget->InitializeHud(PlayerCharacter);
+}
+
+void ATestGamePlayerController::ToggleCombatDebug()
+{
+    if (!IsLocalController())
+    {
+        return;
+    }
+
+    if (!CombatDebugWidget)
+    {
+        if (!CombatDebugWidgetClass)
+        {
+            UE_LOG(
+                LogTemp,
+                Warning,
+                TEXT("CombatDebugWidgetClass is not set")
+            );
+
+            return;
+        }
+
+        AGenericCharacter* PlayerCharacter =
+            Cast<AGenericCharacter>(GetPawn());
+
+        if (!PlayerCharacter)
+        {
+            return;
+        }
+
+        CombatDebugWidget =
+            CreateWidget<UCombatDebugWidget>(
+                this,
+                CombatDebugWidgetClass
+            );
+
+        if (!CombatDebugWidget)
+        {
+            return;
+        }
+
+        CombatDebugWidget->InitializeDebugWidget(
+            PlayerCharacter
+        );
+
+        CombatDebugWidget->AddToViewport();
+
+        bCombatDebugVisible = true;
+        return;
+    }
+
+    bCombatDebugVisible = !bCombatDebugVisible;
+
+    CombatDebugWidget->SetVisibility(
+        bCombatDebugVisible
+        ? ESlateVisibility::HitTestInvisible
+        : ESlateVisibility::Collapsed
+    );
+}
+
+AGenericCharacter*
+ATestGamePlayerController::GetCharacterUnderCursor() const
+{
+    FHitResult HitResult;
+
+    if (!GetHitResultUnderCursor(
+        ECC_Visibility,
+        false,
+        HitResult))
+    {
+        return nullptr;
+    }
+
+    return Cast<AGenericCharacter>(
+        HitResult.GetActor()
+    );
 }

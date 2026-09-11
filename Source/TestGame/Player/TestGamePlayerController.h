@@ -7,11 +7,14 @@
 #include "../AbilitySystem/AbilityInputContext.h"
 #include "../UI/PlayerHudWidget.h"
 
+
 #include "TestGamePlayerController.generated.h"
 
 class UInputMappingContext;
 class UInputAction;
 class UPlayerHudWidget;
+class UCombatDebugWidget;
+class AGenericCharacter;
 
 DECLARE_DELEGATE_OneParam(
     FOnMoveIntoRangeCompleted,
@@ -47,6 +50,9 @@ public:
     );
 
     void CancelMoveIntoRange();
+    
+    // For Debugging
+    AGenericCharacter* GetCharacterUnderCursor() const;
 
 protected:
     virtual void BeginPlay() override;
@@ -70,6 +76,19 @@ protected:
     UPROPERTY()
     TObjectPtr<UPlayerHudWidget> PlayerHudWidget;
 
+    UPROPERTY(EditDefaultsOnly, Category = "Debug")
+    TSubclassOf<UCombatDebugWidget> CombatDebugWidgetClass;
+
+    UPROPERTY()
+    TObjectPtr<UCombatDebugWidget> CombatDebugWidget;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Input|Debug")
+    TObjectPtr<UInputAction> ToggleCombatDebugAction;
+
+    bool bCombatDebugVisible = false;
+
+    void ToggleCombatDebug();
+
 private:
     void OnClickMove();
 
@@ -77,13 +96,12 @@ private:
 
     void FinishMoveIntoRange(bool bSuccess);
 
+    void TryInitializeHud();
+
     TWeakObjectPtr<AActor> MovementTarget;
 
     float MovementAcceptanceRadius = 0.0f;
 
     bool bIsMovingToTarget = false;
     FOnMoveIntoRangeCompleted MoveCompletedDelegate;
-
-    void TryInitializeHud();
-
 };

@@ -44,6 +44,7 @@ public:
         const FGameplayTag& CooldownTag
     ) const;
 
+
 private:
     FGameplayAbilitySpec* FindAbilitySpecForTag(const FGameplayTag& AbilityTag);
 
