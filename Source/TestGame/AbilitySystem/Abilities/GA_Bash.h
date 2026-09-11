@@ -2,18 +2,22 @@
 
 #include "CoreMinimal.h"
 #include "GA_GenericAbility.h"
+#include "../../AbilitySystem/AbilityRequestPolicy.h"
 #include "GA_Bash.generated.h"
 
 class UGameplayEffect;
 class UAnimMontage;
 
 UCLASS()
-class TESTGAME_API UGA_Bash : public UGA_GenericAbility
+class TESTGAME_API UGA_Bash : public UGA_GenericAbility, public IAbilityRequestPolicy
 {
     GENERATED_BODY()
 
 public:
     UGA_Bash();
+
+    virtual bool RequiresTarget() const override { return true; }
+    virtual float GetMaximumRange() const override { return BashRange; }
 
     virtual void ActivateAbility(
         const FGameplayAbilitySpecHandle Handle,
@@ -39,14 +43,6 @@ protected:
     TObjectPtr<UAnimMontage> BashMontage;
 
 private:
-    TWeakObjectPtr<AActor> Target;
-
-    bool IsTargetInRange() const;
-
-    void RequestMoveIntoRange();
-
-    void OnMovementCompleted(bool bSuccess);
-
     void PerformBash();
 
     void ApplyBashDamage();

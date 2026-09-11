@@ -3,13 +3,9 @@
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
 
-#include "../../AI/EnemyAIController.h"
 #include "../../Characters/GenericCharacter.h"
-#include "../../Characters/EnemyCharacter.h"
-#include "../../Player/TestGamePlayerController.h"
 #include "../../AbilitySystem/TestGameAbilitySystemComponent.h"
 #include "../../AbilitySystem/AbilityInputContext.h"
-
 
 UGA_Bash::UGA_Bash()
 {
@@ -70,163 +66,8 @@ void UGA_Bash::ActivateAbility(
         *GetNameSafe(CurrentTargetActor)
     );
 
-    if (!IsValid(CurrentTargetActor))
-    {
-        UE_LOG(
-            LogTemp,
-            Error,
-            TEXT("BASH: Ability input context has no valid target")
-        );
-
-        EndAbility(
-            Handle,
-            ActorInfo,
-            ActivationInfo,
-            true,
-            true
-        );
-
-        return;
-    }
-
-    if (IsTargetInRange())
-    {
-        PerformBash();
-        return;
-    }
-
-    // The enemy controller already handles its movement.
-    // If the target is outside Bash range, cancel this attempt.
-    if (Cast<AEnemyCharacter>(GetGenericCharacter()))
-    {
-        UE_LOG(
-            LogTemp,
-            Warning,
-            TEXT("BASH: Enemy target is outside range")
-        );
-
-        EndAbility(
-            Handle,
-            ActorInfo,
-            ActivationInfo,
-            true,
-            true
-        );
-
-        return;
-    }
-
-    // Player-controlled characters can automatically move into range.
-    RequestMoveIntoRange();
-}
-
-
-bool UGA_Bash::IsTargetInRange() const
-{
-    const AActor* OwnerActor =
-        GetAvatarActorFromActorInfo();
-
-    if (!IsValid(OwnerActor) ||
-        !IsValid(CurrentTargetActor))
-    {
-        return false;
-    }
-
-    const float Distance = FVector::Dist2D(
-        OwnerActor->GetActorLocation(),
-        CurrentTargetActor->GetActorLocation()
-    );
-
-    return Distance <= BashRange;
-}
-
-
-void UGA_Bash::RequestMoveIntoRange()
-{
-    AGenericCharacter* Character =
-        GetGenericCharacter();
-
-    if (!Character ||
-        !IsValid(CurrentTargetActor))
-    {
-        EndAbility(
-            CurrentSpecHandle,
-            CurrentActorInfo,
-            CurrentActivationInfo,
-            true,
-            true
-        );
-
-        return;
-    }
-
-    ATestGamePlayerController* Controller =
-        Cast<ATestGamePlayerController>(
-            Character->GetController()
-        );
-
-    if (!Controller)
-    {
-        UE_LOG(
-            LogTemp,
-            Warning,
-            TEXT("BASH: Avatar is not controlled by TestGamePlayerController")
-        );
-
-        EndAbility(
-            CurrentSpecHandle,
-            CurrentActorInfo,
-            CurrentActivationInfo,
-            true,
-            true
-        );
-
-        return;
-    }
-
-    Controller->MoveIntoRange(
-        CurrentTargetActor,
-        BashRange,
-        FOnMoveIntoRangeCompleted::CreateUObject(
-            this,
-            &UGA_Bash::OnMovementCompleted
-        )
-    );
-}
-
-
-void UGA_Bash::OnMovementCompleted(bool bSuccess)
-{
-    if (!bSuccess)
-    {
-        EndAbility(
-            CurrentSpecHandle,
-            CurrentActorInfo,
-            CurrentActivationInfo,
-            true,
-            true
-        );
-
-        return;
-    }
-
-    if (!IsValid(CurrentTargetActor) ||
-        !IsTargetInRange())
-    {
-        EndAbility(
-            CurrentSpecHandle,
-            CurrentActorInfo,
-            CurrentActivationInfo,
-            true,
-            true
-        );
-
-        return;
-    }
-
     PerformBash();
 }
-
 
 void UGA_Bash::PerformBash()
 {

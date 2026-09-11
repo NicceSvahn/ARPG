@@ -68,33 +68,9 @@ void AEnemyAIController::UpdateCombat(float DeltaSeconds)
 		return;
 	}
 
-	BashAttemptTimer += DeltaSeconds;
+	TryAbility();
 
 	const float Distance = FVector::Dist2D(ControlledPawn->GetActorLocation(), PlayerPawn->GetActorLocation());
-
-	// If close enough, stop chasing and try Bash.
-	if (Distance <= BashRange)
-	{
-		StopMovement();
-
-		if (BashAttemptTimer >= BashAttemptInterval)
-		{
-			UE_LOG(
-				LogTemp,
-				Error,
-				TEXT("=== SKELETON WANTS TO BASH === Attacker=%s Target=%s Distance=%.1f"),
-				*ControlledPawn->GetName(),
-				*PlayerPawn->GetName(),
-				Distance
-			);
-
-			TryBash();
-
-			BashAttemptTimer = 0.0f;
-		}
-
-		return;
-	}
 
 	// Player is outside Bash range, keep following them.
 	MoveToActor(
@@ -103,7 +79,7 @@ void AEnemyAIController::UpdateCombat(float DeltaSeconds)
 	);
 }
 
-void AEnemyAIController::TryBash()
+void AEnemyAIController::TryAbility()
 {
 	APawn* ControlledPawn = GetPawn();
 
@@ -146,7 +122,7 @@ void AEnemyAIController::TryBash()
 			FName("Input.Ability.Bash")
 		);
 
-	ASC->AbilityInputTagPressed(
+	ASC->RequestAbility(
 		BashInputTag,
 		Context
 	);

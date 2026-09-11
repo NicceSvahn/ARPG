@@ -38,6 +38,6 @@ private:
 
 	void UpdateCombat(float DeltaSeconds);
 
-	void TryBash();
+	void TryAbility();
 
 };

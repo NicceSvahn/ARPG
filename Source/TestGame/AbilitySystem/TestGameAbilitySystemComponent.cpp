@@ -1,43 +1,172 @@
 #include "TestGameAbilitySystemComponent.h"
 #include "GameplayEffect.h"
 #include "GameplayEffectTypes.h"
+#include "AbilitySystemBlueprintLibrary.h"
+#include "GameFramework/Pawn.h"
 
 #include "Abilities/GameplayAbilityTypes.h"
+#include "AbilityRequestPolicy.h"
+#include "../Player/TestGamePlayerController.h"
 
-void UTestGameAbilitySystemComponent::AbilityInputTagPressed(
-    const FGameplayTag& InputTag,
+bool UTestGameAbilitySystemComponent::RequestAbility(
+    const FGameplayTag& AbilityTag,
     const FAbilityInputContext& Context)
 {
-    if (!InputTag.IsValid())
+    if (!AbilityTag.IsValid())
     {
-        return;
+        return false;
     }
 
-    for (FGameplayAbilitySpec& AbilitySpec : GetActivatableAbilities())
+    FGameplayAbilitySpec* AbilitySpec = FindAbilitySpecForTag(AbilityTag);
+
+    if (!AbilitySpec || !AbilitySpec->Ability)
     {
-        if (!AbilitySpec
-            .GetDynamicSpecSourceTags()
-            .HasTagExact(InputTag))
-        {
-            continue;
-        }
-
-        AbilityInputContext = Context;
-
-        const bool bActivated =
-            TryActivateAbility(AbilitySpec.Handle);
-
         UE_LOG(
             LogTemp,
             Warning,
-            TEXT("Ability %s activated=%s target=%s"),
-            *GetNameSafe(AbilitySpec.Ability),
-            bActivated ? TEXT("true") : TEXT("false"),
-            *GetNameSafe(Context.TargetActor)
+            TEXT("RequestAbility: no granted ability has tag %s"),
+            *AbilityTag.ToString()
         );
-
-        return;
+        return false;
     }
+
+    const IAbilityRequestPolicy* RequestPolicy =
+        Cast<IAbilityRequestPolicy>(AbilitySpec->Ability);
+
+    const bool bRequiresTarget =
+        RequestPolicy && RequestPolicy->RequiresTarget();
+
+    const float MaximumRange =
+        RequestPolicy ? RequestPolicy->GetMaximumRange() : 0.0f;
+
+    if (!CheckTarget(bRequiresTarget, Context))
+    {
+        return false;
+    }
+
+    if (!CheckRange(MaximumRange, Context))
+    {
+        return RequestMovement(
+            AbilityTag,
+            Context,
+            MaximumRange
+        );
+    }
+
+    return TryActivateRequestedAbility(AbilitySpec->Handle, Context);
+}
+
+FGameplayAbilitySpec*
+UTestGameAbilitySystemComponent::FindAbilitySpecForTag(
+    const FGameplayTag& AbilityTag)
+{
+    return GetActivatableAbilities().FindByPredicate(
+        [&AbilityTag](const FGameplayAbilitySpec& AbilitySpec)
+        {
+            return AbilitySpec
+                .GetDynamicSpecSourceTags()
+                .HasTagExact(AbilityTag);
+        }
+    );
+}
+
+bool UTestGameAbilitySystemComponent::CheckTarget(
+    const bool bRequiresTarget,
+    const FAbilityInputContext& Context) const
+{
+    if (!bRequiresTarget)
+    {
+        return true;
+    }
+
+    AActor* AvatarActorInstance = GetAvatarActor();
+
+    return IsValid(Context.TargetActor) &&
+        IsValid(AvatarActorInstance) &&
+        Context.TargetActor != AvatarActorInstance &&
+        UAbilitySystemBlueprintLibrary::
+        GetAbilitySystemComponent(Context.TargetActor) != nullptr;
+}
+
+bool UTestGameAbilitySystemComponent::TryActivateRequestedAbility(
+    const FGameplayAbilitySpecHandle& AbilityHandle,
+    const FAbilityInputContext& Context)
+{
+    AbilityInputContext = Context;
+    return TryActivateAbility(AbilityHandle);
+}
+
+bool UTestGameAbilitySystemComponent::RequestMovement(
+    const FGameplayTag& AbilityTag,
+    const FAbilityInputContext& Context,
+    const float MaximumRange)
+{
+    APawn* AvatarPawn = Cast<APawn>(GetAvatarActor());
+    ATestGamePlayerController* PlayerController =
+        AvatarPawn
+        ? Cast<ATestGamePlayerController>(AvatarPawn->GetController())
+        : nullptr;
+
+    if (!PlayerController || !IsValid(Context.TargetActor))
+    {
+        // AI-specific positioning remains the responsibility of its controller.
+        return false;
+    }
+
+    // Cancelling first lets any previous callback clear its own request before
+    // this request becomes the new pending one.
+    PlayerController->CancelMoveIntoRange();
+
+    PendingAbilityTag = AbilityTag;
+    PendingAbilityContext = Context;
+
+    PlayerController->MoveIntoRange(
+        Context.TargetActor,
+        MaximumRange,
+        FOnMoveIntoRangeCompleted::CreateUObject(
+            this,
+            &UTestGameAbilitySystemComponent::OnRequestMovementCompleted
+        )
+    );
+
+    return true;
+}
+
+void UTestGameAbilitySystemComponent::OnRequestMovementCompleted(
+    const bool bSuccess)
+{
+    const FGameplayTag AbilityTag = PendingAbilityTag;
+    const FAbilityInputContext Context = PendingAbilityContext;
+
+    PendingAbilityTag = FGameplayTag();
+    PendingAbilityContext = FAbilityInputContext();
+
+    if (bSuccess)
+    {
+        RequestAbility(AbilityTag, Context);
+    }
+}
+
+bool UTestGameAbilitySystemComponent::CheckRange(
+    const float MaximumRange,
+    const FAbilityInputContext& Context) const
+{
+    if (MaximumRange <= 0.0f)
+    {
+        return true;
+    }
+
+    const AActor* AvatarActorInstance = GetAvatarActor();
+
+    if (!IsValid(AvatarActorInstance) || !IsValid(Context.TargetActor))
+    {
+        return false;
+    }
+
+    return FVector::Dist2D(
+        AvatarActorInstance->GetActorLocation(),
+        Context.TargetActor->GetActorLocation()
+    ) <= MaximumRange;
 }
 
 UGameplayAbility*
