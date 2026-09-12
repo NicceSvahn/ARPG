@@ -75,4 +75,12 @@ void AEnemyAIController::ClearAggroTarget(
 
 	Blackboard->ClearValue(TargetActorKey);
 	StopMovement();
+
+	UE_LOG(
+		LogTemp,
+		Warning,
+		TEXT("%s cleared aggro target %s"),
+		*GetName(),
+		*TargetToClear->GetName()
+	);
 }

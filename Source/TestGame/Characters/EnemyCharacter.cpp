@@ -40,6 +40,11 @@ AEnemyCharacter::AEnemyCharacter()
         &AEnemyCharacter::HandleAggroBeginOverlap
     );
 
+    AggroSphere->OnComponentEndOverlap.AddDynamic(
+        this,
+        &AEnemyCharacter::HandleAggroEndOverlap
+    );
+
 	EnemyHealthWidget = CreateDefaultSubobject<UWidgetComponent>(TEXT("EnemyHealthWidget"));
 
 	EnemyHealthWidget->SetupAttachment(RootComponent);

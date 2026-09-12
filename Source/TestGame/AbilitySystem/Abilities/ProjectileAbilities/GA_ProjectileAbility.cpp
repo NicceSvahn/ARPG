@@ -4,6 +4,7 @@
 #include "GameplayEffect.h"
 
 #include "../../../Characters/GenericCharacter.h"
+#include "../../../Characters/EnemyCharacter.h"
 #include "../../TestGameAbilitySystemComponent.h"
 #include "../../AbilityInputContext.h"
 #include "../GenericProjectile.h"
@@ -38,7 +39,10 @@ bool UGA_ProjectileAbility::PrepareProjectileAbility(
 
     FVector TargetLocation = FVector::ZeroVector;
 
-    if (IsValid(InputContext.TargetActor))
+    const bool bCasterIsEnemy =
+        Character->IsA<AEnemyCharacter>();
+
+    if (IsValid(InputContext.TargetActor) && bCasterIsEnemy)
     {
         // AI and actor-targeted abilities.
         TargetLocation =

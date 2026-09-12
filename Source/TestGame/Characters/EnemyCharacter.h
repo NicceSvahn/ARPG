@@ -52,7 +52,7 @@ protected:
 		meta = (ClampMin = "0.0",
 			NoGetter = "cm")
 	)
-	float AggroRange = 1200.0f;
+	float AggroRange = 700.0f;
 
 	UFUNCTION()
 	void HandleAggroBeginOverlap(
