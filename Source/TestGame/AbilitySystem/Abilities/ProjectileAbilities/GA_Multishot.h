@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GA_GenericAbility.h"
+#include "GA_ProjectileAbility.h"
 #include "GA_Multishot.generated.h"
 
 class AGenericProjectile;
@@ -9,12 +9,11 @@ class UAnimMontage;
 class UGameplayEffect;
 
 UCLASS()
-class TESTGAME_API UGA_Multishot : public UGA_GenericAbility
+class TESTGAME_API UGA_Multishot : public UGA_ProjectileAbility
 {
     GENERATED_BODY()
 
 public:
-    UGA_Multishot();
 
     virtual void ActivateAbility(
         const FGameplayAbilitySpecHandle Handle,
@@ -25,16 +24,7 @@ public:
 
 protected:
     UPROPERTY(EditDefaultsOnly, Category = "Multishot")
-    TSubclassOf<AGenericProjectile> ProjectileClass;
-
-    UPROPERTY(EditDefaultsOnly, Category = "Multishot")
-    TSubclassOf<UGameplayEffect> DamageEffect;
-
-    UPROPERTY(EditDefaultsOnly, Category = "Multishot")
     TObjectPtr<UAnimMontage> CastMontage;
-
-    UPROPERTY(EditDefaultsOnly, Category = "Multishot")
-    FName MuzzleSocketName = TEXT("MultishotSocket");
 
     UPROPERTY(
         EditDefaultsOnly,

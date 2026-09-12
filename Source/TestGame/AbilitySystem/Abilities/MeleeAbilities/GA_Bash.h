@@ -1,8 +1,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GA_GenericAbility.h"
-#include "../../AbilitySystem/AbilityRequestPolicy.h"
+#include "../GA_GenericAbility.h"
+#include "../../AbilityRequestPolicy.h"
 #include "GA_Bash.generated.h"
 
 class UGameplayEffect;
