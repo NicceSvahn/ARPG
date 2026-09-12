@@ -4,6 +4,7 @@
 #include "GameplayEffect.h"
 
 #include "../../../Characters/GenericCharacter.h"
+#include "../../../Characters/EnemyCharacter.h"
 #include "../../TestGameAbilitySystemComponent.h"
 #include "../../AbilityInputContext.h"
 #include "../GenericProjectile.h"
@@ -36,13 +37,32 @@ bool UGA_ProjectileAbility::PrepareProjectileAbility(
     const FAbilityInputContext& InputContext =
         ASC->GetAbilityInputContext();
 
-    if (!InputContext.HitResult.bBlockingHit)
+    FVector TargetLocation = FVector::ZeroVector;
+
+    const bool bCasterIsEnemy =
+        Character->IsA<AEnemyCharacter>();
+
+    if (IsValid(InputContext.TargetActor) && bCasterIsEnemy)
+    {
+        // AI and actor-targeted abilities.
+        TargetLocation =
+            InputContext.TargetActor->GetActorLocation();
+    }
+    else if (!InputContext.HitResult.bBlockingHit)
     {
         return false;
     }
+    else
+    {
+        // Explicit location targeting.
+        TargetLocation =
+            InputContext.HitLocation;
+    }
 
-    const FVector TargetLocation =
-        InputContext.HitLocation;
+    if (TargetLocation.IsNearlyZero())
+    {
+        return false;
+    }
 
     FVector CharacterAimDirection =
         TargetLocation -

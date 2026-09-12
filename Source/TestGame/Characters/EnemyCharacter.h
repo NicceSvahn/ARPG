@@ -2,9 +2,10 @@
 
 #include "CoreMinimal.h"
 #include "GenericCharacter.h"
-#include "../AI/EnemyAIController.h"
+#include "GameplayTagContainer.h"
 #include "EnemyCharacter.generated.h"
 
+class USphereComponent;
 class UAbilitySystemComponent;
 class UHealthAttributeSet;
 class UWidgetComponent;
@@ -20,11 +21,56 @@ public:
 	// Sets default values for this character's properties
 	AEnemyCharacter();
 
-	virtual void Tick(float DeltaTime) override;
+	FGameplayTag GetPrimaryAttackInputTag() const
+	{
+		return PrimaryAttackInputTag;
+	}
 
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
+
+	UPROPERTY(
+		EditDefaultsOnly,
+		BlueprintReadOnly,
+		Category = "AI|Combat",
+		meta = (Categories = "Event.Ability")
+	)
+	FGameplayTag PrimaryAttackInputTag;
+
+	UPROPERTY(
+		VisibleAnywhere,
+		BlueprintReadOnly,
+		Category = "AI|Aggro"
+	)
+	TObjectPtr<USphereComponent> AggroSphere;
+
+	UPROPERTY(
+		EditAnywhere,
+		BlueprintReadOnly,
+		Category = "AI|Aggro",
+		meta = (ClampMin = "0.0",
+			NoGetter = "cm")
+	)
+	float AggroRange = 700.0f;
+
+	UFUNCTION()
+	void HandleAggroBeginOverlap(
+		UPrimitiveComponent* OverlappedComponent,
+		AActor* OtherActor,
+		UPrimitiveComponent* OtherComponent,
+		int32 OtherBodyIndex,
+		bool bFromSweep,
+		const FHitResult& SweepResult
+	);
+
+	UFUNCTION()
+	void HandleAggroEndOverlap(
+		UPrimitiveComponent* OverlappedComponent,
+		AActor* OtherActor,
+		UPrimitiveComponent* OtherComponent,
+		int32 OtherBodyIndex
+	);
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UI")
 	TObjectPtr<UWidgetComponent> EnemyHealthWidget;
@@ -40,6 +86,6 @@ protected:
 	TSubclassOf<ADamageNumberActor> DamageNumberActorClass;
 
 private:
-
+	void InitializeAggroTarget();
 	void HandleDamageReceived(float DamageAmount);
 };
