@@ -4,9 +4,10 @@
 #include "AIController.h"
 #include "EnemyAIController.generated.h"
 
-/**
- * 
- */
+class UAIPerceptionComponent;
+class UAISenseConfig_Sight;
+class UBehaviorTree;
+
 UCLASS()
 class TESTGAME_API AEnemyAIController : public AAIController
 {
@@ -15,29 +16,15 @@ class TESTGAME_API AEnemyAIController : public AAIController
 public:
 	AEnemyAIController();
 
-protected:
-	// Called when the game starts or when spawned
-	virtual void BeginPlay() override;
+	void SetAggroTarget(AActor* NewTarget);
+	void ClearAggroTarget(AActor* TargetToClear);
 
+protected:
 	virtual void OnPossess(APawn* InPawn) override;
 
-	virtual void Tick(float DeltaSeconds) override;
+	UPROPERTY(EditDefaultsOnly, BLueprintReadOnly, Category = "AI")
+	TObjectPtr<UBehaviorTree> BehaviorTreeAsset;
 
 private:
-	
-	UPROPERTY()
-	TObjectPtr<APawn> PlayerPawn;
-
-	UPROPERTY(EditAnywhere, Category = "Combat")
-	float BashRange = 150.0f;
-
-	UPROPERTY(EditAnywhere, Category = "Combat")
-	float BashAttemptInterval = 2.0f;
-
-	float BashAttemptTimer = 0.0f;
-
-	void UpdateCombat(float DeltaSeconds);
-
-	void TryAbility();
-
+	static const FName TargetActorKey;
 };

@@ -1,25 +1,47 @@
 #include "EnemyCharacter.h"
-#include "GenericCharacter.h"
+
+#include "../AI/EnemyAIController.h"
 #include "../UI/EnemyHealthBarWidget.h"
-#include "TestGame/AbilitySystem/Attributes/HealthAttributeSet.h"
-#include "AbilitySystemComponent.h"
-#include "Components/WidgetComponent.h"
 #include "../UI/FloatingCombatText/DamageNumberActor.h"
+
+#include "AbilitySystemComponent.h"
+#include "Components/SphereComponent.h"
+#include "Components/WidgetComponent.h"
+#include "Kismet/GameplayStatics.h"
+#include "TestGame/AbilitySystem/Attributes/HealthAttributeSet.h"
+
 
 // Sets default values
 AEnemyCharacter::AEnemyCharacter()
 {
  	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
-	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.bCanEverTick = false;
 
 	AIControllerClass = AEnemyAIController::StaticClass();
-
 	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
+
+    AggroSphere =
+        CreateDefaultSubobject<USphereComponent>(
+            TEXT("AggroSphere")
+        );
+
+    AggroSphere->SetupAttachment(RootComponent);
+
+    AggroSphere->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+    AggroSphere->SetCollisionObjectType(ECC_WorldDynamic);
+    AggroSphere->SetCollisionResponseToAllChannels(ECR_Ignore);
+    AggroSphere->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+
+    AggroSphere->SetGenerateOverlapEvents(true);
+
+    AggroSphere->OnComponentBeginOverlap.AddDynamic(
+        this,
+        &AEnemyCharacter::HandleAggroBeginOverlap
+    );
 
 	EnemyHealthWidget = CreateDefaultSubobject<UWidgetComponent>(TEXT("EnemyHealthWidget"));
 
 	EnemyHealthWidget->SetupAttachment(RootComponent);
-
 	EnemyHealthWidget->SetWidgetSpace(EWidgetSpace::Screen);
 	EnemyHealthWidget->SetDrawAtDesiredSize(true);
 
@@ -30,6 +52,14 @@ AEnemyCharacter::AEnemyCharacter()
 void AEnemyCharacter::BeginPlay()
 {
 	Super::BeginPlay();	
+
+    if (AggroSphere)
+    {
+        AggroSphere->SetSphereRadius(
+            AggroRange,
+            true
+        );
+    }
 
     UE_LOG(
         LogTemp,
@@ -49,10 +79,84 @@ void AEnemyCharacter::BeginPlay()
     }
 }
 
-// Called every frame
-void AEnemyCharacter::Tick(float DeltaTime)
+void AEnemyCharacter::HandleAggroBeginOverlap(
+    UPrimitiveComponent* OverlappedComponent,
+    AActor* OtherActor,
+    UPrimitiveComponent* OtherComponent,
+    int32 OtherBodyIndex,
+    bool bFromSweep,
+    const FHitResult& SweepResult)
 {
-	Super::Tick(DeltaTime);
+    if (!IsValid(OtherActor) || OtherActor == this)
+    {
+        return;
+    }
+
+    APawn* PlayerPawn =
+        UGameplayStatics::GetPlayerPawn(
+            GetWorld(),
+            0
+        );
+
+    if (OtherActor != PlayerPawn)
+    {
+        return;
+    }
+
+    AEnemyAIController* EnemyController =
+        Cast<AEnemyAIController>(
+            GetController()
+        );
+
+    if (!EnemyController)
+    {
+        return;
+    }
+
+    EnemyController->SetAggroTarget(OtherActor);
+
+    UE_LOG(
+        LogTemp,
+        Log,
+        TEXT("%s entered %s's aggro range"),
+        *OtherActor->GetName(),
+        *GetName()
+    );
+}
+
+void AEnemyCharacter::HandleAggroEndOverlap(
+    UPrimitiveComponent* OverlappedComponent,
+    AActor* OtherActor,
+    UPrimitiveComponent* OtherComponent,
+    int32 OtherBodyIndex)
+{
+    if (!IsValid(OtherActor))
+    {
+        return;
+    }
+
+    APawn* PlayerPawn =
+        UGameplayStatics::GetPlayerPawn(
+            GetWorld(),
+            0
+        );
+
+    if (OtherActor != PlayerPawn)
+    {
+        return;
+    }
+
+    AEnemyAIController* EnemyController =
+        Cast<AEnemyAIController>(
+            GetController()
+        );
+
+    if (!EnemyController)
+    {
+        return;
+    }
+
+    EnemyController->ClearAggroTarget(OtherActor);
 }
 
 void AEnemyCharacter::RefreshHealthBar(float CurrentHealth)

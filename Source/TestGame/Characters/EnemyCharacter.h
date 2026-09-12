@@ -2,9 +2,9 @@
 
 #include "CoreMinimal.h"
 #include "GenericCharacter.h"
-#include "../AI/EnemyAIController.h"
 #include "EnemyCharacter.generated.h"
 
+class USphereComponent;
 class UAbilitySystemComponent;
 class UHealthAttributeSet;
 class UWidgetComponent;
@@ -20,11 +20,43 @@ public:
 	// Sets default values for this character's properties
 	AEnemyCharacter();
 
-	virtual void Tick(float DeltaTime) override;
-
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
+
+	UPROPERTY(
+		VisibleAnywhere,
+		BlueprintReadOnly,
+		Category = "AI|Aggro"
+	)
+	TObjectPtr<USphereComponent> AggroSphere;
+
+	UPROPERTY(
+		EditAnywhere,
+		BlueprintReadOnly,
+		Category = "AI|Aggro",
+		meta = (ClampMin = "0.0",
+			NoGetter = "cm")
+	)
+	float AggroRange = 1200.0f;
+
+	UFUNCTION()
+	void HandleAggroBeginOverlap(
+		UPrimitiveComponent* OverlappedComponent,
+		AActor* OtherActor,
+		UPrimitiveComponent* OtherComponent,
+		int32 OtherBodyIndex,
+		bool bFromSweep,
+		const FHitResult& SweepResult
+	);
+
+	UFUNCTION()
+	void HandleAggroEndOverlap(
+		UPrimitiveComponent* OverlappedComponent,
+		AActor* OtherActor,
+		UPrimitiveComponent* OtherComponent,
+		int32 OtherBodyIndex
+	);
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UI")
 	TObjectPtr<UWidgetComponent> EnemyHealthWidget;

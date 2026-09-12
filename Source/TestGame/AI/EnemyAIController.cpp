@@ -1,134 +1,78 @@
 #include "EnemyAIController.h"
-#include "Kismet/GameplayStatics.h"
-#include "AbilitySystemComponent.h"
-#include "../AbilitySystem/AbilityInputContext.h"
-#include "../AbilitySystem/TestGameAbilitySystemComponent.h"
-#include "AbilitySystemBlueprintLibrary.h"
-#include "GameplayTagContainer.h"
 
+#include "BehaviorTree/BehaviorTree.h"
+#include "BehaviorTree/BlackboardComponent.h"
+#include "Kismet/GameplayStatics.h"
+
+const FName AEnemyAIController::TargetActorKey =
+	TEXT("TargetActor");
 
 AEnemyAIController::AEnemyAIController()
 {
-	PrimaryActorTick.bCanEverTick = true;
-
-	// Run AI logic 5 times per second instead of every frame.
-	PrimaryActorTick.TickInterval = 0.2f;
-}
-
-void AEnemyAIController::BeginPlay()
-{
-	Super::BeginPlay();
+	PrimaryActorTick.bCanEverTick = false;
 }
 
 void AEnemyAIController::OnPossess(APawn* InPawn)
 {
 	Super::OnPossess(InPawn);
 
-	UE_LOG(
-		LogTemp,
-		Warning,
-		TEXT("AIController %s possessed %s"),
-		*GetName(),
-		InPawn ? *InPawn->GetName() : TEXT("NONE")
-	);
-
-	PlayerPawn =
-		UGameplayStatics::GetPlayerPawn(
-			GetWorld(),
-			0
-		);
-
-	if (PlayerPawn)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("Player found: %s"), *PlayerPawn->GetName());
-
-		EPathFollowingRequestResult::Type Result = MoveToActor(PlayerPawn, 200.f);
-
-		UE_LOG(LogTemp, Warning, TEXT("Move result: %d"), (int32)Result);
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("Player NOT found"));
-	}
-}
-
-void AEnemyAIController::Tick(float DeltaSeconds)
-{
-	Super::Tick(DeltaSeconds);
-
-	UpdateCombat(DeltaSeconds);
-}
-
-void AEnemyAIController::UpdateCombat(float DeltaSeconds)
-{
-	APawn* ControlledPawn = GetPawn();
-
-	if (!ControlledPawn || !PlayerPawn)
-	{
-		return;
-	}
-
-	TryAbility();
-
-	const float Distance = FVector::Dist2D(ControlledPawn->GetActorLocation(), PlayerPawn->GetActorLocation());
-
-	// Player is outside Bash range, keep following them.
-	MoveToActor(
-		PlayerPawn,
-		BashRange * 0.8f
-	);
-}
-
-void AEnemyAIController::TryAbility()
-{
-	APawn* ControlledPawn = GetPawn();
-
-	if (!ControlledPawn || !PlayerPawn)
-	{
-		return;
-	}
-
-	UE_LOG(
-		LogTemp,
-		Error,
-		TEXT("=== SKELETON TRYING BASH === Attacker=%s Target=%s"),
-		*ControlledPawn->GetName(),
-		*PlayerPawn->GetName()
-	);
-
-	UTestGameAbilitySystemComponent* ASC =
-		Cast<UTestGameAbilitySystemComponent>(
-			UAbilitySystemBlueprintLibrary::
-			GetAbilitySystemComponent(ControlledPawn)
-		);
-
-	if (!ASC)
+	if (!BehaviorTreeAsset)
 	{
 		UE_LOG(
 			LogTemp,
 			Error,
-			TEXT("BASH: Enemy has no TestGame ASC")
+			TEXT("%s has no Behavior Tree assigned"),
+			*GetName()
 		);
 
 		return;
 	}
 
-	FAbilityInputContext Context;
-	Context.TargetActor = PlayerPawn;
-	Context.HitLocation = PlayerPawn->GetActorLocation();
-
-	const FGameplayTag BashInputTag =
-		FGameplayTag::RequestGameplayTag(
-			FName("Input.Ability.Bash")
+	if (!RunBehaviorTree(BehaviorTreeAsset))
+	{
+		UE_LOG(
+			LogTemp,
+			Error,
+			TEXT("%s failed to start its Behavior Tree"),
+			*GetName()
 		);
-
-	ASC->RequestAbility(
-		BashInputTag,
-		Context
-	);
+	}
 }
 
+void AEnemyAIController::SetAggroTarget(AActor* NewTarget)
+{
+	if (!IsValid(NewTarget))
+	{
+		return;
+	}
 
+	if (UBlackboardComponent* BlackboardComponent =
+		GetBlackboardComponent())
+	{
+		BlackboardComponent->SetValueAsObject(
+			TargetActorKey,
+			NewTarget
+		);
+	}
+}
 
+void AEnemyAIController::ClearAggroTarget(
+	AActor* TargetToClear)
+{
+	UBlackboardComponent* BlackboardComponent =
+		GetBlackboardComponent();
 
+	if (!BlackboardComponent)
+	{
+		return;
+	}
 
+	if (Blackboard->GetValueAsObject(TargetActorKey) !=
+		TargetToClear)
+	{
+		return;
+	}
+
+	Blackboard->ClearValue(TargetActorKey);
+	StopMovement();
+}
