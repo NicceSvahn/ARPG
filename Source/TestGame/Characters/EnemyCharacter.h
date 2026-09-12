@@ -72,6 +72,6 @@ protected:
 	TSubclassOf<ADamageNumberActor> DamageNumberActorClass;
 
 private:
-
+	void InitializeAggroTarget();
 	void HandleDamageReceived(float DamageAmount);
 };

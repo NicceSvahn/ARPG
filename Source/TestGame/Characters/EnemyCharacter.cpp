@@ -8,6 +8,7 @@
 #include "Components/SphereComponent.h"
 #include "Components/WidgetComponent.h"
 #include "Kismet/GameplayStatics.h"
+#include "TimerManager.h"
 #include "TestGame/AbilitySystem/Attributes/HealthAttributeSet.h"
 
 
@@ -77,6 +78,63 @@ void AEnemyCharacter::BeginPlay()
     {
         RefreshHealthBar(HealthAttributeSet->GetHealth());
     }
+
+    GetWorldTimerManager().SetTimerForNextTick(
+        this,
+        &AEnemyCharacter::InitializeAggroTarget
+    );
+}
+
+void AEnemyCharacter::InitializeAggroTarget()
+{
+    if (!AggroSphere)
+    {
+        return;
+    }
+
+    AggroSphere->UpdateOverlaps();
+
+    APawn* PlayerPawn =
+        UGameplayStatics::GetPlayerPawn(
+            GetWorld(),
+            0
+        );
+
+    if (!IsValid(PlayerPawn))
+    {
+        return;
+    }
+
+    if (!AggroSphere->IsOverlappingActor(PlayerPawn))
+    {
+        return;
+    }
+
+    AEnemyAIController* EnemyController =
+        Cast<AEnemyAIController>(
+            GetController()
+        );
+
+    if (!EnemyController)
+    {
+        UE_LOG(
+            LogTemp,
+            Error,
+            TEXT("%s has the wrong AI controller"),
+            *GetName()
+        );
+
+        return;
+    }
+
+    EnemyController->SetAggroTarget(PlayerPawn);
+
+    UE_LOG(
+        LogTemp,
+        Warning,
+        TEXT("%s started with player inside aggro range"),
+        *GetName()
+    );
 }
 
 void AEnemyCharacter::HandleAggroBeginOverlap(
@@ -87,6 +145,16 @@ void AEnemyCharacter::HandleAggroBeginOverlap(
     bool bFromSweep,
     const FHitResult& SweepResult)
 {
+
+    UE_LOG(
+        LogTemp,
+        Warning,
+        TEXT("AGGRO OVERLAP: Enemy=%s Other=%s"),
+        *GetName(),
+        OtherActor ? *OtherActor->GetName() : TEXT("None")
+    );
+
+
     if (!IsValid(OtherActor) || OtherActor == this)
     {
         return;
@@ -130,6 +198,16 @@ void AEnemyCharacter::HandleAggroEndOverlap(
     UPrimitiveComponent* OtherComponent,
     int32 OtherBodyIndex)
 {
+    UE_LOG(
+        LogTemp,
+        Warning,
+        TEXT("AGGRO END: Enemy=%s Other=%s"),
+        *GetName(),
+        IsValid(OtherActor)
+        ? *OtherActor->GetName()
+        : TEXT("None")
+    );
+
     if (!IsValid(OtherActor))
     {
         return;
