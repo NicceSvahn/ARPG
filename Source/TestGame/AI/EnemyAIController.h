@@ -4,8 +4,6 @@
 #include "AIController.h"
 #include "EnemyAIController.generated.h"
 
-class UAIPerceptionComponent;
-class UAISenseConfig_Sight;
 class UBehaviorTree;
 
 UCLASS()

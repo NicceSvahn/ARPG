@@ -34,7 +34,7 @@ protected:
 		EditDefaultsOnly,
 		BlueprintReadOnly,
 		Category = "AI|Combat",
-		meta = (Categories = "Input.Ability")
+		meta = (Categories = "Event.Ability")
 	)
 	FGameplayTag PrimaryAttackInputTag;
 
