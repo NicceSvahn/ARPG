@@ -3,9 +3,9 @@
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
 
-#include "../../Characters/GenericCharacter.h"
-#include "../../AbilitySystem/TestGameAbilitySystemComponent.h"
-#include "../../AbilitySystem/AbilityInputContext.h"
+#include "../../../Characters/GenericCharacter.h"
+#include "../../../AbilitySystem/TestGameAbilitySystemComponent.h"
+#include "../../../AbilitySystem/AbilityInputContext.h"
 
 UGA_Bash::UGA_Bash()
 {
