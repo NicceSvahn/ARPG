@@ -5,6 +5,7 @@
 #include "BehaviorTree/BlackboardComponent.h"
 #include "BehaviorTree/BehaviorTreeComponent.h"
 
+#include "TestGame/Characters/EnemyCharacter.h"
 #include "TestGame/AbilitySystem/AbilityInputContext.h"
 #include "TestGame/AbilitySystem/TestGameAbilitySystemComponent.h"
 
@@ -62,6 +63,17 @@ UBTTask_ActivateCombatAbility::ExecuteTask(
 		return EBTNodeResult::Failed;
 	}
 
+	AEnemyCharacter* EnemyCharacter =
+		Cast<AEnemyCharacter>(ControlledPawn);
+
+	if (!EnemyCharacter)
+	{
+		return EBTNodeResult::Failed;
+	}
+
+	const FGameplayTag AbilityInputTag =
+		EnemyCharacter->GetPrimaryAttackInputTag();
+
 	if (!AbilityInputTag.IsValid())
 	{
 		UE_LOG(
@@ -96,11 +108,25 @@ UBTTask_ActivateCombatAbility::ExecuteTask(
 	Context.HitLocation =
 		TargetActor->GetActorLocation();
 
-	ASC->RequestAbility(
-		AbilityInputTag,
-		Context
+	UE_LOG(
+		LogTemp,
+		Warning,
+		TEXT(
+			"AI ABILITY REQUEST: Pawn=%s Target=%s Tag=%s"
+		),
+		*ControlledPawn->GetName(),
+		*TargetActor->GetName(),
+		*AbilityInputTag.ToString()
 	);
 
-	return EBTNodeResult::Succeeded;
+	const bool bRequested =
+		ASC->RequestAbility(
+			AbilityInputTag,
+			Context
+		);
+
+	return bRequested
+		? EBTNodeResult::Succeeded
+		: EBTNodeResult::Failed;
 }
 

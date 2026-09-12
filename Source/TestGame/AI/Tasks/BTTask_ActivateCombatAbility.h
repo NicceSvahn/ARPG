@@ -27,11 +27,4 @@ private:
 	)
 	FBlackboardKeySelector TargetActorKey;
 
-	UPROPERTY(
-		EditAnywhere,
-		Category = "Ability",
-		meta = (ExposeFunctionCategories = "Input.Ability")
-	)
-	FGameplayTag AbilityInputTag;
-
 };

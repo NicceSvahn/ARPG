@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GenericCharacter.h"
+#include "GameplayTagContainer.h"
 #include "EnemyCharacter.generated.h"
 
 class USphereComponent;
@@ -20,9 +21,22 @@ public:
 	// Sets default values for this character's properties
 	AEnemyCharacter();
 
+	FGameplayTag GetPrimaryAttackInputTag() const
+	{
+		return PrimaryAttackInputTag;
+	}
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
+
+	UPROPERTY(
+		EditDefaultsOnly,
+		BlueprintReadOnly,
+		Category = "AI|Combat",
+		meta = (Categories = "Input.Ability")
+	)
+	FGameplayTag PrimaryAttackInputTag;
 
 	UPROPERTY(
 		VisibleAnywhere,

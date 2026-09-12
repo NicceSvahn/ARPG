@@ -36,13 +36,29 @@ bool UGA_ProjectileAbility::PrepareProjectileAbility(
     const FAbilityInputContext& InputContext =
         ASC->GetAbilityInputContext();
 
-    if (!InputContext.HitResult.bBlockingHit)
+    FVector TargetLocation = FVector::ZeroVector;
+
+    if (IsValid(InputContext.TargetActor))
+    {
+        // AI and actor-targeted abilities.
+        TargetLocation =
+            InputContext.TargetActor->GetActorLocation();
+    }
+    else if (!InputContext.HitResult.bBlockingHit)
     {
         return false;
     }
+    else
+    {
+        // Explicit location targeting.
+        TargetLocation =
+            InputContext.HitLocation;
+    }
 
-    const FVector TargetLocation =
-        InputContext.HitLocation;
+    if (TargetLocation.IsNearlyZero())
+    {
+        return false;
+    }
 
     FVector CharacterAimDirection =
         TargetLocation -
