@@ -14,6 +14,7 @@
 
 class UTestGameAbilitySystemComponent;
 class UGameplayAbility;
+class UResourceAttributeSet;
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(
 	FOnHealthChanged,
@@ -42,6 +43,11 @@ public:
 	float GetCurrentHealth() const;
 	float GetMaxHealth() const;
 
+	UResourceAttributeSet* GetResourceAttributeSet() const
+	{
+		return ResourceAttributeSet;
+	}
+
 	UPROPERTY()
 	TObjectPtr<UHealthAttributeSet> HealthAttributeSet;
 
@@ -66,6 +72,9 @@ protected:
 
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
+
+	UPROPERTY()
+	TObjectPtr<UResourceAttributeSet> ResourceAttributeSet;
 
 private:	
 

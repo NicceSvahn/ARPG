@@ -1,6 +1,6 @@
 #include "GenericCharacter.h"
 #include "Abilities/GameplayAbility.h"
-
+#include "../AbilitySystem/Attributes/ResourceAttributeSet.h"
 
 AGenericCharacter::AGenericCharacter()
 {
@@ -9,6 +9,8 @@ AGenericCharacter::AGenericCharacter()
 	AbilitySystemComponent = CreateDefaultSubobject<UTestGameAbilitySystemComponent>(TEXT("AbilitySystemComponent"));
 
 	HealthAttributeSet = CreateDefaultSubobject<UHealthAttributeSet>(TEXT("HealthAttributeSet"));
+
+	ResourceAttributeSet = CreateDefaultSubobject<UResourceAttributeSet>(TEXT("ResourceAttributeSet"));
 }
 
 void AGenericCharacter::BeginPlay()
@@ -53,6 +55,12 @@ void AGenericCharacter::BeginPlay()
 		OnHealthChanged.Broadcast(GetCurrentHealth(), GetMaxHealth());
 
 		UE_LOG(LogTemp, Warning, TEXT("BeginPlay Health=%f"), HealthAttributeSet->GetHealth());
+	}
+
+	if (ResourceAttributeSet) 
+	{
+		ResourceAttributeSet->InitMaxResource(100.0f);
+		ResourceAttributeSet->InitResource(100.0f);
 	}
 }
 
