@@ -312,3 +312,28 @@ void AEnemyCharacter::HandleDamageReceived(
         DamageAmount
     );
 }
+
+void AEnemyCharacter::OnDeathStarted()
+{
+    Super::OnDeathStarted();
+
+    if (AggroSphere)
+    {
+        AggroSphere->SetCollisionEnabled(
+            ECollisionEnabled::NoCollision);
+    }
+
+    if (EnemyHealthWidget)
+    {
+        EnemyHealthWidget->SetVisibility(false);
+    }
+
+    if (AEnemyAIController*
+        EnemyController =
+        Cast<AEnemyAIController>(
+            GetController()))
+    {
+        EnemyController
+            ->HandleControlledPawnDeath();
+    }
+}
