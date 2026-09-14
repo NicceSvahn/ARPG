@@ -16,10 +16,17 @@ public:
     ADamageNumberActor();
 
     void InitializeDamage(float DamageAmount);
+    void InitializeHealing(float HealingAmount);
 
 protected:
     virtual void BeginPlay() override;
 
     UPROPERTY(VisibleAnywhere)
     TObjectPtr<UWidgetComponent> WidgetComponent;
+
+private:
+    void InitializeCombatText(
+        float Amount,
+        const FLinearColor& Color
+    );
 };

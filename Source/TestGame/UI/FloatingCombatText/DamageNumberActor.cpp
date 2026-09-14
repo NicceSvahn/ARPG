@@ -29,6 +29,23 @@ void ADamageNumberActor::BeginPlay()
 void ADamageNumberActor::InitializeDamage(
     float DamageAmount)
 {
+    const FLinearColor DamageColor = FLinearColor::White;
+
+    InitializeCombatText(DamageAmount, DamageColor);
+}
+
+void ADamageNumberActor::InitializeHealing(
+    const float HealingAmount)
+{
+    const FLinearColor HealingColor(0.1f, 1.0f, 0.1f, 1.0f);
+
+    InitializeCombatText(HealingAmount, HealingColor);
+}
+
+void ADamageNumberActor::InitializeCombatText(
+    const float Amount,
+    const FLinearColor& Color)
+{
     if (!WidgetComponent)
     {
         return;
@@ -36,17 +53,20 @@ void ADamageNumberActor::InitializeDamage(
 
     WidgetComponent->InitWidget();
 
-    UFloatingDamageWidget* DamageWidget =
-        Cast<UFloatingDamageWidget>(
-            WidgetComponent->GetUserWidgetObject()
-        );
+    UUserWidget* UserWidget = WidgetComponent->GetUserWidgetObject();
 
-    if (!DamageWidget)
+    if (!UserWidget)
     {
         return;
     }
 
-    DamageWidget->SetDamageValue(
-        DamageAmount
-    );
+    UFloatingDamageWidget* CombatTextWidget =
+        Cast<UFloatingDamageWidget>(UserWidget);
+
+    if (!CombatTextWidget)
+    {
+        return;
+    }
+
+    CombatTextWidget->SetCombatTextValue(Amount, Color);
 }

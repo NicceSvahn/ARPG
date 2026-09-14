@@ -29,6 +29,11 @@ DECLARE_MULTICAST_DELEGATE_OneParam(
 	float
 );
 
+DECLARE_MULTICAST_DELEGATE_OneParam(
+	FOnHealingReceived,
+	float
+);
+
 UCLASS()
 class TESTGAME_API AGenericCharacter : public ACharacter, public IAbilitySystemInterface
 {
@@ -67,6 +72,7 @@ public:
 	FDelegateHandle MovementSpeedChangedHandle;
 
 	FOnDamageReceived OnDamageReceived;
+	FOnHealingReceived OnHealingReceived;
 
 	AGenericCharacter();
 

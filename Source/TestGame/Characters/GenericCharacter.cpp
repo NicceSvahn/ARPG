@@ -130,16 +130,12 @@ void AGenericCharacter::HandleAttributeChanged(
 		if (NewValue < OldHealth)
 		{
 			const float DamageAmount = OldHealth - NewValue;
-
 			OnDamageReceived.Broadcast(DamageAmount);
-
-			UE_LOG(
-				LogTemp,
-				Warning,
-				TEXT("%s RECEIVED DAMAGE: %f"),
-				*GetName(),
-				DamageAmount
-			);
+		}
+		else if (NewValue > OldHealth)
+		{
+			const float HealingAmount = NewValue - OldHealth;
+			OnHealingReceived.Broadcast(HealingAmount);
 		}
 
 		return;

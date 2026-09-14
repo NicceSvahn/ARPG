@@ -1,5 +1,6 @@
 #include "HealthAttributeSet.h"
-#include "AbilitySystemComponent.h"
+#include "../../Characters/GenericCharacter.h"
+#include "../../AbilitySystem/TestGameAbilitySystemComponent.h"
 
 bool UHealthAttributeSet::PreGameplayEffectExecute(
     FGameplayEffectModCallbackData& Data)
@@ -28,12 +29,35 @@ bool UHealthAttributeSet::PreGameplayEffectExecute(
 void UHealthAttributeSet::PostGameplayEffectExecute(
     const FGameplayEffectModCallbackData& Data)
 {
-    if (Data.EvaluatedData.Attribute ==
-        GetHealthAttribute())
-    {
-        SetHealth(FMath::Max(0.0f, GetHealth()));
-    }
 
+    if (Data.EvaluatedData.Attribute == GetHealthAttribute())
+    {
+        const AGenericCharacter* Character =
+            Cast<AGenericCharacter>(GetOwningActor());
+
+        float MaximumHealth =
+            TNumericLimits<float>::Max();
+
+        if (Character)
+        {
+            MaximumHealth =
+                Character->GetMaxHealth();
+        }
+
+        const float CurrentHealth =
+            GetHealth();
+
+        //This forces the value to be between 0 and max health
+        const float ClampedHealth =
+            FMath::Clamp(
+                CurrentHealth,
+                0.0f,
+                MaximumHealth);
+
+
+        SetHealth(ClampedHealth);
+        
+    }
     Super::PostGameplayEffectExecute(Data);
 }
 

@@ -6,16 +6,24 @@
 void UFloatingDamageWidget::SetDamageValue(
     float DamageAmount)
 {
+    SetCombatTextValue(
+        DamageAmount,
+        FLinearColor::White
+    );
+}
+
+void UFloatingDamageWidget::SetCombatTextValue(float Amount, const FLinearColor& Color)
+{
     if (!DamageText)
     {
         return;
     }
 
-    DamageText->SetText(
-        FText::AsNumber(
-            FMath::RoundToInt(DamageAmount)
-        )
-    );
+    const int32 RoundedAmount = FMath::RoundToInt(Amount);
+    const FString DisplayString = FString::FromInt(RoundedAmount);
+
+    DamageText->SetText(FText::FromString(DisplayString));
+    DamageText->SetColorAndOpacity(FSlateColor(Color));
 }
 
 void UFloatingDamageWidget::NativeConstruct()
