@@ -13,6 +13,7 @@
 #include "../Characters/GenericCharacter.h"
 #include "../UI/PlayerHudWidget.h"
 #include "../UI/CombatDebugWidget.h"
+#include "../Camera/CameraOccludableComponent.h"
 
 ATestGamePlayerController::ATestGamePlayerController()
 {
@@ -146,17 +147,23 @@ void ATestGamePlayerController::OnClickMove()
 {
     FHitResult HitResult;
 
-    const bool bHit = GetHitResultUnderCursor(ECC_Visibility, false, HitResult);
+    const bool bHit = GetHitResultUnderCursor(
+        ECC_MovementGround,
+        false,
+        HitResult
+    );
 
-    if (!bHit)
+    if (!bHit || !HitResult.bBlockingHit)
     {
         return;
     }
 
-    // Clicking somewhere else cancels any ability movement.
     CancelMoveIntoRange();
 
-    UAIBlueprintHelperLibrary::SimpleMoveToLocation(this, HitResult.ImpactPoint);
+    UAIBlueprintHelperLibrary::SimpleMoveToLocation(
+        this,
+        HitResult.ImpactPoint
+    );
 }
 
 void ATestGamePlayerController::MoveIntoRange(AActor* Target, float DesiredRange, FOnMoveIntoRangeCompleted OnCompleted)
@@ -184,6 +191,8 @@ void ATestGamePlayerController::MoveIntoRange(AActor* Target, float DesiredRange
 void ATestGamePlayerController::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
+
+    UpdateCameraOcclusion();
 
     if (!bIsMovingToTarget)
     {
@@ -403,4 +412,101 @@ ATestGamePlayerController::GetCharacterUnderCursor() const
     return Cast<AGenericCharacter>(
         HitResult.GetActor()
     );
+}
+
+void ATestGamePlayerController::
+UpdateCameraOcclusion()
+{
+    AGenericCharacter* ControlledCharacter =
+        Cast<AGenericCharacter>(GetPawn());
+
+    if (!ControlledCharacter)
+    {
+        return;
+    }
+
+    FVector CameraLocation;
+    FRotator CameraRotation;
+
+    GetPlayerViewPoint(
+        CameraLocation,
+        CameraRotation
+    );
+
+    const FVector PlayerLocation =
+        ControlledCharacter->GetActorLocation();
+
+    FCollisionQueryParams QueryParams;
+    QueryParams.AddIgnoredActor(
+        ControlledCharacter
+    );
+
+    TArray<FHitResult> Hits;
+
+    const FCollisionShape Sphere =
+        FCollisionShape::MakeSphere(50.0f);
+
+    GetWorld()->SweepMultiByChannel(
+        Hits,
+        CameraLocation,
+        PlayerLocation,
+        FQuat::Identity,
+        ECC_Visibility,
+        Sphere,
+        QueryParams
+    );
+
+    TSet<
+        TWeakObjectPtr<UCameraOccludableComponent>>
+        CurrentlyOccluded;
+
+    for (const FHitResult& Hit : Hits)
+    {
+        AActor* HitActor = Hit.GetActor();
+
+        if (!HitActor)
+        {
+            continue;
+        }
+
+        UCameraOccludableComponent*
+            OccludableComponent =
+            HitActor->FindComponentByClass<
+            UCameraOccludableComponent>();
+
+        if (!OccludableComponent)
+        {
+            continue;
+        }
+
+        CurrentlyOccluded.Add(
+            OccludableComponent
+        );
+
+        OccludableComponent->SetOccluded(
+            true
+        );
+    }
+
+    for (
+        const TWeakObjectPtr<
+        UCameraOccludableComponent>&
+        PreviousComponent
+        : OccludedComponents)
+    {
+        if (!PreviousComponent.IsValid())
+        {
+            continue;
+        }
+
+        if (!CurrentlyOccluded.Contains(
+            PreviousComponent))
+        {
+            PreviousComponent
+                ->SetOccluded(false);
+        }
+    }
+
+    OccludedComponents =
+        MoveTemp(CurrentlyOccluded);
 }
