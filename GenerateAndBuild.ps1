@@ -15,7 +15,7 @@ $UProject = Join-Path $ProjectRoot "$ProjectName.uproject"
 $Solution = Join-Path $ProjectRoot "$ProjectName.sln"
 
 # Change this if your UE installation is somewhere else.
-$EngineRoot = "E:\Unreal Engine\UE_5.8"
+$EngineRoot = ""
 
 $UBT = Join-Path `
     $EngineRoot `

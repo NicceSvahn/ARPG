@@ -22,6 +22,8 @@ void AGenericCharacter::BeginPlay()
 
 		AbilitySystemComponent->InitAbilityActorInfo(this, this);
 
+		ApplyResourceRegeneration();
+
 		UE_LOG(
 			LogTemp,
 			Warning,
@@ -151,4 +153,39 @@ void AGenericCharacter::GrantStartupAbilities()
 	}
 
 	AbilitySystemComponent->NotifyAbilityBarChanged();
+}
+
+void AGenericCharacter::ApplyResourceRegeneration()
+{
+	if (!AbilitySystemComponent ||
+		!ResourceRegenerationEffect)
+	{
+		return;
+	}
+
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	FGameplayEffectContextHandle EffectContext =
+		AbilitySystemComponent->MakeEffectContext();
+
+	EffectContext.AddSourceObject(this);
+
+	FGameplayEffectSpecHandle EffectSpec =
+		AbilitySystemComponent->MakeOutgoingSpec(
+			ResourceRegenerationEffect,
+			1.0f,
+			EffectContext
+		);
+
+	if (!EffectSpec.IsValid())
+	{
+		return;
+	}
+
+	AbilitySystemComponent->ApplyGameplayEffectSpecToSelf(
+		*EffectSpec.Data.Get()
+	);
 }

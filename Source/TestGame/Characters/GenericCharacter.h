@@ -15,6 +15,7 @@
 class UTestGameAbilitySystemComponent;
 class UGameplayAbility;
 class UResourceAttributeSet;
+class UGameplayEffect;
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(
 	FOnHealthChanged,
@@ -76,7 +77,16 @@ protected:
 	UPROPERTY()
 	TObjectPtr<UResourceAttributeSet> ResourceAttributeSet;
 
+	UPROPERTY(
+		EditDefaultsOnly,
+		BlueprintReadOnly,
+		Category = "Resource"
+	)
+	TSubclassOf<UGameplayEffect> ResourceRegenerationEffect;
+
 private:	
 
 	float PreviousHealth = 0.0f;
+
+	void ApplyResourceRegeneration();
 };
