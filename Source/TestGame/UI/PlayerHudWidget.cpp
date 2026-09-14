@@ -4,10 +4,13 @@
 
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
+#include "Components/ProgressBar.h"
 
 #include "../Characters/GenericCharacter.h"
 #include "../AbilitySystem/TestGameAbilitySystemComponent.h"
 #include "HealthBarWidget.h"
+#include "../UI/ResourceBarWidget.h"
+#include "../AbilitySystem/Attributes/ResourceAttributeSet.h"
 
 void UPlayerHudWidget::InitializeHud(
     AGenericCharacter* InCharacter)
@@ -65,6 +68,28 @@ void UPlayerHudWidget::InitializeHud(
         PlayerCharacter->GetCurrentHealth(),
         PlayerCharacter->GetMaxHealth()
     );
+
+    ResourceChangedHandle =
+        AbilitySystemComponent
+        ->GetGameplayAttributeValueChangeDelegate(
+            UResourceAttributeSet::GetResourceAttribute()
+        )
+        .AddUObject(
+            this,
+            &UPlayerHudWidget::HandleResourceChanged
+        );
+
+    MaxResourceChangedHandle =
+        AbilitySystemComponent
+        ->GetGameplayAttributeValueChangeDelegate(
+            UResourceAttributeSet::GetMaxResourceAttribute()
+        )
+        .AddUObject(
+            this,
+            &UPlayerHudWidget::HandleMaxResourceChanged
+        );
+
+    RefreshResourceBar();
 }
 
 void UPlayerHudWidget::BuildAbilitySlots()
@@ -162,9 +187,7 @@ void UPlayerHudWidget::SetHealth(float CurrentHealth, float MaxHealth)
 
 void UPlayerHudWidget::NativeConstruct()
 {
-    Super::NativeConstruct();
-
-    SetHealth(100.f, 100.f);
+    ;
 }
 
 void UPlayerHudWidget::NativeDestruct()
@@ -185,5 +208,60 @@ void UPlayerHudWidget::NativeDestruct()
             .Remove(HealthChangedHandle);
     }
 
-    Super::NativeDestruct();
+    if (AbilitySystemComponent)
+    {
+        if (ResourceChangedHandle.IsValid())
+        {
+            AbilitySystemComponent
+                ->GetGameplayAttributeValueChangeDelegate(
+                    UResourceAttributeSet::GetResourceAttribute()
+                )
+                .Remove(ResourceChangedHandle);
+        }
+
+        if (MaxResourceChangedHandle.IsValid())
+        {
+            AbilitySystemComponent
+                ->GetGameplayAttributeValueChangeDelegate(
+                    UResourceAttributeSet::GetMaxResourceAttribute()
+                )
+                .Remove(MaxResourceChangedHandle);
+        }
+    }
+}
+
+void UPlayerHudWidget::HandleResourceChanged(
+    const FOnAttributeChangeData& Data)
+{
+    RefreshResourceBar();
+}
+
+void UPlayerHudWidget::HandleMaxResourceChanged(
+    const FOnAttributeChangeData& Data)
+{
+    RefreshResourceBar();
+}
+
+void UPlayerHudWidget::RefreshResourceBar()
+{
+    if (!AbilitySystemComponent ||
+        !WBP_PlayerResourceBar)
+    {
+        return;
+    }
+
+    const float CurrentResource =
+        AbilitySystemComponent->GetNumericAttribute(
+            UResourceAttributeSet::GetResourceAttribute()
+        );
+
+    const float MaxResource =
+        AbilitySystemComponent->GetNumericAttribute(
+            UResourceAttributeSet::GetMaxResourceAttribute()
+        );
+
+    WBP_PlayerResourceBar->SetResource(
+        CurrentResource,
+        MaxResource
+    );
 }

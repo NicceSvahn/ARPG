@@ -3,12 +3,16 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "HealthBarWidget.h"
+#include "../AbilitySystem/TestGameAbilitySystemComponent.h"
 #include "PlayerHudWidget.generated.h"
 
 class UHorizontalBox;
 class UAbilitySlotWidget;
 class UTestGameAbilitySystemComponent;
 class AGenericCharacter;
+class UProgressBar;
+class UResourceAttributeSet;
+class UResourceBarWidget;
 
 UCLASS()
 class TESTGAME_API UPlayerHudWidget : public UUserWidget
@@ -38,8 +42,21 @@ protected:
 	TSubclassOf<UAbilitySlotWidget>
 		AbilitySlotWidgetClass;
 
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UResourceBarWidget> WBP_PlayerResourceBar;
+
+	void HandleResourceChanged(
+		const FOnAttributeChangeData& Data
+	);
+
+	void HandleMaxResourceChanged(
+		const FOnAttributeChangeData& Data
+	);
+
 private:
 	void BuildAbilitySlots();
+
+	void RefreshResourceBar();
 
 	UPROPERTY()
 	TObjectPtr<UTestGameAbilitySystemComponent>
@@ -55,4 +72,7 @@ private:
 	TObjectPtr<AGenericCharacter> PlayerCharacter;
 
 	FDelegateHandle HealthChangedHandle;
+
+	FDelegateHandle ResourceChangedHandle;
+	FDelegateHandle MaxResourceChangedHandle;
 };

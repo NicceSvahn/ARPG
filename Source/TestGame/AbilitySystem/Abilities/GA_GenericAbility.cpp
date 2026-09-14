@@ -1,5 +1,6 @@
 #include "GA_GenericAbility.h"
 
+#include "../Attributes/ResourceAttributeSet.h"
 #include "../../Characters/GenericCharacter.h"
 
 UGA_GenericAbility::UGA_GenericAbility()
@@ -65,5 +66,97 @@ void UGA_GenericAbility::ApplyCooldown(
         ActorInfo,
         ActivationInfo,
         SpecHandle
+    );
+}
+
+bool UGA_GenericAbility::CheckCost(
+    const FGameplayAbilitySpecHandle Handle,
+    const FGameplayAbilityActorInfo* ActorInfo,
+    FGameplayTagContainer* OptionalRelevantTags
+) const
+{
+    if (!Super::CheckCost(
+        Handle,
+        ActorInfo,
+        OptionalRelevantTags))
+    {
+        return false;
+    }
+
+    if (ResourceCost <= 0.0f)
+    {
+        return true;
+    }
+
+    const UAbilitySystemComponent* ASC =
+        ActorInfo
+        ? ActorInfo->AbilitySystemComponent.Get()
+        : nullptr;
+
+    if (!ASC)
+    {
+        return false;
+    }
+
+    const float CurrentResource =
+        ASC->GetNumericAttribute(
+            UResourceAttributeSet::GetResourceAttribute()
+        );
+
+    return CurrentResource >= ResourceCost;
+}
+
+void UGA_GenericAbility::ApplyCost(
+    const FGameplayAbilitySpecHandle Handle,
+    const FGameplayAbilityActorInfo* ActorInfo,
+    const FGameplayAbilityActivationInfo ActivationInfo
+) const
+{
+    if (ResourceCost <= 0.0f)
+    {
+        return;
+    }
+
+    UAbilitySystemComponent* ASC =
+        ActorInfo
+        ? ActorInfo->AbilitySystemComponent.Get()
+        : nullptr;
+
+    if (!ASC || !CostGameplayEffectClass)
+    {
+        return;
+    }
+
+    FGameplayEffectContextHandle EffectContext =
+        ASC->MakeEffectContext();
+
+    EffectContext.AddSourceObject(
+        ActorInfo->AvatarActor.Get()
+    );
+
+    FGameplayEffectSpecHandle CostSpec =
+        ASC->MakeOutgoingSpec(
+            CostGameplayEffectClass,
+            GetAbilityLevel(),
+            EffectContext
+        );
+
+    if (!CostSpec.IsValid())
+    {
+        return;
+    }
+
+    const FGameplayTag ResourceCostTag =
+        FGameplayTag::RequestGameplayTag(
+            TEXT("Data.ResourceCost")
+        );
+
+    CostSpec.Data->SetSetByCallerMagnitude(
+        ResourceCostTag,
+        -ResourceCost
+    );
+
+    ASC->ApplyGameplayEffectSpecToSelf(
+        *CostSpec.Data.Get()
     );
 }

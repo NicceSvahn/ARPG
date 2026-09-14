@@ -74,4 +74,19 @@ protected:
         const FGameplayAbilityActorInfo* ActorInfo,
         const FGameplayAbilityActivationInfo ActivationInfo
     ) const override;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ability|Cost", meta = (ClampMin = "0.0"))
+    float ResourceCost = 0.0f;
+
+    virtual bool CheckCost(
+        const FGameplayAbilitySpecHandle Handle,
+        const FGameplayAbilityActorInfo* ActorInfo,
+        OUT FGameplayTagContainer* OptionalRelevantTags = nullptr
+    ) const override;
+
+    virtual void ApplyCost(
+        const FGameplayAbilitySpecHandle Handle,
+        const FGameplayAbilityActorInfo* ActorInfo,
+        const FGameplayAbilityActivationInfo ActivationInfo
+    ) const override;
 };

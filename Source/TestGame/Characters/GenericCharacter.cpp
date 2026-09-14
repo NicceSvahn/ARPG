@@ -1,6 +1,6 @@
 #include "GenericCharacter.h"
 #include "Abilities/GameplayAbility.h"
-
+#include "../AbilitySystem/Attributes/ResourceAttributeSet.h"
 
 AGenericCharacter::AGenericCharacter()
 {
@@ -9,6 +9,8 @@ AGenericCharacter::AGenericCharacter()
 	AbilitySystemComponent = CreateDefaultSubobject<UTestGameAbilitySystemComponent>(TEXT("AbilitySystemComponent"));
 
 	HealthAttributeSet = CreateDefaultSubobject<UHealthAttributeSet>(TEXT("HealthAttributeSet"));
+
+	ResourceAttributeSet = CreateDefaultSubobject<UResourceAttributeSet>(TEXT("ResourceAttributeSet"));
 }
 
 void AGenericCharacter::BeginPlay()
@@ -19,6 +21,8 @@ void AGenericCharacter::BeginPlay()
 	{
 
 		AbilitySystemComponent->InitAbilityActorInfo(this, this);
+
+		ApplyResourceRegeneration();
 
 		UE_LOG(
 			LogTemp,
@@ -53,6 +57,12 @@ void AGenericCharacter::BeginPlay()
 		OnHealthChanged.Broadcast(GetCurrentHealth(), GetMaxHealth());
 
 		UE_LOG(LogTemp, Warning, TEXT("BeginPlay Health=%f"), HealthAttributeSet->GetHealth());
+	}
+
+	if (ResourceAttributeSet) 
+	{
+		ResourceAttributeSet->InitMaxResource(100.0f);
+		ResourceAttributeSet->InitResource(100.0f);
 	}
 }
 
@@ -143,4 +153,39 @@ void AGenericCharacter::GrantStartupAbilities()
 	}
 
 	AbilitySystemComponent->NotifyAbilityBarChanged();
+}
+
+void AGenericCharacter::ApplyResourceRegeneration()
+{
+	if (!AbilitySystemComponent ||
+		!ResourceRegenerationEffect)
+	{
+		return;
+	}
+
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	FGameplayEffectContextHandle EffectContext =
+		AbilitySystemComponent->MakeEffectContext();
+
+	EffectContext.AddSourceObject(this);
+
+	FGameplayEffectSpecHandle EffectSpec =
+		AbilitySystemComponent->MakeOutgoingSpec(
+			ResourceRegenerationEffect,
+			1.0f,
+			EffectContext
+		);
+
+	if (!EffectSpec.IsValid())
+	{
+		return;
+	}
+
+	AbilitySystemComponent->ApplyGameplayEffectSpecToSelf(
+		*EffectSpec.Data.Get()
+	);
 }
