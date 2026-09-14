@@ -15,11 +15,14 @@ class UInputAction;
 class UPlayerHudWidget;
 class UCombatDebugWidget;
 class AGenericCharacter;
+class UCameraOccludableComponent;
 
 DECLARE_DELEGATE_OneParam(
     FOnMoveIntoRangeCompleted,
     bool
 );
+
+#define ECC_MovementGround ECC_GameTraceChannel1
 
 USTRUCT(BlueprintType)
 struct FAbilityInputBinding
@@ -104,4 +107,7 @@ private:
 
     bool bIsMovingToTarget = false;
     FOnMoveIntoRangeCompleted MoveCompletedDelegate;
+
+    void UpdateCameraOcclusion();
+    TSet<TWeakObjectPtr<UCameraOccludableComponent>> OccludedComponents;
 };
