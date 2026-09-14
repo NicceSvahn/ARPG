@@ -1,6 +1,8 @@
 #include "GenericCharacter.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "Abilities/GameplayAbility.h"
 #include "../AbilitySystem/Attributes/ResourceAttributeSet.h"
+#include "../AbilitySystem/Attributes/MovementSpeedAttributeSet.h"
 
 AGenericCharacter::AGenericCharacter()
 {
@@ -11,6 +13,8 @@ AGenericCharacter::AGenericCharacter()
 	HealthAttributeSet = CreateDefaultSubobject<UHealthAttributeSet>(TEXT("HealthAttributeSet"));
 
 	ResourceAttributeSet = CreateDefaultSubobject<UResourceAttributeSet>(TEXT("ResourceAttributeSet"));
+
+	MovementSpeedAttributeSet =	CreateDefaultSubobject<UMovementSpeedAttributeSet>(TEXT("MovementSpeedAttributeSet"));
 }
 
 void AGenericCharacter::BeginPlay()
@@ -64,6 +68,22 @@ void AGenericCharacter::BeginPlay()
 		ResourceAttributeSet->InitMaxResource(100.0f);
 		ResourceAttributeSet->InitResource(100.0f);
 	}
+
+	if (MovementSpeedAttributeSet) 
+	{
+		MovementSpeedChangedHandle =
+			AbilitySystemComponent
+			->GetGameplayAttributeValueChangeDelegate(
+				UMovementSpeedAttributeSet::GetMovementSpeedAttribute()
+			)
+			.AddUObject(
+				this,
+				&AGenericCharacter::HandleMovementSpeedChanged
+			);
+
+		GetCharacterMovement()->MaxWalkSpeed = MovementSpeedAttributeSet->GetMovementSpeed();
+	}
+
 }
 
 float AGenericCharacter::GetCurrentHealth() const
@@ -188,4 +208,15 @@ void AGenericCharacter::ApplyResourceRegeneration()
 	AbilitySystemComponent->ApplyGameplayEffectSpecToSelf(
 		*EffectSpec.Data.Get()
 	);
+}
+
+void AGenericCharacter::HandleMovementSpeedChanged(const FOnAttributeChangeData& Data)
+{
+	if (!GetCharacterMovement())
+	{
+		return;
+	}
+
+	GetCharacterMovement()->MaxWalkSpeed =
+		FMath::Max(0.0f, Data.NewValue);
 }

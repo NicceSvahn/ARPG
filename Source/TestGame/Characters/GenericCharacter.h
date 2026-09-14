@@ -16,6 +16,7 @@ class UTestGameAbilitySystemComponent;
 class UGameplayAbility;
 class UResourceAttributeSet;
 class UGameplayEffect;
+class UMovementSpeedAttributeSet;
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(
 	FOnHealthChanged,
@@ -44,11 +45,6 @@ public:
 	float GetCurrentHealth() const;
 	float GetMaxHealth() const;
 
-	UResourceAttributeSet* GetResourceAttributeSet() const
-	{
-		return ResourceAttributeSet;
-	}
-
 	UPROPERTY()
 	TObjectPtr<UHealthAttributeSet> HealthAttributeSet;
 
@@ -57,6 +53,12 @@ public:
 
 	UFUNCTION()
 	virtual void HandleAttributeChanged(FGameplayAttribute Attribute, float Magnitude, float NewValue);
+
+	void HandleMovementSpeedChanged(
+		const FOnAttributeChangeData& Data
+	);
+
+	FDelegateHandle MovementSpeedChangedHandle;
 
 	FOnDamageReceived OnDamageReceived;
 
@@ -83,6 +85,11 @@ protected:
 		Category = "Resource"
 	)
 	TSubclassOf<UGameplayEffect> ResourceRegenerationEffect;
+
+	UPROPERTY()
+	TObjectPtr<UMovementSpeedAttributeSet> MovementSpeedAttributeSet;
+
+
 
 private:	
 
