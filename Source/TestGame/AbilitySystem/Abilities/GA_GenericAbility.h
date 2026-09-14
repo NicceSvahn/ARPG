@@ -89,4 +89,5 @@ protected:
         const FGameplayAbilityActorInfo* ActorInfo,
         const FGameplayAbilityActivationInfo ActivationInfo
     ) const override;
+
 };

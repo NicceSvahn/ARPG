@@ -81,7 +81,12 @@ void AGenericCharacter::BeginPlay()
 				&AGenericCharacter::HandleMovementSpeedChanged
 			);
 
+		MovementSpeedAttributeSet->InitMovementSpeed(InitialMovementSpeed);
+
 		GetCharacterMovement()->MaxWalkSpeed = MovementSpeedAttributeSet->GetMovementSpeed();
+
+		UE_LOG(LogTemp, Warning, TEXT("MovementSpeed=%f"), MovementSpeedAttributeSet->GetMovementSpeed());
+
 	}
 
 }

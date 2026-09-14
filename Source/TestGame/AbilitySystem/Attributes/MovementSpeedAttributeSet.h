@@ -17,7 +17,6 @@ class TESTGAME_API UMovementSpeedAttributeSet : public UAttributeSet
     GENERATED_BODY()
 
 public:
-    UMovementSpeedAttributeSet();
 
     UPROPERTY(BlueprintReadOnly, Category = "Movement")
     FGameplayAttributeData MovementSpeed;

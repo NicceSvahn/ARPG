@@ -89,7 +89,12 @@ protected:
 	UPROPERTY()
 	TObjectPtr<UMovementSpeedAttributeSet> MovementSpeedAttributeSet;
 
-
+	UPROPERTY(
+		EditDefaultsOnly,
+		BlueprintReadOnly,
+		Category = "Movement"
+	)
+	float InitialMovementSpeed = 600.0f;
 
 private:	
 
