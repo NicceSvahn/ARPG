@@ -12,7 +12,7 @@ bool UTestGameAbilitySystemComponent::RequestAbility(
     const FGameplayTag& AbilityTag,
     const FAbilityInputContext& Context)
 {
-    if (!AbilityTag.IsValid())
+    if (IsOwnerDead() || !AbilityTag.IsValid())
     {
         return false;
     }
@@ -201,7 +201,7 @@ void UTestGameAbilitySystemComponent::SendAbilityEvent(
     const FGameplayTag& EventTag,
     const FAbilityInputContext& Context)
 {
-    if (!EventTag.IsValid())
+    if (IsOwnerDead() || !EventTag.IsValid())
     {
         return;
     }
@@ -261,4 +261,42 @@ float UTestGameAbilitySystemComponent::GetRemainingCooldown(
     }
 
     return LongestRemainingTime;
+}
+
+bool UTestGameAbilitySystemComponent::
+IsOwnerDead() const
+{
+    const FGameplayTag DeadTag =
+        FGameplayTag::RequestGameplayTag(
+            FName(TEXT("State.Dead"))
+        );
+
+    return HasMatchingGameplayTag(DeadTag);
+}
+
+void UTestGameAbilitySystemComponent::
+HandleOwnerDeath()
+{
+    CancelAllAbilities();
+
+    PendingAbilityTag = FGameplayTag();
+    PendingAbilityContext = FAbilityInputContext();
+
+    APawn* AvatarPawn = Cast<APawn>(GetAvatarActor());
+
+    ATestGamePlayerController* PlayerController = nullptr;
+
+    if (AvatarPawn)
+    {
+        AController* Controller =
+            AvatarPawn->GetController();
+
+        PlayerController =
+            Cast<ATestGamePlayerController>(Controller);
+    }
+
+    if (PlayerController)
+    {
+        PlayerController->CancelMoveIntoRange();
+    }
 }

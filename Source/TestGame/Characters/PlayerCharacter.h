@@ -6,6 +6,7 @@
 
 class UAbilitySystemComponent;
 class UHealthAttributeSet;
+class ADamageNumberActor;
 
 
 UCLASS()
@@ -16,6 +17,11 @@ class TESTGAME_API APlayerCharacter : public AGenericCharacter
 public:
     APlayerCharacter();
 
+    UPROPERTY(
+        EditDefaultsOnly,
+        Category = "Combat Text"
+    )
+    TSubclassOf<ADamageNumberActor>HealingNumberActorClass;
 protected:
     virtual void BeginPlay() override;
 

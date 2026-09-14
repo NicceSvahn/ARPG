@@ -15,6 +15,11 @@ class TESTGAME_API UFloatingDamageWidget : public UUserWidget
 public:
     void SetDamageValue(float DamageAmount);
 
+    void SetCombatTextValue(
+        float Amount,
+        const FLinearColor& Color
+    );
+
 protected:
     UPROPERTY(meta = (BindWidget))
     TObjectPtr<UTextBlock> DamageText;

@@ -3,6 +3,7 @@
 #include "BehaviorTree/BehaviorTree.h"
 #include "BehaviorTree/BlackboardComponent.h"
 #include "Kismet/GameplayStatics.h"
+#include "BrainComponent.h"
 
 const FName AEnemyAIController::TargetActorKey =
 	TEXT("TargetActor");
@@ -67,20 +68,30 @@ void AEnemyAIController::ClearAggroTarget(
 		return;
 	}
 
-	if (Blackboard->GetValueAsObject(TargetActorKey) !=
+	if (BlackboardComponent->GetValueAsObject(TargetActorKey) !=
 		TargetToClear)
 	{
 		return;
 	}
 
-	Blackboard->ClearValue(TargetActorKey);
+	BlackboardComponent->ClearValue(TargetActorKey);
+	StopMovement();
+}
+
+void AEnemyAIController::
+HandleControlledPawnDeath()
+{
+	if (UBlackboardComponent*
+		BlackboardComponent =
+		GetBlackboardComponent())
+	{
+		BlackboardComponent->ClearValue(TargetActorKey);
+	}
+
 	StopMovement();
 
-	UE_LOG(
-		LogTemp,
-		Warning,
-		TEXT("%s cleared aggro target %s"),
-		*GetName(),
-		*TargetToClear->GetName()
-	);
+	if (BrainComponent)
+	{
+		BrainComponent->StopLogic(TEXT("Controlled pawn died"));
+	}
 }

@@ -29,6 +29,8 @@ public:
      */
     bool RequestAbility(const FGameplayTag& AbilityTag, const FAbilityInputContext& Context);
 
+    void HandleOwnerDeath();
+
     UGameplayAbility* GetAbilityForInputTag(const FGameplayTag& InputTag) const;
 
     void NotifyAbilityBarChanged();
@@ -46,6 +48,8 @@ public:
 
 
 private:
+    bool IsOwnerDead() const;
+
     FGameplayAbilitySpec* FindAbilitySpecForTag(const FGameplayTag& AbilityTag);
 
     bool CheckTarget(

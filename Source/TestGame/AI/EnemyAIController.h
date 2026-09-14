@@ -17,6 +17,8 @@ public:
 	void SetAggroTarget(AActor* NewTarget);
 	void ClearAggroTarget(AActor* TargetToClear);
 
+	void HandleControlledPawnDeath();
+
 protected:
 	virtual void OnPossess(APawn* InPawn) override;
 

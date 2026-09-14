@@ -29,6 +29,11 @@ DECLARE_MULTICAST_DELEGATE_OneParam(
 	float
 );
 
+DECLARE_MULTICAST_DELEGATE_OneParam(
+	FOnHealingReceived,
+	float
+);
+
 UCLASS()
 class TESTGAME_API AGenericCharacter : public ACharacter, public IAbilitySystemInterface
 {
@@ -44,6 +49,12 @@ public:
 
 	float GetCurrentHealth() const;
 	float GetMaxHealth() const;
+
+	UFUNCTION(BlueprintPure, Category = "Death")
+	bool IsDead() const
+	{
+		return bIsDead;
+	}
 
 	UPROPERTY()
 	TObjectPtr<UHealthAttributeSet> HealthAttributeSet;
@@ -61,6 +72,7 @@ public:
 	FDelegateHandle MovementSpeedChangedHandle;
 
 	FOnDamageReceived OnDamageReceived;
+	FOnHealingReceived OnHealingReceived;
 
 	AGenericCharacter();
 
@@ -68,6 +80,23 @@ public:
 	virtual void Tick(float DeltaTime) override;
 
 protected:
+	UPROPERTY(
+		EditDefaultsOnly,
+		BlueprintReadOnly,
+		Category = "Death",
+		meta = (ClampMin = "0.0", Units = "s")
+	)
+	float DeathCleanupDelay = 3.0f;
+
+	UFUNCTION(
+		BlueprintImplementableEvent,
+		Category = "Death",
+		meta = (DisplayName = "On Death")
+	)
+	void ReceiveDeath();
+
+	virtual void OnDeathStarted();
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Abilities")
 	TArray<FGrantedAbility> StartupAbilities;
 
@@ -97,8 +126,9 @@ protected:
 	float InitialMovementSpeed = 600.0f;
 
 private:	
-
+	bool bIsDead = false;
 	float PreviousHealth = 0.0f;
 
+	void EnterDeathState();
 	void ApplyResourceRegeneration();
 };
