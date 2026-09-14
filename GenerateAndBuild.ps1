@@ -15,7 +15,7 @@ $UProject = Join-Path $ProjectRoot "$ProjectName.uproject"
 $Solution = Join-Path $ProjectRoot "$ProjectName.sln"
 
 # Change this if your UE installation is somewhere else.
-$EngineRoot = ""
+$EngineRoot = "C:\Program Files\Epic Games\UE_5.8"
 
 $UBT = Join-Path `
     $EngineRoot `
