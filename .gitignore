@@ -75,4 +75,4 @@ Plugins/**/Intermediate/*
 DerivedDataCache/*
 
 # .env Files
-GenerateAndBuild.ps1
+GenerateAndBuild.local.ps1
