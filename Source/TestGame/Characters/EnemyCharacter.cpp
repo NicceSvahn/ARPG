@@ -253,7 +253,7 @@ void AEnemyCharacter::RefreshHealthBar(float CurrentHealth)
 
     if (HealthBarWidget)
     {
-        HealthBarWidget->SetHealth(CurrentHealth);
+        HealthBarWidget->SetHealth(CurrentHealth, InitialHealth);
     }
 }
 
