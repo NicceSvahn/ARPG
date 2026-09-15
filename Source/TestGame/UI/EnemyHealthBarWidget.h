@@ -14,7 +14,7 @@ class TESTGAME_API UEnemyHealthBarWidget : public UUserWidget
 
 public:
     UFUNCTION(BlueprintCallable, Category = "Health")
-    void SetHealth(float CurrentHealth);
+    void SetHealth(float CurrentHealth, float MaxHealth);
 
 protected:
     UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "Health")
