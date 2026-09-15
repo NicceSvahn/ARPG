@@ -1,17 +1,17 @@
-#include "GA_Mending.h"
+#include "GA_Mend.h"
 
 #include "AbilitySystemComponent.h"
 #include "GameplayEffect.h"
 
 #include "TestGame/Characters/GenericCharacter.h"
 
-UGA_Mending::UGA_Mending()
+UGA_Mend::UGA_Mend()
 {
     InstancingPolicy =
         EGameplayAbilityInstancingPolicy::InstancedPerActor;
 }
 
-void UGA_Mending::ActivateAbility(
+void UGA_Mend::ActivateAbility(
     const FGameplayAbilitySpecHandle Handle,
     const FGameplayAbilityActorInfo* ActorInfo,
     const FGameplayAbilityActivationInfo ActivationInfo,
@@ -50,7 +50,7 @@ void UGA_Mending::ActivateAbility(
         return;
     }
 
-    if (!MendingEffect)
+    if (!MendEffect)
     {
         EndAbility(
             Handle,
@@ -92,7 +92,7 @@ void UGA_Mending::ActivateAbility(
 
     FGameplayEffectSpecHandle EffectSpec =
         ASC->MakeOutgoingSpec(
-            MendingEffect,
+            MendEffect,
             GetAbilityLevel(),
             EffectContext
         );

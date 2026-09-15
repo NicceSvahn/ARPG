@@ -3,16 +3,16 @@
 #include "CoreMinimal.h"
 #include "../GA_GenericAbility.h"
 #include "../../AbilityRequestPolicy.h"
-#include "GA_Mending.generated.h"
+#include "GA_Mend.generated.h"
 
 
 UCLASS()
-class TESTGAME_API UGA_Mending : public UGA_GenericAbility
+class TESTGAME_API UGA_Mend : public UGA_GenericAbility
 {
 	GENERATED_BODY()
 
 public:
-    UGA_Mending();
+    UGA_Mend();
 
     virtual void ActivateAbility(
         const FGameplayAbilitySpecHandle Handle,
@@ -23,6 +23,6 @@ public:
 
 protected:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Healing")
-    TSubclassOf<UGameplayEffect>MendingEffect;
+    TSubclassOf<UGameplayEffect>MendEffect;
 
 };
