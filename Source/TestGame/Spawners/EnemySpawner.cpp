@@ -11,13 +11,15 @@ AEnemySpawner::AEnemySpawner()
     PrimaryActorTick.bCanEverTick = false;
 }
 
-void AEnemySpawner::SpawnEnemies()
+TArray<AEnemyCharacter*> AEnemySpawner::SpawnEnemies()
 {
+    TArray<AEnemyCharacter*> NewlySpawnedEnemies;
+
     UWorld* World = GetWorld();
 
     if (!World)
     {
-        return;
+        return NewlySpawnedEnemies;
     }
 
     for (const FEnemySpawnEntry& Entry : SpawnEntries)
@@ -29,30 +31,42 @@ void AEnemySpawner::SpawnEnemies()
 
         for (int32 i = 0; i < Entry.Count; ++i)
         {
-            const FVector SpawnLocation = GetRandomSpawnLocation();
+            const FVector SpawnLocation =
+                GetRandomSpawnLocation();
 
-            if (SpawnLocation == FVector::ZeroVector) return;
+            if (SpawnLocation == FVector::ZeroVector)
+            {
+                continue;
+            }
 
-            const FRotator SpawnRotation = GetActorRotation();
+            const FRotator SpawnRotation =
+                GetActorRotation();
 
             FActorSpawnParameters SpawnParams;
 
             SpawnParams.SpawnCollisionHandlingOverride =
-                ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+                ESpawnActorCollisionHandlingMethod::
+                AdjustIfPossibleButAlwaysSpawn;
 
-            AEnemyCharacter* SpawnedEnemy = World->SpawnActor<AEnemyCharacter>(
-                Entry.EnemyClass,
-                SpawnLocation,
-                SpawnRotation,
-                SpawnParams
-            );
+            AEnemyCharacter* SpawnedEnemy =
+                World->SpawnActor<AEnemyCharacter>(
+                    Entry.EnemyClass,
+                    SpawnLocation,
+                    SpawnRotation,
+                    SpawnParams
+                );
 
-            if (SpawnedEnemy)
+            if (!SpawnedEnemy)
             {
-                SpawnedEnemies.Add(SpawnedEnemy);
+                continue;
             }
+
+            SpawnedEnemies.Add(SpawnedEnemy);
+            NewlySpawnedEnemies.Add(SpawnedEnemy);
         }
     }
+
+    return NewlySpawnedEnemies;
 }
 
 FVector AEnemySpawner::GetRandomSpawnLocation() const
