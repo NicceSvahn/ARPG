@@ -26,8 +26,8 @@ class TESTGAME_API AEnemySpawner : public AActor
 public:
     AEnemySpawner();
 
-    UFUNCTION(BlueprintCallable, Category = "Spawner")
-    void SpawnEnemies();
+    UFUNCTION(BlueprintCallable, Category = "Spawning")
+    TArray<AEnemyCharacter*> SpawnEnemies();
 
 protected:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spawner")
