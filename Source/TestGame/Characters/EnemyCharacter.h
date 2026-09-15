@@ -33,6 +33,19 @@ protected:
 	virtual void OnDeathStarted() override;
 
 	UPROPERTY(
+		EditAnywhere,
+		BlueprintReadOnly,
+		Category = "Enemy|Elite"
+	)
+	bool bIsElite = false;
+
+	UFUNCTION(BlueprintPure)
+	bool IsElite() const
+	{
+		return bIsElite;
+	}
+
+	UPROPERTY(
 		EditDefaultsOnly,
 		BlueprintReadOnly,
 		Category = "AI|Combat",

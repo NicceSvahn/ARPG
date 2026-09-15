@@ -11,8 +11,6 @@ AEncounter::AEncounter()
 void AEncounter::BeginPlay()
 {
     Super::BeginPlay();
-
-    StartEncounter();
 }
 
 void AEncounter::StartEncounter()
