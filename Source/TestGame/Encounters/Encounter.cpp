@@ -22,13 +22,6 @@ void AEncounter::StartEncounter()
         return;
     }
 
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT("ENCOUNTER STARTED: %s"),
-        *GetName()
-    );
-
     EncounterState = EEncounterState::Active;
     EncounterEnemies.Reset();
 
@@ -47,21 +40,6 @@ void AEncounter::StartEncounter()
             RegisterEnemy(Enemy);
         }
     }
-
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT("ENCOUNTER: Tracking %d enemies"),
-        EncounterEnemies.Num()
-    );
-
-
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT("Encounter started with %d tracked enemies"),
-        EncounterEnemies.Num()
-    );
 
     CheckEncounterComplete();
 }
@@ -84,21 +62,7 @@ void AEncounter::RegisterEnemy(AActor* Enemy)
 void AEncounter::HandleEnemyDestroyed(
     AActor* DestroyedActor)
 {
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT("HandleEnemyDestroyed CALLED")
-    );
-
     EncounterEnemies.Remove(DestroyedActor);
-
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT("ENCOUNTER: %s destroyed - %d enemies remaining"),
-        *GetNameSafe(DestroyedActor),
-        EncounterEnemies.Num()
-    );
 
     CheckEncounterComplete();
 }
@@ -123,17 +87,7 @@ void AEncounter::CheckEncounterComplete()
         return;
     }
 
-    EncounterState =
-        EEncounterState::Completed;
-
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT(
-            "Encounter Complete: %s"
-        ),
-        *GetName()
-    );
+    EncounterState = EEncounterState::Completed;
 
     OnEncounterCompleted.Broadcast();
 }
