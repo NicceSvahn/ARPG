@@ -2,6 +2,7 @@
 
 #include "Encounter.h"
 #include "TimerManager.h"
+#include "../Game/TestGameGameState.h"
 
 AEncounterSequence::AEncounterSequence()
 {
@@ -15,20 +16,20 @@ void AEncounterSequence::StartSequence()
         return;
     }
 
-    if (Encounters.IsEmpty())
-    {
-        UE_LOG(
-            LogTemp,
-            Warning,
-            TEXT("EncounterSequence %s has no encounters"),
-            *GetName()
-        );
-
-        return;
-    }
-
     bSequenceActive = true;
     CurrentEncounterIndex = 0;
+
+    if (ATestGameGameState* GameState =
+        GetWorld()->GetGameState<ATestGameGameState>())
+    {
+        GameState->SetCurrentEncounterIndex(
+            CurrentEncounterIndex
+        );
+
+        GameState->SetLevelState(
+            ELevelState::EncounterActive
+        );
+    }
 
     StartCurrentEncounter();
 }
@@ -72,6 +73,18 @@ void AEncounterSequence::StartCurrentEncounter()
         CurrentEncounterIndex + 1
     );
 
+    if (ATestGameGameState* GameState =
+        GetWorld()->GetGameState<ATestGameGameState>())
+    {
+        GameState->SetCurrentEncounterIndex(
+            CurrentEncounterIndex
+        );
+
+        GameState->SetLevelState(
+            ELevelState::EncounterActive
+        );
+    }
+
     Encounter->StartEncounter();
 }
 
@@ -110,6 +123,14 @@ void AEncounterSequence::HandleEncounterCompleted()
         DelayBetweenEncounters,
         false
     );
+
+    if (ATestGameGameState* GameState =
+        GetWorld()->GetGameState<ATestGameGameState>())
+    {
+        GameState->SetLevelState(
+            ELevelState::Intermission
+        );
+    }
 }
 
 void AEncounterSequence::CompleteSequence()
@@ -122,6 +143,14 @@ void AEncounterSequence::CompleteSequence()
         TEXT("Encounter Sequence Complete: %s"),
         *GetName()
     );
+
+    if (ATestGameGameState* GameState =
+        GetWorld()->GetGameState<ATestGameGameState>())
+    {
+        GameState->SetLevelState(
+            ELevelState::Completed
+        );
+    }
 
     OnSequenceCompleted.Broadcast();
 }
