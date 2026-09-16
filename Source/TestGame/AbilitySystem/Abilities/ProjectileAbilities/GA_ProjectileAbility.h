@@ -50,7 +50,10 @@ protected:
         const FGameplayEffectSpecHandle& DamageSpec
     );
 
-protected:
+    virtual void SpawnProjectiles(
+        const FProjectileAbilityContext& ProjectileContext
+    );
+
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile")
     TSubclassOf<AGenericProjectile> ProjectileClass;
 
@@ -62,4 +65,13 @@ protected:
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile")
     float SpawnForwardOffset = 30.0f;
+
+    bool PrepareProjectileAbilityFromHitResult(
+        const FHitResult& HitResult,
+        FProjectileAbilityContext& OutContext
+    );
+
+    virtual void OnTargetDataReady(
+        const FGameplayAbilityTargetDataHandle& Data
+    ) override;
 };

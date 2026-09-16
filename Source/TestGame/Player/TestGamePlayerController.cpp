@@ -143,49 +143,39 @@ void ATestGamePlayerController::SetupInputComponent()
     }
 }
 
-void ATestGamePlayerController::OnClickMove()
+void ATestGamePlayerController::MoveIntoRange(
+    AActor* Target,
+    float DesiredRange,
+    FOnMoveIntoRangeCompleted OnCompleted)
 {
-    FHitResult HitResult;
-
-    const bool bHit = GetHitResultUnderCursor(
-        ECC_MovementGround,
-        false,
-        HitResult
-    );
-
-    if (!bHit || !HitResult.bBlockingHit)
-    {
-        return;
-    }
-
-    CancelMoveIntoRange();
-
-    UAIBlueprintHelperLibrary::SimpleMoveToLocation(
-        this,
-        HitResult.ImpactPoint
-    );
-}
-
-void ATestGamePlayerController::MoveIntoRange(AActor* Target, float DesiredRange, FOnMoveIntoRangeCompleted OnCompleted)
-{
-    if (!Target)
+    if (!Target || !IsLocalController())
     {
         OnCompleted.ExecuteIfBound(false);
         return;
     }
 
-    // Cancel an existing special movement request first.
     if (bIsMovingToTarget)
     {
         CancelMoveIntoRange();
     }
+
+    StopClickMove();
 
     MovementTarget = Target;
     MovementAcceptanceRadius = DesiredRange;
     MoveCompletedDelegate = OnCompleted;
     bIsMovingToTarget = true;
 
-    UAIBlueprintHelperLibrary::SimpleMoveToActor(this, Target);
+    UE_LOG(
+        LogTemp,
+        Warning,
+        TEXT(
+            "[MOVE INTO RANGE] Start | Pawn=%s | Target=%s | Range=%.1f"
+        ),
+        *GetNameSafe(GetPawn()),
+        *GetNameSafe(Target),
+        DesiredRange
+    );
 }
 
 void ATestGamePlayerController::Tick(float DeltaTime)
@@ -194,29 +184,53 @@ void ATestGamePlayerController::Tick(float DeltaTime)
 
     UpdateCameraOcclusion();
 
-    if (!bIsMovingToTarget)
+    UpdateClickMove();
+
+    if (!bIsMovingToTarget ||
+        !IsLocalController())
     {
         return;
     }
 
-    ACharacter* ControlledCharacter = GetCharacter();
-    AActor* Target = MovementTarget.Get();
+    ACharacter* ControlledCharacter =
+        GetCharacter();
 
-    if (!ControlledCharacter || !Target)
+    AActor* Target =
+        MovementTarget.Get();
+
+    if (!ControlledCharacter ||
+        !Target)
     {
         FinishMoveIntoRange(false);
         return;
     }
 
-    const float Distance = FVector::Dist2D(ControlledCharacter->GetActorLocation(), Target->GetActorLocation());
+    FVector ToTarget =
+        Target->GetActorLocation() -
+        ControlledCharacter->GetActorLocation();
+
+    ToTarget.Z = 0.0f;
+
+    const float Distance =
+        ToTarget.Size();
 
     if (Distance <= MovementAcceptanceRadius)
     {
         FinishMoveIntoRange(true);
+        return;
     }
+
+    const FVector MoveDirection =
+        ToTarget.GetSafeNormal();
+
+    ControlledCharacter->AddMovementInput(
+        MoveDirection,
+        1.0f
+    );
 }
 
-void ATestGamePlayerController::FinishMoveIntoRange(bool bSuccess)
+void ATestGamePlayerController::FinishMoveIntoRange(
+    bool bSuccess)
 {
     if (!bIsMovingToTarget)
     {
@@ -225,16 +239,27 @@ void ATestGamePlayerController::FinishMoveIntoRange(bool bSuccess)
 
     bIsMovingToTarget = false;
 
-    StopMovement();
-
     MovementTarget.Reset();
-    MovementAcceptanceRadius = 0.0f; // Set zero when reached "into range of target"
+    MovementAcceptanceRadius = 0.0f;
 
-    FOnMoveIntoRangeCompleted CompletedDelegate = MoveCompletedDelegate;
+    FOnMoveIntoRangeCompleted CompletedDelegate =
+        MoveCompletedDelegate;
 
     MoveCompletedDelegate.Unbind();
 
-    CompletedDelegate.ExecuteIfBound(bSuccess);
+    UE_LOG(
+        LogTemp,
+        Warning,
+        TEXT(
+            "[MOVE INTO RANGE] Finished | Pawn=%s | Success=%s"
+        ),
+        *GetNameSafe(GetPawn()),
+        bSuccess ? TEXT("TRUE") : TEXT("FALSE")
+    );
+
+    CompletedDelegate.ExecuteIfBound(
+        bSuccess
+    );
 }
 
 void ATestGamePlayerController::CancelMoveIntoRange()
@@ -509,4 +534,105 @@ UpdateCameraOcclusion()
 
     OccludedComponents =
         MoveTemp(CurrentlyOccluded);
+}
+
+void ATestGamePlayerController::OnClickMove()
+{
+    UE_LOG(
+        LogTemp,
+        Warning,
+        TEXT(
+            "[MOVE INPUT] Controller=%s Local=%s Authority=%s Pawn=%s"
+        ),
+        *GetName(),
+        IsLocalController() ? TEXT("TRUE") : TEXT("FALSE"),
+        HasAuthority() ? TEXT("TRUE") : TEXT("FALSE"),
+        *GetNameSafe(GetPawn())
+    );
+
+    FHitResult HitResult;
+
+    const bool bHit = GetHitResultUnderCursor(
+        ECC_MovementGround,
+        false,
+        HitResult
+    );
+
+    if (!bHit || !HitResult.bBlockingHit)
+    {
+        return;
+    }
+
+    CancelMoveIntoRange();
+
+    StartClickMove(
+        HitResult.ImpactPoint
+    );
+}
+
+void ATestGamePlayerController::StartClickMove(
+    const FVector& Destination)
+{
+    if (!IsLocalController())
+    {
+        return;
+    }
+
+    ClickMoveDestination = Destination;
+    bIsClickMoving = true;
+
+    UE_LOG(
+        LogTemp,
+        Warning,
+        TEXT(
+            "[CLICK MOVE] Start | Pawn=%s | Destination=%s"
+        ),
+        *GetNameSafe(GetPawn()),
+        *ClickMoveDestination.ToString()
+    );
+}
+
+void ATestGamePlayerController::UpdateClickMove()
+{
+    if (!bIsClickMoving || !IsLocalController())
+    {
+        return;
+    }
+
+    ACharacter* ControlledCharacter = GetCharacter();
+
+    if (!ControlledCharacter)
+    {
+        StopClickMove();
+        return;
+    }
+
+    FVector ToDestination =
+        ClickMoveDestination -
+        ControlledCharacter->GetActorLocation();
+
+    ToDestination.Z = 0.0f;
+
+    const float Distance =
+        ToDestination.Size();
+
+    if (Distance <= ClickMoveAcceptanceRadius)
+    {
+        StopClickMove();
+        return;
+    }
+
+    const FVector MoveDirection =
+        ToDestination.GetSafeNormal();
+
+    ControlledCharacter->AddMovementInput(
+        MoveDirection,
+        1.0f
+    );
+}
+
+void ATestGamePlayerController::StopClickMove()
+{
+    bIsClickMoving = false;
+    ClickMoveDestination = FVector::ZeroVector;
 }

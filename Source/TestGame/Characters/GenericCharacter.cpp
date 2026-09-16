@@ -33,15 +33,6 @@ void AGenericCharacter::BeginPlay()
 		UE_LOG(
 			LogTemp,
 			Warning,
-			TEXT("ASC AFTER INIT: Character=%s Owner=%s Avatar=%s"),
-			*GetNameSafe(this),
-			*GetNameSafe(AbilitySystemComponent->GetOwnerActor()),
-			*GetNameSafe(AbilitySystemComponent->GetAvatarActor())
-		);
-
-		UE_LOG(
-			LogTemp,
-			Warning,
 			TEXT("STARTUP COUNT=%d AUTHORITY=%s"),
 			StartupAbilities.Num(),
 			HasAuthority() ? TEXT("TRUE") : TEXT("FALSE")
@@ -61,8 +52,6 @@ void AGenericCharacter::BeginPlay()
 		PreviousHealth = HealthAttributeSet->GetHealth();
 
 		OnHealthChanged.Broadcast(GetCurrentHealth(), GetMaxHealth());
-
-		UE_LOG(LogTemp, Warning, TEXT("BeginPlay Health=%f"), HealthAttributeSet->GetHealth());
 	}
 
 	if (ResourceAttributeSet) 
@@ -86,9 +75,6 @@ void AGenericCharacter::BeginPlay()
 		MovementSpeedAttributeSet->InitMovementSpeed(InitialMovementSpeed);
 
 		GetCharacterMovement()->MaxWalkSpeed = MovementSpeedAttributeSet->GetMovementSpeed();
-
-		UE_LOG(LogTemp, Warning, TEXT("MovementSpeed=%f"), MovementSpeedAttributeSet->GetMovementSpeed());
-
 	}
 
 }
@@ -109,7 +95,6 @@ void AGenericCharacter::HandleAttributeChanged(
 	float NewValue
 )
 {
-	UE_LOG(LogTemp, Warning, TEXT("Attribute=%s,NewValue=%f"),*Attribute.GetName(), NewValue);
 	if (bIsDead)
 	{
 		return;
@@ -123,7 +108,6 @@ void AGenericCharacter::HandleAttributeChanged(
 
 		if (NewValue <= 0)
 		{
-			UE_LOG(LogTemp, Error, TEXT("Actor name=%s, DEAD! NewHealth=%f"), *GetName(), NewValue);
 			EnterDeathState();
 		}
 

@@ -2,14 +2,14 @@
 
 #include "CoreMinimal.h"
 #include "../GA_GenericAbility.h"
-#include "../../AbilityRequestPolicy.h"
 #include "GA_Mend.generated.h"
 
+class UGameplayEffect;
 
 UCLASS()
 class TESTGAME_API UGA_Mend : public UGA_GenericAbility
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
 
 public:
     UGA_Mend();
@@ -22,7 +22,10 @@ public:
     ) override;
 
 protected:
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Healing")
-    TSubclassOf<UGameplayEffect>MendEffect;
-
+    UPROPERTY(
+        EditDefaultsOnly,
+        BlueprintReadOnly,
+        Category = "Healing"
+    )
+    TSubclassOf<UGameplayEffect> MendEffect;
 };

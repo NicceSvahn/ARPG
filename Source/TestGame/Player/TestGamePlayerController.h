@@ -93,7 +93,6 @@ protected:
     void ToggleCombatDebug();
 
 private:
-    void OnClickMove();
 
     void OnAbilityInputPressed(FGameplayTag InputTag);
 
@@ -110,4 +109,16 @@ private:
 
     void UpdateCameraOcclusion();
     TSet<TWeakObjectPtr<UCameraOccludableComponent>> OccludedComponents;
+
+    void OnClickMove();
+
+    void StartClickMove(const FVector& Destination);
+    void UpdateClickMove();
+    void StopClickMove();
+
+    FVector ClickMoveDestination = FVector::ZeroVector;
+    bool bIsClickMoving = false;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Movement")
+    float ClickMoveAcceptanceRadius = 50.0f;
 };

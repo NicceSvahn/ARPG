@@ -2,11 +2,14 @@
 
 #include "CoreMinimal.h"
 #include "Abilities/GameplayAbility.h"
+#include "Abilities/GameplayAbilityTargetTypes.h"
+#include "GameFramework/Pawn.h"
 #include "GA_GenericAbility.generated.h"
 
 class AGenericCharacter;
 class UTexture2D;
 class UGameplayEffect;
+class UTestGameAbilitySystemComponent;
 
 UCLASS(Abstract)
 class TESTGAME_API UGA_GenericAbility : public UGameplayAbility
@@ -30,8 +33,33 @@ public:
         return CooldownTag;
     }
 
+    virtual void ActivateAbility(
+        const FGameplayAbilitySpecHandle Handle,
+        const FGameplayAbilityActorInfo* ActorInfo,
+        const FGameplayAbilityActivationInfo ActivationInfo,
+        const FGameplayEventData* TriggerEventData
+    ) override;
+
 protected:
     AGenericCharacter* GetGenericCharacter() const;
+
+    UTestGameAbilitySystemComponent* GetTestGameASC() const;
+
+    void SendTargetDataToServer(
+        const FGameplayAbilitySpecHandle Handle,
+        const FGameplayAbilityActivationInfo ActivationInfo
+    );
+
+    void WaitForTargetData();
+
+    void HandleTargetDataReceived(
+        const FGameplayAbilityTargetDataHandle& Data,
+        FGameplayTag ActivationTag
+    );
+
+    virtual void OnTargetDataReady(
+        const FGameplayAbilityTargetDataHandle& Data
+    );
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ability|UI")
     FText AbilityName;
@@ -84,10 +112,30 @@ protected:
         OUT FGameplayTagContainer* OptionalRelevantTags = nullptr
     ) const override;
 
+    UPROPERTY(
+        EditDefaultsOnly,
+        BlueprintReadOnly,
+        Category = "Ability|Cost"
+    )
+    TSubclassOf<UGameplayEffect> ResourceCostEffect;
+
     virtual void ApplyCost(
         const FGameplayAbilitySpecHandle Handle,
         const FGameplayAbilityActorInfo* ActorInfo,
         const FGameplayAbilityActivationInfo ActivationInfo
     ) const override;
+
+    bool StartTargetedAbility(
+        const FGameplayAbilitySpecHandle Handle,
+        const FGameplayAbilityActorInfo* ActorInfo,
+        const FGameplayAbilityActivationInfo ActivationInfo
+    );
+
+    UPROPERTY(
+        EditDefaultsOnly,
+        BlueprintReadOnly,
+        Category = "Ability|Targeting"
+    )
+    bool bRequiresTargetData = false;
 
 };

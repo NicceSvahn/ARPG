@@ -93,7 +93,54 @@ bool UTestGameAbilitySystemComponent::TryActivateRequestedAbility(
     const FAbilityInputContext& Context)
 {
     AbilityInputContext = Context;
-    return TryActivateAbility(AbilityHandle);
+
+    const FGameplayAbilityTargetDataHandle TargetData =
+        Context.MakeTargetData();
+
+    UE_LOG(
+        LogTemp,
+        Warning,
+        TEXT(
+            "[TARGET DATA] Num=%d | OriginalHit=%s | OriginalLocation=%s"
+        ),
+        TargetData.Num(),
+        Context.HitResult.bBlockingHit
+        ? TEXT("TRUE")
+        : TEXT("FALSE"),
+        *Context.HitLocation.ToString()
+    );
+
+    UE_LOG(
+        LogTemp,
+        Warning,
+        TEXT(
+            "[ABILITY ACTIVATE] Before TryActivateAbility | "
+            "Owner=%s | Authority=%s"
+        ),
+        *GetNameSafe(GetOwner()),
+        GetOwner() && GetOwner()->HasAuthority()
+        ? TEXT("TRUE")
+        : TEXT("FALSE")
+    );
+
+    const bool bActivated =
+        TryActivateAbility(AbilityHandle);
+
+    UE_LOG(
+        LogTemp,
+        Warning,
+        TEXT(
+            "[ABILITY ACTIVATE] Result=%s | "
+            "Owner=%s | Authority=%s"
+        ),
+        bActivated ? TEXT("TRUE") : TEXT("FALSE"),
+        *GetNameSafe(GetOwner()),
+        GetOwner() && GetOwner()->HasAuthority()
+        ? TEXT("TRUE")
+        : TEXT("FALSE")
+    );
+
+    return bActivated;
 }
 
 bool UTestGameAbilitySystemComponent::RequestMovement(

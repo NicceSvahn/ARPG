@@ -4,6 +4,8 @@
 #include "Components/WidgetComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "TestGame/AbilitySystem/Attributes/HealthAttributeSet.h"
+#include "../Network/NetworkDebug.h"
+#include "../Game/TestGamePlayerState.h"
 
 APlayerCharacter::APlayerCharacter()
 {
@@ -19,6 +21,13 @@ APlayerCharacter::APlayerCharacter()
 void APlayerCharacter::BeginPlay()
 {
     Super::BeginPlay();
+
+    NetworkDebug::LogActor(
+        this,
+        TEXT("PlayerCharacter BeginPlay")
+    );
+
+    LogPlayerIdentity();
 }
 
 void APlayerCharacter::HandleAttributeChanged(
@@ -29,17 +38,54 @@ void APlayerCharacter::HandleAttributeChanged(
 {
     Super::HandleAttributeChanged(Attribute, Magnitude, NewValue);
 
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT("PLAYER HEALTH CHANGED -> %f"),
-        NewValue
-    );
-
     if (Attribute == UHealthAttributeSet::GetHealthAttribute())
     {
         return;
     }
 
     return;
+}
+
+void APlayerCharacter::OnRep_PlayerState()
+{
+    Super::OnRep_PlayerState();
+
+    LogPlayerIdentity();
+}
+
+void APlayerCharacter::LogPlayerIdentity() const
+{
+    const ATestGamePlayerState* PS =
+        GetPlayerState<ATestGamePlayerState>();
+
+    if (!PS)
+    {
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT(
+                "[PLAYER] Actor=%s | PlayerState=None | NetMode=%s | Role=%s"
+            ),
+            *GetName(),
+            *NetworkDebug::GetNetModeString(this),
+            *NetworkDebug::GetRoleString(GetLocalRole())
+        );
+
+        return;
+    }
+
+    UE_LOG(
+        LogTemp,
+        Warning,
+        TEXT(
+            "[PLAYER] %s | Actor=%s | NetMode=%s | Role=%s | Local=%s"
+        ),
+        *PS->GetDebugPlayerLabel(),
+        *GetName(),
+        *NetworkDebug::GetNetModeString(this),
+        *NetworkDebug::GetRoleString(GetLocalRole()),
+        IsLocallyControlled()
+        ? TEXT("TRUE")
+        : TEXT("FALSE")
+    );
 }

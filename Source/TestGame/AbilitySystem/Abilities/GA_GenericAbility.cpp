@@ -1,6 +1,8 @@
 #include "GA_GenericAbility.h"
 
 #include "../Attributes/ResourceAttributeSet.h"
+#include "../TestGameAbilitySystemComponent.h"
+#include "../AbilityInputContext.h"
 #include "../../Characters/GenericCharacter.h"
 
 UGA_GenericAbility::UGA_GenericAbility()
@@ -11,6 +13,110 @@ UGA_GenericAbility::UGA_GenericAbility()
 AGenericCharacter* UGA_GenericAbility::GetGenericCharacter() const
 {
     return Cast<AGenericCharacter>(GetAvatarActorFromActorInfo());
+}
+
+UTestGameAbilitySystemComponent*
+UGA_GenericAbility::GetTestGameASC() const
+{
+    return Cast<UTestGameAbilitySystemComponent>(
+        GetAbilitySystemComponentFromActorInfo()
+    );
+}
+
+void UGA_GenericAbility::SendTargetDataToServer(
+    const FGameplayAbilitySpecHandle Handle,
+    const FGameplayAbilityActivationInfo ActivationInfo)
+{
+    UTestGameAbilitySystemComponent* ASC =
+        GetTestGameASC();
+
+    if (!ASC)
+    {
+        return;
+    }
+
+    const FAbilityInputContext& InputContext =
+        ASC->GetAbilityInputContext();
+
+    const FGameplayAbilityTargetDataHandle TargetData =
+        InputContext.MakeTargetData();
+
+    if (TargetData.Num() <= 0)
+    {
+        return;
+    }
+
+    FScopedPredictionWindow ScopedPrediction(ASC);
+
+    ASC->ServerSetReplicatedTargetData(
+        Handle,
+        ActivationInfo.GetActivationPredictionKey(),
+        TargetData,
+        FGameplayTag(),
+        ASC->ScopedPredictionKey
+    );
+}
+
+void UGA_GenericAbility::WaitForTargetData()
+{
+    UAbilitySystemComponent* ASC =
+        GetAbilitySystemComponentFromActorInfo();
+
+    if (!ASC)
+    {
+        return;
+    }
+
+    ASC->AbilityTargetDataSetDelegate(
+        GetCurrentAbilitySpecHandle(),
+        GetCurrentActivationInfo().GetActivationPredictionKey()
+    ).AddUObject(
+        this,
+        &UGA_GenericAbility::HandleTargetDataReceived
+    );
+
+    ASC->CallReplicatedTargetDataDelegatesIfSet(
+        GetCurrentAbilitySpecHandle(),
+        GetCurrentActivationInfo().GetActivationPredictionKey()
+    );
+}
+
+void UGA_GenericAbility::HandleTargetDataReceived(
+    const FGameplayAbilityTargetDataHandle& Data,
+    FGameplayTag ActivationTag)
+{
+    UAbilitySystemComponent* ASC =
+        GetAbilitySystemComponentFromActorInfo();
+
+    if (!ASC)
+    {
+        return;
+    }
+
+    ASC->ConsumeClientReplicatedTargetData(
+        GetCurrentAbilitySpecHandle(),
+        GetCurrentActivationInfo().GetActivationPredictionKey()
+    );
+
+    if (Data.Num() <= 0)
+    {
+        EndAbility(
+            GetCurrentAbilitySpecHandle(),
+            GetCurrentActorInfo(),
+            GetCurrentActivationInfo(),
+            true,
+            true
+        );
+
+        return;
+    }
+
+    OnTargetDataReady(Data);
+}
+
+void UGA_GenericAbility::OnTargetDataReady(
+    const FGameplayAbilityTargetDataHandle& Data)
+{
 }
 
 const FGameplayTagContainer*
@@ -75,14 +181,6 @@ bool UGA_GenericAbility::CheckCost(
     FGameplayTagContainer* OptionalRelevantTags
 ) const
 {
-    if (!Super::CheckCost(
-        Handle,
-        ActorInfo,
-        OptionalRelevantTags))
-    {
-        return false;
-    }
-
     if (ResourceCost <= 0.0f)
     {
         return true;
@@ -122,7 +220,7 @@ void UGA_GenericAbility::ApplyCost(
         ? ActorInfo->AbilitySystemComponent.Get()
         : nullptr;
 
-    if (!ASC || !CostGameplayEffectClass)
+    if (!ASC || !ResourceCostEffect)
     {
         return;
     }
@@ -136,7 +234,7 @@ void UGA_GenericAbility::ApplyCost(
 
     FGameplayEffectSpecHandle CostSpec =
         ASC->MakeOutgoingSpec(
-            CostGameplayEffectClass,
+            ResourceCostEffect,
             GetAbilityLevel(),
             EffectContext
         );
@@ -159,4 +257,105 @@ void UGA_GenericAbility::ApplyCost(
     ASC->ApplyGameplayEffectSpecToSelf(
         *CostSpec.Data.Get()
     );
+}
+
+bool UGA_GenericAbility::StartTargetedAbility(
+    const FGameplayAbilitySpecHandle Handle,
+    const FGameplayAbilityActorInfo* ActorInfo,
+    const FGameplayAbilityActivationInfo ActivationInfo)
+{
+    if (!ActorInfo)
+    {
+        return false;
+    }
+
+    UTestGameAbilitySystemComponent* ASC =
+        GetTestGameASC();
+
+    if (!ASC)
+    {
+        return false;
+    }
+
+    const APawn* AvatarPawn =
+        Cast<APawn>(
+            ActorInfo->AvatarActor.Get()
+        );
+
+    const bool bIsPlayerControlled =
+        AvatarPawn &&
+        AvatarPawn->IsPlayerControlled();
+
+    // Server copy of a remote PLAYER.
+    //
+    // This pawn's target came from the owning client's cursor,
+    // so the server must wait for replicated TargetData.
+    if (ActorInfo->IsNetAuthority() &&
+        !ActorInfo->IsLocallyControlled() &&
+        bIsPlayerControlled)
+    {
+        WaitForTargetData();
+        return true;
+    }
+
+    // Owning client sends its locally collected target
+    // to the authoritative server.
+    if (!ActorInfo->IsNetAuthority() &&
+        ActorInfo->IsLocallyControlled())
+    {
+        SendTargetDataToServer(
+            Handle,
+            ActivationInfo
+        );
+    }
+
+    // Listen-server players and server-controlled AI already
+    // have their target context locally.
+    const FAbilityInputContext& InputContext =
+        ASC->GetAbilityInputContext();
+
+    const FGameplayAbilityTargetDataHandle TargetData =
+        InputContext.MakeTargetData();
+
+    if (TargetData.Num() <= 0)
+    {
+        return false;
+    }
+
+    OnTargetDataReady(TargetData);
+
+    return true;
+}
+
+void UGA_GenericAbility::ActivateAbility(
+    const FGameplayAbilitySpecHandle Handle,
+    const FGameplayAbilityActorInfo* ActorInfo,
+    const FGameplayAbilityActivationInfo ActivationInfo,
+    const FGameplayEventData* TriggerEventData)
+{
+    Super::ActivateAbility(
+        Handle,
+        ActorInfo,
+        ActivationInfo,
+        TriggerEventData
+    );
+
+    if (!bRequiresTargetData)
+    {
+        return;
+    }
+
+    if (!StartTargetedAbility(
+        Handle,
+        ActorInfo,
+        ActivationInfo))
+    {
+        EndAbility(
+            Handle,
+            ActorInfo,
+            ActivationInfo,
+            true,
+            true
+        );
+    }
 }

@@ -4,25 +4,19 @@
 #include "GA_ProjectileAbility.h"
 #include "GA_Multishot.generated.h"
 
-class AGenericProjectile;
 class UAnimMontage;
-class UGameplayEffect;
 
 UCLASS()
 class TESTGAME_API UGA_Multishot : public UGA_ProjectileAbility
 {
     GENERATED_BODY()
 
-public:
+protected:
 
-    virtual void ActivateAbility(
-        const FGameplayAbilitySpecHandle Handle,
-        const FGameplayAbilityActorInfo* ActorInfo,
-        const FGameplayAbilityActivationInfo ActivationInfo,
-        const FGameplayEventData* TriggerEventData
+    virtual void SpawnProjectiles(
+        const FProjectileAbilityContext& ProjectileContext
     ) override;
 
-protected:
     UPROPERTY(EditDefaultsOnly, Category = "Multishot")
     TObjectPtr<UAnimMontage> CastMontage;
 

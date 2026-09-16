@@ -13,6 +13,9 @@ UGA_ProjectileAbility::UGA_ProjectileAbility()
 {
     InstancingPolicy =
         EGameplayAbilityInstancingPolicy::InstancedPerActor;
+    
+    bRequiresTargetData = true;
+
 }
 
 bool UGA_ProjectileAbility::PrepareProjectileAbility(
@@ -37,26 +40,59 @@ bool UGA_ProjectileAbility::PrepareProjectileAbility(
     const FAbilityInputContext& InputContext =
         ASC->GetAbilityInputContext();
 
-    FVector TargetLocation = FVector::ZeroVector;
+    UE_LOG(
+        LogTemp,
+        Warning,
+        TEXT(
+            "[PROJECTILE CONTEXT] Character=%s | Authority=%s | "
+            "BlockingHit=%s | Target=%s | HitLocation=%s"
+        ),
+        *GetNameSafe(Character),
+        Character->HasAuthority()
+        ? TEXT("TRUE")
+        : TEXT("FALSE"),
+        InputContext.HitResult.bBlockingHit
+        ? TEXT("TRUE")
+        : TEXT("FALSE"),
+        *GetNameSafe(InputContext.TargetActor),
+        *InputContext.HitLocation.ToString()
+    );
 
-    const bool bCasterIsEnemy =
-        Character->IsA<AEnemyCharacter>();
+    return PrepareProjectileAbilityFromHitResult(
+        InputContext.HitResult,
+        OutContext
+    );
+}
 
-    if (IsValid(InputContext.TargetActor) && bCasterIsEnemy)
-    {
-        // AI and actor-targeted abilities.
-        TargetLocation =
-            InputContext.TargetActor->GetActorLocation();
-    }
-    else if (!InputContext.HitResult.bBlockingHit)
+bool UGA_ProjectileAbility::PrepareProjectileAbilityFromHitResult(
+    const FHitResult& HitResult,
+    FProjectileAbilityContext& OutContext)
+{
+    AGenericCharacter* Character =
+        GetGenericCharacter();
+
+    UTestGameAbilitySystemComponent* ASC =
+        Cast<UTestGameAbilitySystemComponent>(
+            GetAbilitySystemComponentFromActorInfo()
+        );
+
+    if (!Character ||
+        !ASC ||
+        !ProjectileClass ||
+        !DamageEffect ||
+        !HitResult.bBlockingHit)
     {
         return false;
     }
-    else
+
+    FVector TargetLocation =
+        HitResult.ImpactPoint;
+
+    if (IsValid(HitResult.GetActor()) &&
+        Character->IsA<AEnemyCharacter>())
     {
-        // Explicit location targeting.
         TargetLocation =
-            InputContext.HitLocation;
+            HitResult.GetActor()->GetActorLocation();
     }
 
     if (TargetLocation.IsNearlyZero())
@@ -220,4 +256,101 @@ UGA_ProjectileAbility::SpawnProjectile(
     );
 
     return Projectile;
+}
+
+void UGA_ProjectileAbility::SpawnProjectiles(
+    const FProjectileAbilityContext& ProjectileContext)
+{
+}
+
+void UGA_ProjectileAbility::OnTargetDataReady(
+    const FGameplayAbilityTargetDataHandle& Data)
+{
+    if (Data.Num() <= 0)
+    {
+        EndAbility(
+            GetCurrentAbilitySpecHandle(),
+            GetCurrentActorInfo(),
+            GetCurrentActivationInfo(),
+            true,
+            true
+        );
+
+        return;
+    }
+
+    const FHitResult* HitResult =
+        Data.Get(0)->GetHitResult();
+
+    if (!HitResult)
+    {
+        EndAbility(
+            GetCurrentAbilitySpecHandle(),
+            GetCurrentActorInfo(),
+            GetCurrentActivationInfo(),
+            true,
+            true
+        );
+
+        return;
+    }
+
+    UE_LOG(
+        LogTemp,
+        Warning,
+        TEXT(
+            "[PROJECTILE TARGET DATA] "
+            "HitLocation=%s | Target=%s"
+        ),
+        *HitResult->ImpactPoint.ToString(),
+        *GetNameSafe(HitResult->GetActor())
+    );
+
+    FProjectileAbilityContext ProjectileContext;
+
+    if (!PrepareProjectileAbilityFromHitResult(
+        *HitResult,
+        ProjectileContext))
+    {
+        EndAbility(
+            GetCurrentAbilitySpecHandle(),
+            GetCurrentActorInfo(),
+            GetCurrentActivationInfo(),
+            true,
+            true
+        );
+
+        return;
+    }
+
+    if (!CommitAbility(
+        GetCurrentAbilitySpecHandle(),
+        GetCurrentActorInfo(),
+        GetCurrentActivationInfo()))
+    {
+        EndAbility(
+            GetCurrentAbilitySpecHandle(),
+            GetCurrentActorInfo(),
+            GetCurrentActivationInfo(),
+            true,
+            true
+        );
+
+        return;
+    }
+
+    if (ProjectileContext.Character->HasAuthority())
+    {
+        SpawnProjectiles(
+            ProjectileContext
+        );
+    }
+
+    EndAbility(
+        GetCurrentAbilitySpecHandle(),
+        GetCurrentActorInfo(),
+        GetCurrentActivationInfo(),
+        true,
+        false
+    );
 }
