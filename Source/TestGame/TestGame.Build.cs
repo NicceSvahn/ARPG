@@ -21,6 +21,7 @@ public class TestGame : ModuleRules
 			"GameplayTags", 
 			"GameplayTasks", 
 			"UMG", 
+			"Niagara"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] {  });

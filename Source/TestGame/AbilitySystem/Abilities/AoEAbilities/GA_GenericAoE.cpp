@@ -95,16 +95,11 @@ UGA_GenericAoE::FindCharactersInRadius(
         UniqueCharacters.Add(Character);
     }
 
-    Characters.Reserve(
-        UniqueCharacters.Num()
-    );
+    Characters.Reserve(UniqueCharacters.Num());
 
-    for (AGenericCharacter* Character :
-        UniqueCharacters)
+    for (AGenericCharacter* Character : UniqueCharacters)
     {
-        Characters.Add(
-            Character
-        );
+        Characters.Add(Character);
     }
 
     return Characters;
