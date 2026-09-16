@@ -8,6 +8,7 @@ class AGenericCharacter;
 class UAnimMontage;
 class UAbilitySystemComponent;
 class UGameplayEffect;
+class UNiagaraSystem;
 
 UCLASS()
 class TESTGAME_API UGA_FrostNova : public UGA_GenericAbility
@@ -60,6 +61,9 @@ protected:
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Frost Nova")
     TObjectPtr<UAnimMontage> FrostNovaMontage = nullptr;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Frost Nova|Visuals")
+    TObjectPtr<UNiagaraSystem>FrostNovaEffect = nullptr;
 
 private:
     bool ApplyEffectToTarget(

@@ -6,6 +6,8 @@
 #include "../../Abilities/AoEAbilities/GA_GenericAoE.h"
 #include "TestGame/Characters/EnemyCharacter.h"
 #include "TestGame/Characters/GenericCharacter.h"
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraSystem.h"
 
 UGA_FrostNova::UGA_FrostNova()
 {
@@ -75,6 +77,22 @@ void UGA_FrostNova::ActivateAbility(
 
     const FVector NovaOrigin =
         SourceCharacter->GetActorLocation();
+
+    if (FrostNovaEffect)
+    {
+        UNiagaraFunctionLibrary::
+            SpawnSystemAtLocation(
+                this,
+                FrostNovaEffect,
+                NovaOrigin,
+                FRotator::ZeroRotator,
+                FVector::OneVector,
+                true,
+                true,
+                ENCPoolMethod::AutoRelease,
+                true
+            );
+    }
 
     const TArray<AGenericCharacter*> Targets =
         UGA_GenericAoE::FindCharactersInRadius(
