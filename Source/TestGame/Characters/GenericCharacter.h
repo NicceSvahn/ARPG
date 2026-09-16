@@ -50,11 +50,17 @@ public:
 	float GetCurrentHealth() const;
 	float GetMaxHealth() const;
 
-	UFUNCTION(BlueprintPure, Category = "Death")
-	bool IsDead() const
-	{
-		return bIsDead;
-	}
+	UFUNCTION()
+	void OnRep_IsDead();
+
+	UPROPERTY(
+		ReplicatedUsing = OnRep_IsDead
+	)
+	bool bIsDead = false;
+
+	virtual void GetLifetimeReplicatedProps(
+		TArray<FLifetimeProperty>& OutLifetimeProps
+	) const override;
 
 	UPROPERTY()
 	TObjectPtr<UHealthAttributeSet> HealthAttributeSet;
@@ -126,9 +132,9 @@ protected:
 	float InitialMovementSpeed = 600.0f;
 
 private:	
-	bool bIsDead = false;
 	float PreviousHealth = 0.0f;
 
 	void EnterDeathState();
+	void ApplyDeathState();
 	void ApplyResourceRegeneration();
 };

@@ -5,10 +5,14 @@
 #include "../AbilitySystem/Attributes/MovementSpeedAttributeSet.h"
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/Controller.h"
+#include "Net/UnrealNetwork.h"
 
 AGenericCharacter::AGenericCharacter()
 {
 	PrimaryActorTick.bCanEverTick = false;
+
+	bReplicates = true;
+	SetReplicateMovement(true);
 
 	AbilitySystemComponent = CreateDefaultSubobject<UTestGameAbilitySystemComponent>(TEXT("AbilitySystemComponent"));
 
@@ -17,6 +21,7 @@ AGenericCharacter::AGenericCharacter()
 	ResourceAttributeSet = CreateDefaultSubobject<UResourceAttributeSet>(TEXT("ResourceAttributeSet"));
 
 	MovementSpeedAttributeSet =	CreateDefaultSubobject<UMovementSpeedAttributeSet>(TEXT("MovementSpeedAttributeSet"));
+
 }
 
 void AGenericCharacter::BeginPlay()
@@ -106,7 +111,8 @@ void AGenericCharacter::HandleAttributeChanged(
 		PreviousHealth = NewValue;
 		OnHealthChanged.Broadcast(NewValue, GetMaxHealth());
 
-		if (NewValue <= 0)
+		if (NewValue <= 0 &&
+			HasAuthority())
 		{
 			EnterDeathState();
 		}
@@ -216,44 +222,25 @@ void AGenericCharacter::HandleMovementSpeedChanged(const FOnAttributeChangeData&
 
 void AGenericCharacter::EnterDeathState()
 {
-	if (bIsDead)
+	if (!HasAuthority() ||
+		bIsDead)
 	{
 		return;
 	}
 
 	bIsDead = true;
 
-	if (AbilitySystemComponent)
-	{
-		const FGameplayTag DeadTag =
-			FGameplayTag::RequestGameplayTag(
-				FName(TEXT("State.Dead")));
+	UE_LOG(
+		LogTemp,
+		Warning,
+		TEXT(
+			"[DEATH] Server confirmed death | "
+			"Character=%s | Authority=TRUE"
+		),
+		*GetNameSafe(this)
+	);
 
-		AbilitySystemComponent->AddLooseGameplayTag(DeadTag);
-		AbilitySystemComponent->HandleOwnerDeath();
-	}
-
-	if (Controller)
-	{
-		Controller->StopMovement();
-	}
-
-	if (UCharacterMovementComponent*
-		MovementComponent = GetCharacterMovement())
-	{
-		MovementComponent->StopMovementImmediately();
-		MovementComponent->DisableMovement();
-	}
-
-	if (UCapsuleComponent*
-		CharacterComponent = GetCapsuleComponent())
-	{
-		CharacterComponent->SetCollisionEnabled(
-			ECollisionEnabled::NoCollision);
-	}
-
-	OnDeathStarted();
-	ReceiveDeath();
+	ApplyDeathState();
 
 	if (DeathCleanupDelay <= 0.0f)
 	{
@@ -264,6 +251,82 @@ void AGenericCharacter::EnterDeathState()
 	SetLifeSpan(DeathCleanupDelay);
 }
 
+void AGenericCharacter::ApplyDeathState()
+{
+	if (AbilitySystemComponent)
+	{
+		const FGameplayTag DeadTag =
+			FGameplayTag::RequestGameplayTag(
+				FName(TEXT("State.Dead"))
+			);
+
+		AbilitySystemComponent->AddLooseGameplayTag(
+			DeadTag
+		);
+
+		AbilitySystemComponent->HandleOwnerDeath();
+	}
+
+	if (Controller)
+	{
+		Controller->StopMovement();
+	}
+
+	if (UCharacterMovementComponent* MovementComponent =
+		GetCharacterMovement())
+	{
+		MovementComponent->StopMovementImmediately();
+		MovementComponent->DisableMovement();
+	}
+
+	if (UCapsuleComponent* CharacterComponent =
+		GetCapsuleComponent())
+	{
+		CharacterComponent->SetCollisionEnabled(
+			ECollisionEnabled::NoCollision
+		);
+	}
+
+	OnDeathStarted();
+	ReceiveDeath();
+}
+
+void AGenericCharacter::OnRep_IsDead()
+{
+	if (!bIsDead)
+	{
+		return;
+	}
+
+	UE_LOG(
+		LogTemp,
+		Warning,
+		TEXT(
+			"[DEATH] Replicated death | "
+			"Character=%s | Authority=%s"
+		),
+		*GetNameSafe(this),
+		HasAuthority()
+		? TEXT("TRUE")
+		: TEXT("FALSE")
+	);
+
+	ApplyDeathState();
+}
+
 void AGenericCharacter::OnDeathStarted()
 {
+}
+
+void AGenericCharacter::GetLifetimeReplicatedProps(
+	TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(
+		OutLifetimeProps
+	);
+
+	DOREPLIFETIME(
+		AGenericCharacter,
+		bIsDead
+	);
 }

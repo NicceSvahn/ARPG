@@ -52,6 +52,9 @@ AEnemyCharacter::AEnemyCharacter()
 	EnemyHealthWidget->SetDrawAtDesiredSize(true);
 
     EnemyHealthWidget->SetRelativeLocation(FVector(0.0f, 0.0f, 120.0f));
+
+    bReplicates = true;
+    SetReplicateMovement(true);
 }
 
 // Called when the game starts or when spawned
