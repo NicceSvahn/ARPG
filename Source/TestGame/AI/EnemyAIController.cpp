@@ -20,51 +20,18 @@ void AEnemyAIController::OnPossess(APawn* InPawn)
     if (!InPawn ||
         !InPawn->HasAuthority())
     {
-        UE_LOG(
-            LogTemp,
-            Warning,
-            TEXT(
-                "[ENEMY AI] OnPossess rejected | "
-                "Pawn=%s | Authority=FALSE"
-            ),
-            *GetNameSafe(InPawn)
-        );
-
         return;
     }
-
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT(
-            "[ENEMY AI] OnPossess | "
-            "Controller=%s | Pawn=%s | Authority=TRUE"
-        ),
-        *GetNameSafe(this),
-        *GetNameSafe(InPawn)
-    );
 
     if (!BehaviorTreeAsset)
     {
-        UE_LOG(
-            LogTemp,
-            Error,
-            TEXT("%s has no Behavior Tree assigned"),
-            *GetName()
-        );
-
         return;
     }
 
-    if (!RunBehaviorTree(BehaviorTreeAsset))
-    {
-        UE_LOG(
-            LogTemp,
-            Error,
-            TEXT("%s failed to start its Behavior Tree"),
-            *GetName()
+    const bool bBehaviorTreeStarted =
+        RunBehaviorTree(
+            BehaviorTreeAsset
         );
-    }
 }
 
 void AEnemyAIController::SetAggroTarget(AActor* NewTarget)
@@ -74,14 +41,19 @@ void AEnemyAIController::SetAggroTarget(AActor* NewTarget)
 		return;
 	}
 
-	if (UBlackboardComponent* BlackboardComponent =
-		GetBlackboardComponent())
-	{
-		BlackboardComponent->SetValueAsObject(
-			TargetActorKey,
-			NewTarget
-		);
-	}
+    UBlackboardComponent* BlackboardComponent =
+        GetBlackboardComponent();
+
+
+    if (!BlackboardComponent)
+    {
+        return;
+    }
+
+    BlackboardComponent->SetValueAsObject(
+        TargetActorKey,
+        NewTarget
+    );
 }
 
 void AEnemyAIController::ClearAggroTarget(
