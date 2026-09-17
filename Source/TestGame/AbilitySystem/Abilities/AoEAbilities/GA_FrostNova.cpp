@@ -68,31 +68,44 @@ void UGA_FrostNova::ActivateAbility(
         return;
     }
 
-    if (FrostNovaMontage)
+    PlayFrostNovaVisuals(
+        SourceCharacter
+    );
+
+    if (ActorInfo->IsNetAuthority())
     {
-        SourceCharacter->PlayAnimMontage(
-            FrostNovaMontage
+        ApplyFrostNovaGameplay(
+            SourceCharacter,
+            SourceASC
         );
+    }
+
+    EndAbility(
+        Handle,
+        ActorInfo,
+        ActivationInfo,
+        true,
+        false
+    );
+}
+
+void UGA_FrostNova::ApplyFrostNovaGameplay(
+    AGenericCharacter* SourceCharacter,
+    UAbilitySystemComponent* SourceASC)
+{
+    if (!SourceCharacter ||
+        !SourceASC)
+    {
+        return;
+    }
+
+    if (!SourceCharacter->HasAuthority())
+    {
+        return;
     }
 
     const FVector NovaOrigin =
         SourceCharacter->GetActorLocation();
-
-    if (FrostNovaEffect)
-    {
-        UNiagaraFunctionLibrary::
-            SpawnSystemAtLocation(
-                this,
-                FrostNovaEffect,
-                NovaOrigin,
-                FRotator::ZeroRotator,
-                FVector::OneVector,
-                true,
-                true,
-                ENCPoolMethod::AutoRelease,
-                true
-            );
-    }
 
     const TArray<AGenericCharacter*> Targets =
         UGA_GenericAoE::FindCharactersInRadius(
@@ -126,11 +139,6 @@ void UGA_FrostNova::ActivateAbility(
             true
         );
 
-        if (Target->IsDead())
-        {
-            continue;
-        }
-
         ApplyEffectToTarget(
             SourceASC,
             TargetASC,
@@ -139,14 +147,6 @@ void UGA_FrostNova::ActivateAbility(
             false
         );
     }
-
-    EndAbility(
-        Handle,
-        ActorInfo,
-        ActivationInfo,
-        true,
-        false
-    );
 }
 
 bool UGA_FrostNova::ApplyEffectToTarget(
@@ -205,4 +205,35 @@ bool UGA_FrostNova::ApplyEffectToTarget(
     );
 
     return true;
+}
+
+void UGA_FrostNova::PlayFrostNovaVisuals(
+    AGenericCharacter* SourceCharacter)
+{
+    if (!SourceCharacter)
+    {
+        return;
+    }
+
+    if (FrostNovaMontage)
+    {
+        SourceCharacter->PlayAnimMontage(
+            FrostNovaMontage
+        );
+    }
+
+    if (FrostNovaEffect)
+    {
+        UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+            this,
+            FrostNovaEffect,
+            SourceCharacter->GetActorLocation(),
+            FRotator::ZeroRotator,
+            FVector::OneVector,
+            true,
+            true,
+            ENCPoolMethod::AutoRelease,
+            true
+        );
+    }
 }
