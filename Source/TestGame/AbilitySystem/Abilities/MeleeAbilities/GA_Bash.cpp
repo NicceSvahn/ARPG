@@ -163,18 +163,5 @@ void UGA_Bash::OnTargetDataReady(
     CurrentTargetActor =
         TargetActors[0].Get();
 
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT(
-            "[BASH TARGET READY] User=%s | Target=%s | Authority=%s"
-        ),
-        *GetNameSafe(GetAvatarActorFromActorInfo()),
-        *GetNameSafe(CurrentTargetActor),
-        GetCurrentActorInfo()->IsNetAuthority()
-        ? TEXT("TRUE")
-        : TEXT("FALSE")
-    );
-
     PerformBash();
 }

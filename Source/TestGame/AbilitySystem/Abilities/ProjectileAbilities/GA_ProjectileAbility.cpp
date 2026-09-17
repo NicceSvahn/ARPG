@@ -113,24 +113,6 @@ bool UGA_ProjectileAbility::PrepareProjectileAbilityFromTargetData(
         return false;
     }
 
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT(
-            "[PROJECTILE TARGET] "
-            "Character=%s | "
-            "Target=%s | "
-            "Location=%s | "
-            "Authority=%s"
-        ),
-        *GetNameSafe(Character),
-        *GetNameSafe(TargetActor),
-        *TargetLocation.ToString(),
-        Character->HasAuthority()
-        ? TEXT("TRUE")
-        : TEXT("FALSE")
-    );
-
     FVector CharacterAimDirection =
         TargetLocation -
         Character->GetActorLocation();
@@ -322,19 +304,6 @@ void UGA_ProjectileAbility::OnTargetDataReady(
         Data,
         ProjectileContext))
     {
-        UE_LOG(
-            LogTemp,
-            Warning,
-            TEXT(
-                "[PROJECTILE ABILITY] "
-                "Failed to prepare target data | "
-                "Character=%s"
-            ),
-            *GetNameSafe(
-                GetAvatarActorFromActorInfo()
-            )
-        );
-
         EndAbility(
             GetCurrentAbilitySpecHandle(),
             GetCurrentActorInfo(),

@@ -24,24 +24,6 @@ void ATestGamePlayerController::BeginPlay()
 {
     Super::BeginPlay();
 
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT("PlayerController BeginPlay: %s"),
-        *GetNameSafe(this));
-
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT("IsLocalController: %s"),
-        IsLocalController() ? TEXT("true") : TEXT("false"));
-
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT("PlayerHudWidgetClass: %s"),
-        *GetNameSafe(PlayerHudWidgetClass));
-
     int32 priority = 0; // Low numerical priority means high priority
 
     bShowMouseCursor = true;
@@ -70,7 +52,6 @@ void ATestGamePlayerController::BeginPlay()
         if (PlayerHudWidget)
         {
             PlayerHudWidget->AddToViewport();
-            UE_LOG(LogTemp, Error, TEXT("Added to viewport?"));
         }
     }
 
@@ -118,10 +99,8 @@ void ATestGamePlayerController::SetupInputComponent()
     {
         if (!Binding.InputAction || !Binding.InputTag.IsValid())
         {
-            UE_LOG(LogTemp, Error, TEXT("Setup 1"));
             continue;
         }
-        UE_LOG(LogTemp, Warning, TEXT("INPUT: Binding %s -> %s"), *Binding.InputAction->GetName(), *Binding.InputTag.ToString());
 
         EnhancedInput->BindAction(
             Binding.InputAction,
@@ -165,17 +144,6 @@ void ATestGamePlayerController::MoveIntoRange(
     MovementAcceptanceRadius = DesiredRange;
     MoveCompletedDelegate = OnCompleted;
     bIsMovingToTarget = true;
-
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT(
-            "[MOVE INTO RANGE] Start | Pawn=%s | Target=%s | Range=%.1f"
-        ),
-        *GetNameSafe(GetPawn()),
-        *GetNameSafe(Target),
-        DesiredRange
-    );
 }
 
 void ATestGamePlayerController::Tick(float DeltaTime)
@@ -247,16 +215,6 @@ void ATestGamePlayerController::FinishMoveIntoRange(
 
     MoveCompletedDelegate.Unbind();
 
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT(
-            "[MOVE INTO RANGE] Finished | Pawn=%s | Success=%s"
-        ),
-        *GetNameSafe(GetPawn()),
-        bSuccess ? TEXT("TRUE") : TEXT("FALSE")
-    );
-
     CompletedDelegate.ExecuteIfBound(
         bSuccess
     );
@@ -274,18 +232,11 @@ void ATestGamePlayerController::CancelMoveIntoRange()
 
 void ATestGamePlayerController::OnAbilityInputPressed(FGameplayTag InputTag)
 {
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT("1 CONTROLLER: %s"),
-        *InputTag.ToString()
-    );
 
     AGenericCharacter* ControlledCharacter = Cast<AGenericCharacter>(GetPawn());
 
     if (!ControlledCharacter)
     {
-        UE_LOG(LogTemp, Error, TEXT("NO CHARACTER"));
         return;
     }
 
@@ -293,7 +244,6 @@ void ATestGamePlayerController::OnAbilityInputPressed(FGameplayTag InputTag)
 
     if (!ASC)
     {
-        UE_LOG(LogTemp, Error, TEXT("NO ASC"));
         return;
     }
 
@@ -337,12 +287,6 @@ void ATestGamePlayerController::TryInitializeHud()
     {
         if (!PlayerHudWidgetClass)
         {
-            UE_LOG(
-                LogTemp,
-                Error,
-                TEXT("PlayerHudClass is not set")
-            );
-
             return;
         }
 
@@ -374,12 +318,6 @@ void ATestGamePlayerController::ToggleCombatDebug()
     {
         if (!CombatDebugWidgetClass)
         {
-            UE_LOG(
-                LogTemp,
-                Warning,
-                TEXT("CombatDebugWidgetClass is not set")
-            );
-
             return;
         }
 
@@ -538,18 +476,6 @@ UpdateCameraOcclusion()
 
 void ATestGamePlayerController::OnClickMove()
 {
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT(
-            "[MOVE INPUT] Controller=%s Local=%s Authority=%s Pawn=%s"
-        ),
-        *GetName(),
-        IsLocalController() ? TEXT("TRUE") : TEXT("FALSE"),
-        HasAuthority() ? TEXT("TRUE") : TEXT("FALSE"),
-        *GetNameSafe(GetPawn())
-    );
-
     FHitResult HitResult;
 
     const bool bHit = GetHitResultUnderCursor(
@@ -580,16 +506,6 @@ void ATestGamePlayerController::StartClickMove(
 
     ClickMoveDestination = Destination;
     bIsClickMoving = true;
-
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT(
-            "[CLICK MOVE] Start | Pawn=%s | Destination=%s"
-        ),
-        *GetNameSafe(GetPawn()),
-        *ClickMoveDestination.ToString()
-    );
 }
 
 void ATestGamePlayerController::UpdateClickMove()

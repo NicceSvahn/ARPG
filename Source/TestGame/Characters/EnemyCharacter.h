@@ -99,7 +99,6 @@ protected:
 	TSubclassOf<ADamageNumberActor> DamageNumberActorClass;
 
 private:
-private:
 	void InitializeAggroTarget();
 
 	void HandleDamageReceived(

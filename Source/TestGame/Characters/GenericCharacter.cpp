@@ -45,14 +45,6 @@ void AGenericCharacter::BeginPlay()
 
 		ApplyResourceRegeneration();
 
-		UE_LOG(
-			LogTemp,
-			Warning,
-			TEXT("STARTUP COUNT=%d AUTHORITY=%s"),
-			StartupAbilities.Num(),
-			HasAuthority() ? TEXT("TRUE") : TEXT("FALSE")
-		);
-
 		if (HasAuthority())
 		{
 			GrantStartupAbilities();
@@ -261,16 +253,6 @@ void AGenericCharacter::EnterDeathState()
 
 	bIsDead = true;
 
-	UE_LOG(
-		LogTemp,
-		Warning,
-		TEXT(
-			"[DEATH] Server confirmed death | "
-			"Character=%s | Authority=TRUE"
-		),
-		*GetNameSafe(this)
-	);
-
 	ApplyDeathState();
 
 	if (DeathCleanupDelay <= 0.0f)
@@ -328,19 +310,6 @@ void AGenericCharacter::OnRep_IsDead()
 	{
 		return;
 	}
-
-	UE_LOG(
-		LogTemp,
-		Warning,
-		TEXT(
-			"[DEATH] Replicated death | "
-			"Character=%s | Authority=%s"
-		),
-		*GetNameSafe(this),
-		HasAuthority()
-		? TEXT("TRUE")
-		: TEXT("FALSE")
-	);
 
 	ApplyDeathState();
 }

@@ -143,24 +143,10 @@ void AEnemyCharacter::InitializeAggroTarget()
 
     if (!EnemyController)
     {
-        UE_LOG(
-            LogTemp,
-            Error,
-            TEXT("%s has the wrong AI controller"),
-            *GetName()
-        );
-
         return;
     }
 
     EnemyController->SetAggroTarget(PlayerPawn);
-
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT("%s started with player inside aggro range"),
-        *GetName()
-    );
 }
 
 void AEnemyCharacter::HandleAggroBeginOverlap(
@@ -171,16 +157,6 @@ void AEnemyCharacter::HandleAggroBeginOverlap(
     bool bFromSweep,
     const FHitResult& SweepResult)
 {
-
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT("AGGRO OVERLAP: Enemy=%s Other=%s"),
-        *GetName(),
-        OtherActor ? *OtherActor->GetName() : TEXT("None")
-    );
-
-
     if (!IsValid(OtherActor) || OtherActor == this)
     {
         return;
@@ -208,14 +184,6 @@ void AEnemyCharacter::HandleAggroBeginOverlap(
     }
 
     EnemyController->SetAggroTarget(OtherActor);
-
-    UE_LOG(
-        LogTemp,
-        Log,
-        TEXT("%s entered %s's aggro range"),
-        *OtherActor->GetName(),
-        *GetName()
-    );
 }
 
 void AEnemyCharacter::HandleAggroEndOverlap(
@@ -224,16 +192,6 @@ void AEnemyCharacter::HandleAggroEndOverlap(
     UPrimitiveComponent* OtherComponent,
     int32 OtherBodyIndex)
 {
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT("AGGRO END: Enemy=%s Other=%s"),
-        *GetName(),
-        IsValid(OtherActor)
-        ? *OtherActor->GetName()
-        : TEXT("None")
-    );
-
     if (!IsValid(OtherActor))
     {
         return;
@@ -295,17 +253,6 @@ void AEnemyCharacter::HandleDamageReceived(
         return;
     }
 
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT(
-            "[COMBAT TEXT] Server damage | "
-            "Enemy=%s | Damage=%.1f"
-        ),
-        *GetNameSafe(this),
-        DamageAmount
-    );
-
     MulticastShowDamageNumber(
         DamageAmount
     );
@@ -355,20 +302,6 @@ void AEnemyCharacter::HandleMaxHealthChanged(
 void AEnemyCharacter::MulticastShowDamageNumber_Implementation(
     float DamageAmount)
 {
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT(
-            "[COMBAT TEXT] Received | "
-            "Enemy=%s | Damage=%.1f | Authority=%s"
-        ),
-        *GetNameSafe(this),
-        DamageAmount,
-        HasAuthority()
-        ? TEXT("TRUE")
-        : TEXT("FALSE")
-    );
-
     SpawnDamageNumber(
         DamageAmount
     );

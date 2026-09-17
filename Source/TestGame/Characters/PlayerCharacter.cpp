@@ -61,34 +61,8 @@ void APlayerCharacter::LogPlayerIdentity() const
 
     if (!PS)
     {
-        UE_LOG(
-            LogTemp,
-            Warning,
-            TEXT(
-                "[PLAYER] Actor=%s | PlayerState=None | NetMode=%s | Role=%s"
-            ),
-            *GetName(),
-            *NetworkDebug::GetNetModeString(this),
-            *NetworkDebug::GetRoleString(GetLocalRole())
-        );
-
         return;
     }
-
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT(
-            "[PLAYER] %s | Actor=%s | NetMode=%s | Role=%s | Local=%s"
-        ),
-        *PS->GetDebugPlayerLabel(),
-        *GetName(),
-        *NetworkDebug::GetNetModeString(this),
-        *NetworkDebug::GetRoleString(GetLocalRole()),
-        IsLocallyControlled()
-        ? TEXT("TRUE")
-        : TEXT("FALSE")
-    );
 }
 
 void APlayerCharacter::OnDeathStarted()
@@ -109,16 +83,6 @@ void APlayerCharacter::OnDeathStarted()
     {
         return;
     }
-
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT(
-            "[PLAYER DEATH] Level failed | "
-            "Player=%s | Authority=TRUE"
-        ),
-        *GetNameSafe(this)
-    );
 
     GameState->SetLevelState(
         ELevelState::Failed
