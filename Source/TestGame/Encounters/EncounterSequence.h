@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "../Game/TestGameGameState.h"
 #include "EncounterSequence.generated.h"
 
 class AEncounter;
@@ -33,6 +34,9 @@ public:
     UPROPERTY(BlueprintAssignable)
     FOnEncounterSequenceCompleted OnSequenceCompleted;
 
+    UFUNCTION(BlueprintCallable)
+    void StopSequence();
+
 protected:
     UPROPERTY(
         EditInstanceOnly,
@@ -62,4 +66,9 @@ private:
     void HandleEncounterCompleted();
 
     void CompleteSequence();
+
+    UFUNCTION()
+    void HandleLevelStateChanged(
+        ELevelState NewState
+    );
 };

@@ -13,20 +13,16 @@ class TESTGAME_API UGA_Fireball : public UGA_ProjectileAbility
 {
 	GENERATED_BODY()
 
-public:
-
-    virtual void ActivateAbility(
-        const FGameplayAbilitySpecHandle Handle,
-        const FGameplayAbilityActorInfo* ActorInfo,
-        const FGameplayAbilityActivationInfo ActivationInfo,
-        const FGameplayEventData* TriggerEventData
-    ) override;
-
 protected:
     UPROPERTY(EditDefaultsOnly, Category = "Fireball")
     TObjectPtr<UAnimMontage> CastMontage;
 
     UPROPERTY(EditDefaultsOnly, Category = "Fireball")
     float FireballDamage = 25.0f;
+
+
+    virtual void SpawnProjectiles(
+        const FProjectileAbilityContext& ProjectileContext
+    ) override;
 };
 

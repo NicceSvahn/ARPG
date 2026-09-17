@@ -21,12 +21,6 @@ bool UTestGameAbilitySystemComponent::RequestAbility(
 
     if (!AbilitySpec || !AbilitySpec->Ability)
     {
-        UE_LOG(
-            LogTemp,
-            Warning,
-            TEXT("RequestAbility: no granted ability has tag %s"),
-            *AbilityTag.ToString()
-        );
         return false;
     }
 
@@ -93,7 +87,14 @@ bool UTestGameAbilitySystemComponent::TryActivateRequestedAbility(
     const FAbilityInputContext& Context)
 {
     AbilityInputContext = Context;
-    return TryActivateAbility(AbilityHandle);
+
+    const FGameplayAbilityTargetDataHandle TargetData =
+        Context.MakeTargetData();
+
+    const bool bActivated =
+        TryActivateAbility(AbilityHandle);
+
+    return bActivated;
 }
 
 bool UTestGameAbilitySystemComponent::RequestMovement(
@@ -210,12 +211,6 @@ void UTestGameAbilitySystemComponent::SendAbilityEvent(
 
     if (!IsValid(CurrentAvatarActor))
     {
-        UE_LOG(
-            LogTemp,
-            Error,
-            TEXT("SendAbilityEvent: ASC has no valid avatar actor")
-        );
-
         return;
     }
 

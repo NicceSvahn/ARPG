@@ -15,29 +15,56 @@ AEnemyAIController::AEnemyAIController()
 
 void AEnemyAIController::OnPossess(APawn* InPawn)
 {
-	Super::OnPossess(InPawn);
+    Super::OnPossess(InPawn);
 
-	if (!BehaviorTreeAsset)
-	{
-		UE_LOG(
-			LogTemp,
-			Error,
-			TEXT("%s has no Behavior Tree assigned"),
-			*GetName()
-		);
+    if (!InPawn ||
+        !InPawn->HasAuthority())
+    {
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT(
+                "[ENEMY AI] OnPossess rejected | "
+                "Pawn=%s | Authority=FALSE"
+            ),
+            *GetNameSafe(InPawn)
+        );
 
-		return;
-	}
+        return;
+    }
 
-	if (!RunBehaviorTree(BehaviorTreeAsset))
-	{
-		UE_LOG(
-			LogTemp,
-			Error,
-			TEXT("%s failed to start its Behavior Tree"),
-			*GetName()
-		);
-	}
+    UE_LOG(
+        LogTemp,
+        Warning,
+        TEXT(
+            "[ENEMY AI] OnPossess | "
+            "Controller=%s | Pawn=%s | Authority=TRUE"
+        ),
+        *GetNameSafe(this),
+        *GetNameSafe(InPawn)
+    );
+
+    if (!BehaviorTreeAsset)
+    {
+        UE_LOG(
+            LogTemp,
+            Error,
+            TEXT("%s has no Behavior Tree assigned"),
+            *GetName()
+        );
+
+        return;
+    }
+
+    if (!RunBehaviorTree(BehaviorTreeAsset))
+    {
+        UE_LOG(
+            LogTemp,
+            Error,
+            TEXT("%s failed to start its Behavior Tree"),
+            *GetName()
+        );
+    }
 }
 
 void AEnemyAIController::SetAggroTarget(AActor* NewTarget)

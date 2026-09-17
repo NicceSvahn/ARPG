@@ -2,11 +2,14 @@
 
 #include "CoreMinimal.h"
 #include "Abilities/GameplayAbility.h"
+#include "Abilities/GameplayAbilityTargetTypes.h"
+#include "GameFramework/Pawn.h"
 #include "GA_GenericAbility.generated.h"
 
 class AGenericCharacter;
 class UTexture2D;
 class UGameplayEffect;
+class UTestGameAbilitySystemComponent;
 
 UCLASS(Abstract)
 class TESTGAME_API UGA_GenericAbility : public UGameplayAbility
@@ -30,18 +33,16 @@ public:
         return CooldownTag;
     }
 
+    virtual void ActivateAbility(
+        const FGameplayAbilitySpecHandle Handle,
+        const FGameplayAbilityActorInfo* ActorInfo,
+        const FGameplayAbilityActivationInfo ActivationInfo,
+        const FGameplayEventData* TriggerEventData
+    ) override;
+
 protected:
-    AGenericCharacter* GetGenericCharacter() const;
 
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ability|UI")
-    FText AbilityName;
-
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ability|UI")
-    TObjectPtr<UTexture2D> AbilityIcon = nullptr;
-
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ability|UI")
-    FText AbilityDescription;
-
+    // Cooldown
     UPROPERTY(
         EditDefaultsOnly,
         BlueprintReadOnly,
@@ -75,6 +76,7 @@ protected:
         const FGameplayAbilityActivationInfo ActivationInfo
     ) const override;
 
+    // Cost
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ability|Cost", meta = (ClampMin = "0.0"))
     float ResourceCost = 0.0f;
 
@@ -84,10 +86,61 @@ protected:
         OUT FGameplayTagContainer* OptionalRelevantTags = nullptr
     ) const override;
 
+    UPROPERTY(
+        EditDefaultsOnly,
+        BlueprintReadOnly,
+        Category = "Ability|Cost"
+    )
+    TSubclassOf<UGameplayEffect> ResourceCostEffect;
+
     virtual void ApplyCost(
         const FGameplayAbilitySpecHandle Handle,
         const FGameplayAbilityActorInfo* ActorInfo,
         const FGameplayAbilityActivationInfo ActivationInfo
     ) const override;
+
+    // General
+    AGenericCharacter* GetGenericCharacter() const;
+
+    UTestGameAbilitySystemComponent* GetTestGameASC() const;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ability|UI")
+    FText AbilityName;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ability|UI")
+    TObjectPtr<UTexture2D> AbilityIcon = nullptr;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ability|UI")
+    FText AbilityDescription;
+
+    // Networking
+
+    void SendTargetDataToServer(
+        const FGameplayAbilitySpecHandle Handle,
+        const FGameplayAbilityActivationInfo ActivationInfo
+    );
+
+    void WaitForTargetData();
+
+    void HandleTargetDataReceived(
+        const FGameplayAbilityTargetDataHandle& Data,
+        FGameplayTag ActivationTag
+    );
+
+    virtual void OnTargetDataReady(
+        const FGameplayAbilityTargetDataHandle& Data
+    );
+    bool StartTargetedAbility(
+        const FGameplayAbilitySpecHandle Handle,
+        const FGameplayAbilityActorInfo* ActorInfo,
+        const FGameplayAbilityActivationInfo ActivationInfo
+    );
+
+    UPROPERTY(
+        EditDefaultsOnly,
+        BlueprintReadOnly,
+        Category = "Ability|Targeting"
+    )
+    bool bRequiresTargetData = false;
 
 };

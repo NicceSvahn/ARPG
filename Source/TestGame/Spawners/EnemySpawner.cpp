@@ -15,12 +15,37 @@ TArray<AEnemyCharacter*> AEnemySpawner::SpawnEnemies()
 {
     TArray<AEnemyCharacter*> NewlySpawnedEnemies;
 
+    if (!HasAuthority())
+    {
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT(
+                "[ENEMY SPAWNER] SpawnEnemies rejected | "
+                "Spawner=%s | Authority=FALSE"
+            ),
+            *GetNameSafe(this)
+        );
+
+        return NewlySpawnedEnemies;
+    }
+
     UWorld* World = GetWorld();
 
     if (!World)
     {
         return NewlySpawnedEnemies;
     }
+
+    UE_LOG(
+        LogTemp,
+        Warning,
+        TEXT(
+            "[ENEMY SPAWNER] SpawnEnemies | "
+            "Spawner=%s | Authority=TRUE"
+        ),
+        *GetNameSafe(this)
+    );
 
     for (const FEnemySpawnEntry& Entry : SpawnEntries)
     {
@@ -63,6 +88,19 @@ TArray<AEnemyCharacter*> AEnemySpawner::SpawnEnemies()
 
             SpawnedEnemies.Add(SpawnedEnemy);
             NewlySpawnedEnemies.Add(SpawnedEnemy);
+
+            UE_LOG(
+                LogTemp,
+                Warning,
+                TEXT(
+                    "[ENEMY SPAWNER] Spawned | "
+                    "Enemy=%s | Authority=%s"
+                ),
+                *GetNameSafe(SpawnedEnemy),
+                SpawnedEnemy->HasAuthority()
+                ? TEXT("TRUE")
+                : TEXT("FALSE")
+            );
         }
     }
 

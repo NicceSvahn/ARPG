@@ -61,4 +61,44 @@ void UHealthAttributeSet::PostGameplayEffectExecute(
     Super::PostGameplayEffectExecute(Data);
 }
 
+void UHealthAttributeSet::OnRep_Health(
+    const FGameplayAttributeData& OldHealth)
+{
+    GAMEPLAYATTRIBUTE_REPNOTIFY(
+        UHealthAttributeSet,
+        Health,
+        OldHealth
+    );
+}
 
+void UHealthAttributeSet::OnRep_MaxHealth(
+    const FGameplayAttributeData& OldMaxHealth)
+{
+    GAMEPLAYATTRIBUTE_REPNOTIFY(
+        UHealthAttributeSet,
+        MaxHealth,
+        OldMaxHealth
+    );
+}
+
+void UHealthAttributeSet::GetLifetimeReplicatedProps(
+    TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+    Super::GetLifetimeReplicatedProps(
+        OutLifetimeProps
+    );
+
+    DOREPLIFETIME_CONDITION_NOTIFY(
+        UHealthAttributeSet,
+        Health,
+        COND_None,
+        REPNOTIFY_Always
+    );
+
+    DOREPLIFETIME_CONDITION_NOTIFY(
+        UHealthAttributeSet,
+        MaxHealth,
+        COND_None,
+        REPNOTIFY_Always
+    );
+}

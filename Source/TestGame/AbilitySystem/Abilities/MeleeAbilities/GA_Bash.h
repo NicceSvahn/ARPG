@@ -19,13 +19,6 @@ public:
     virtual bool RequiresTarget() const override { return true; }
     virtual float GetMaximumRange() const override { return BashRange; }
 
-    virtual void ActivateAbility(
-        const FGameplayAbilitySpecHandle Handle,
-        const FGameplayAbilityActorInfo* ActorInfo,
-        const FGameplayAbilityActivationInfo ActivationInfo,
-        const FGameplayEventData* TriggerEventData
-    ) override;
-
 protected:
     UPROPERTY(EditDefaultsOnly, Category = "Bash")
     float BashRange = 150.0f;
@@ -41,6 +34,10 @@ protected:
 
     UPROPERTY(EditDefaultsOnly, Category = "Bash")
     TObjectPtr<UAnimMontage> BashMontage;
+
+    virtual void OnTargetDataReady(
+        const FGameplayAbilityTargetDataHandle& Data
+    ) override;
 
 private:
     void PerformBash();

@@ -5,20 +5,35 @@
 #include "../AbilitySystem/Attributes/MovementSpeedAttributeSet.h"
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/Controller.h"
+#include "Net/UnrealNetwork.h"
 
 AGenericCharacter::AGenericCharacter()
 {
 	PrimaryActorTick.bCanEverTick = false;
 
-	AbilitySystemComponent = CreateDefaultSubobject<UTestGameAbilitySystemComponent>(TEXT("AbilitySystemComponent"));
+	bReplicates = true;
+	SetReplicateMovement(true);
 
-	HealthAttributeSet = CreateDefaultSubobject<UHealthAttributeSet>(TEXT("HealthAttributeSet"));
+	AbilitySystemComponent =
+		CreateDefaultSubobject<UTestGameAbilitySystemComponent>(
+			TEXT("AbilitySystemComponent")
+		);
 
-	ResourceAttributeSet = CreateDefaultSubobject<UResourceAttributeSet>(TEXT("ResourceAttributeSet"));
+	HealthAttributeSet =
+		CreateDefaultSubobject<UHealthAttributeSet>(
+			TEXT("HealthAttributeSet")
+		);
 
-	MovementSpeedAttributeSet =	CreateDefaultSubobject<UMovementSpeedAttributeSet>(TEXT("MovementSpeedAttributeSet"));
+	ResourceAttributeSet =
+		CreateDefaultSubobject<UResourceAttributeSet>(
+			TEXT("ResourceAttributeSet")
+		);
+
+	MovementSpeedAttributeSet =
+		CreateDefaultSubobject<UMovementSpeedAttributeSet>(
+			TEXT("MovementSpeedAttributeSet")
+		);
 }
-
 void AGenericCharacter::BeginPlay()
 {
 	Super::BeginPlay();
@@ -30,23 +45,6 @@ void AGenericCharacter::BeginPlay()
 
 		ApplyResourceRegeneration();
 
-		UE_LOG(
-			LogTemp,
-			Warning,
-			TEXT("ASC AFTER INIT: Character=%s Owner=%s Avatar=%s"),
-			*GetNameSafe(this),
-			*GetNameSafe(AbilitySystemComponent->GetOwnerActor()),
-			*GetNameSafe(AbilitySystemComponent->GetAvatarActor())
-		);
-
-		UE_LOG(
-			LogTemp,
-			Warning,
-			TEXT("STARTUP COUNT=%d AUTHORITY=%s"),
-			StartupAbilities.Num(),
-			HasAuthority() ? TEXT("TRUE") : TEXT("FALSE")
-		);
-
 		if (HasAuthority())
 		{
 			GrantStartupAbilities();
@@ -55,14 +53,31 @@ void AGenericCharacter::BeginPlay()
 
 	if (HealthAttributeSet)
 	{
-		HealthAttributeSet->OnAttributeChanged.AddDynamic(this, &AGenericCharacter::HandleAttributeChanged);
+		HealthAttributeSet->OnAttributeChanged.AddDynamic(
+			this,
+			&AGenericCharacter::HandleAttributeChanged
+		);
 
-		HealthAttributeSet->InitHealth(GetMaxHealth());
-		PreviousHealth = HealthAttributeSet->GetHealth();
+		if (HasAuthority())
+		{
+			AbilitySystemComponent->SetNumericAttributeBase(
+				UHealthAttributeSet::GetMaxHealthAttribute(),
+				InitialHealth
+			);
 
-		OnHealthChanged.Broadcast(GetCurrentHealth(), GetMaxHealth());
+			AbilitySystemComponent->SetNumericAttributeBase(
+				UHealthAttributeSet::GetHealthAttribute(),
+				InitialHealth
+			);
+		}
 
-		UE_LOG(LogTemp, Warning, TEXT("BeginPlay Health=%f"), HealthAttributeSet->GetHealth());
+		PreviousHealth =
+			HealthAttributeSet->GetHealth();
+
+		OnHealthChanged.Broadcast(
+			GetCurrentHealth(),
+			GetMaxHealth()
+		);
 	}
 
 	if (ResourceAttributeSet) 
@@ -86,9 +101,6 @@ void AGenericCharacter::BeginPlay()
 		MovementSpeedAttributeSet->InitMovementSpeed(InitialMovementSpeed);
 
 		GetCharacterMovement()->MaxWalkSpeed = MovementSpeedAttributeSet->GetMovementSpeed();
-
-		UE_LOG(LogTemp, Warning, TEXT("MovementSpeed=%f"), MovementSpeedAttributeSet->GetMovementSpeed());
-
 	}
 
 }
@@ -100,7 +112,9 @@ float AGenericCharacter::GetCurrentHealth() const
 
 float AGenericCharacter::GetMaxHealth() const
 {
-	return InitialHealth;
+	return HealthAttributeSet
+		? HealthAttributeSet->GetMaxHealth()
+		: 0.0f;
 }
 
 void AGenericCharacter::HandleAttributeChanged(
@@ -109,7 +123,6 @@ void AGenericCharacter::HandleAttributeChanged(
 	float NewValue
 )
 {
-	UE_LOG(LogTemp, Warning, TEXT("Attribute=%s,NewValue=%f"),*Attribute.GetName(), NewValue);
 	if (bIsDead)
 	{
 		return;
@@ -121,9 +134,9 @@ void AGenericCharacter::HandleAttributeChanged(
 		PreviousHealth = NewValue;
 		OnHealthChanged.Broadcast(NewValue, GetMaxHealth());
 
-		if (NewValue <= 0)
+		if (NewValue <= 0 &&
+			HasAuthority())
 		{
-			UE_LOG(LogTemp, Error, TEXT("Actor name=%s, DEAD! NewHealth=%f"), *GetName(), NewValue);
 			EnterDeathState();
 		}
 
@@ -232,44 +245,15 @@ void AGenericCharacter::HandleMovementSpeedChanged(const FOnAttributeChangeData&
 
 void AGenericCharacter::EnterDeathState()
 {
-	if (bIsDead)
+	if (!HasAuthority() ||
+		bIsDead)
 	{
 		return;
 	}
 
 	bIsDead = true;
 
-	if (AbilitySystemComponent)
-	{
-		const FGameplayTag DeadTag =
-			FGameplayTag::RequestGameplayTag(
-				FName(TEXT("State.Dead")));
-
-		AbilitySystemComponent->AddLooseGameplayTag(DeadTag);
-		AbilitySystemComponent->HandleOwnerDeath();
-	}
-
-	if (Controller)
-	{
-		Controller->StopMovement();
-	}
-
-	if (UCharacterMovementComponent*
-		MovementComponent = GetCharacterMovement())
-	{
-		MovementComponent->StopMovementImmediately();
-		MovementComponent->DisableMovement();
-	}
-
-	if (UCapsuleComponent*
-		CharacterComponent = GetCapsuleComponent())
-	{
-		CharacterComponent->SetCollisionEnabled(
-			ECollisionEnabled::NoCollision);
-	}
-
-	OnDeathStarted();
-	ReceiveDeath();
+	ApplyDeathState();
 
 	if (DeathCleanupDelay <= 0.0f)
 	{
@@ -280,6 +264,69 @@ void AGenericCharacter::EnterDeathState()
 	SetLifeSpan(DeathCleanupDelay);
 }
 
+void AGenericCharacter::ApplyDeathState()
+{
+	if (AbilitySystemComponent)
+	{
+		const FGameplayTag DeadTag =
+			FGameplayTag::RequestGameplayTag(
+				FName(TEXT("State.Dead"))
+			);
+
+		AbilitySystemComponent->AddLooseGameplayTag(
+			DeadTag
+		);
+
+		AbilitySystemComponent->HandleOwnerDeath();
+	}
+
+	if (Controller)
+	{
+		Controller->StopMovement();
+	}
+
+	if (UCharacterMovementComponent* MovementComponent =
+		GetCharacterMovement())
+	{
+		MovementComponent->StopMovementImmediately();
+		MovementComponent->DisableMovement();
+	}
+
+	if (UCapsuleComponent* CharacterComponent =
+		GetCapsuleComponent())
+	{
+		CharacterComponent->SetCollisionEnabled(
+			ECollisionEnabled::NoCollision
+		);
+	}
+
+	OnDeathStarted();
+	ReceiveDeath();
+}
+
+void AGenericCharacter::OnRep_IsDead()
+{
+	if (!bIsDead)
+	{
+		return;
+	}
+
+	ApplyDeathState();
+}
+
 void AGenericCharacter::OnDeathStarted()
 {
+}
+
+void AGenericCharacter::GetLifetimeReplicatedProps(
+	TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(
+		OutLifetimeProps
+	);
+
+	DOREPLIFETIME(
+		AGenericCharacter,
+		bIsDead
+	);
 }

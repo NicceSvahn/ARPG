@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GenericAttributeSet.h"
+#include "Net/UnrealNetwork.h"
 #include "HealthAttributeSet.generated.h"
 
 UCLASS()
@@ -18,7 +19,42 @@ public:
         const FGameplayEffectModCallbackData& Data
     ) override;
 
-    UPROPERTY(BlueprintReadOnly, Category = "Attributes")FGameplayAttributeData Health;
+    virtual void GetLifetimeReplicatedProps(
+        TArray<FLifetimeProperty>& OutLifetimeProps
+    ) const override;
 
-    PLAY_ATTRIBUTE_ACCESSORS(UHealthAttributeSet, Health);
+    UPROPERTY(
+        BlueprintReadOnly,
+        ReplicatedUsing = OnRep_Health,
+        Category = "Attributes"
+    )
+    FGameplayAttributeData Health;
+
+    PLAY_ATTRIBUTE_ACCESSORS(
+        UHealthAttributeSet,
+        Health
+    );
+
+    UPROPERTY(
+        BlueprintReadOnly,
+        ReplicatedUsing = OnRep_MaxHealth,
+        Category = "Attributes"
+    )
+    FGameplayAttributeData MaxHealth;
+
+    PLAY_ATTRIBUTE_ACCESSORS(
+        UHealthAttributeSet,
+        MaxHealth
+    );
+
+protected:
+    UFUNCTION()
+    void OnRep_Health(
+        const FGameplayAttributeData& OldHealth
+    );
+
+    UFUNCTION()
+    void OnRep_MaxHealth(
+        const FGameplayAttributeData& OldMaxHealth
+    );
 };

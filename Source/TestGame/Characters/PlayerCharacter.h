@@ -31,4 +31,9 @@ protected:
         float NewHealth
     );
 
+    virtual void OnRep_PlayerState() override;
+
+    void LogPlayerIdentity() const;
+
+    virtual void OnDeathStarted() override;
 };

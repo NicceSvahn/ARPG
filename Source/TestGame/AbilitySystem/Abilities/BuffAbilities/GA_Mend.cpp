@@ -3,12 +3,12 @@
 #include "AbilitySystemComponent.h"
 #include "GameplayEffect.h"
 
-#include "TestGame/Characters/GenericCharacter.h"
-
 UGA_Mend::UGA_Mend()
 {
     InstancingPolicy =
         EGameplayAbilityInstancingPolicy::InstancedPerActor;
+
+    bRequiresTargetData = false;
 }
 
 void UGA_Mend::ActivateAbility(
@@ -24,33 +24,9 @@ void UGA_Mend::ActivateAbility(
         TriggerEventData
     );
 
-    if (!ActorInfo)
-    {
-        EndAbility(
-            Handle,
-            ActorInfo,
-            ActivationInfo,
-            true,
-            true
-        );
-
-        return;
-    }
-
-    if (!ActorInfo->AbilitySystemComponent.IsValid())
-    {
-        EndAbility(
-            Handle,
-            ActorInfo,
-            ActivationInfo,
-            true,
-            true
-        );
-
-        return;
-    }
-
-    if (!MendEffect)
+    if (!ActorInfo ||
+        !ActorInfo->AbilitySystemComponent.IsValid() ||
+        !MendEffect)
     {
         EndAbility(
             Handle,
@@ -79,40 +55,33 @@ void UGA_Mend::ActivateAbility(
         return;
     }
 
-
     UAbilitySystemComponent* ASC =
         ActorInfo->AbilitySystemComponent.Get();
 
-    FGameplayEffectContextHandle EffectContext =
-        ASC->MakeEffectContext();
-
-    EffectContext.AddSourceObject(
-        ActorInfo->AvatarActor.Get()
-    );
-
-    FGameplayEffectSpecHandle EffectSpec =
-        ASC->MakeOutgoingSpec(
-            MendEffect,
-            GetAbilityLevel(),
-            EffectContext
-        );
-
-    if (!EffectSpec.IsValid())
+    // Gameplay truth belongs to authority.
+    if (ActorInfo->IsNetAuthority())
     {
-        EndAbility(
-            Handle,
-            ActorInfo,
-            ActivationInfo,
-            true,
-            true
+        FGameplayEffectContextHandle EffectContext =
+            ASC->MakeEffectContext();
+
+        EffectContext.AddSourceObject(
+            ActorInfo->AvatarActor.Get()
         );
 
-        return;
-    }
+        FGameplayEffectSpecHandle EffectSpec =
+            ASC->MakeOutgoingSpec(
+                MendEffect,
+                GetAbilityLevel(),
+                EffectContext
+            );
 
-    ASC->ApplyGameplayEffectSpecToSelf(
-        *EffectSpec.Data.Get()
-    );
+        if (EffectSpec.IsValid())
+        {
+            ASC->ApplyGameplayEffectSpecToSelf(
+                *EffectSpec.Data.Get()
+            );
+        }
+    }
 
     EndAbility(
         Handle,

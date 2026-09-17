@@ -1,0 +1,647 @@
+= Networking Foundation
+:toc:
+:toclevels: 3
+:sectnums:
+:source-highlighter: highlight.js
+
+== Syfte
+
+Det här dokumentet beskriver den networking-foundation som implementerats i TestGame inför multiplayer och ett framtida dedicated-server-upplägg.
+
+Målet har inte bara varit att få två spelare att fungera i PIE, utan att etablera tydliga regler för vem som äger gameplay-sanningen:
+
+* Servern äger gameplay-beslut.
+* Klienterna äger input och lokal presentation.
+* Bestående gameplay-state replikeras.
+* Kortlivade presentation-events skickas separat.
+* Befintlig singleplayer/gameplay ska fortsätta fungera under migreringen.
+
+Den centrala modellen är:
+
+[source,text]
+----
+Client
+  Input / HUD / Camera
+          |
+          v
+Server
+  Validation / Combat / AI / Encounters
+          |
+          v
+Replicated gameplay state
+          |
+          +----> Client 1 presentation
+          |
+          +----> Client 2 presentation
+----
+
+Detta gör att samma gameplay-arkitektur senare kan köras med en dedicated server utan att en spelarklient behöver vara den auktoritativa spelinstansen.
+
+== Grundprincip: server authority
+
+Den viktigaste arkitekturförändringen är att skilja på _vem som ber om något_ och _vem som bestämmer att det faktiskt händer_.
+
+En klient får exempelvis trycka på Bash. Det innebär däremot inte att klienten själv ska få bestämma att en fiende förlorar Health.
+
+Den avsedda kedjan är:
+
+[source,text]
+----
+Player input
+    |
+    v
+Ability request / GAS
+    |
+    v
+Server validation
+    |
+    +--> cost / cooldown
+    +--> damage / healing
+    +--> projectile spawning
+    |
+    v
+Replicated result
+    |
+    v
+Clients update presentation
+----
+
+Servern har därför gjorts ansvarig för bland annat enemy spawning, enemy AI, gameplay damage/healing, death state, encounter progression och level completion/failure. Loot och persistent progression är framtida serveransvar.
+
+Klienten ansvarar huvudsakligen för player input, HUD, kamera och lokal visuell feedback.
+
+Det här minskar risken för divergerande game state och är grunden för ett server-authoritative multiplayer-spel.
+
+== PIE och nätverksroller
+
+Arbetet har verifierats med två spelare i PIE med Listen Server.
+
+Vi verifierade de olika Unreal-rollerna och såg den förväntade modellen:
+
+[source,text]
+----
+Listen Server, Player 1
+  LocalRole = Authority
+  LocallyControlled = true
+
+Server copy of Player 2
+  LocalRole = Authority
+  LocallyControlled = false
+
+Player 2 on client
+  LocalRole = AutonomousProxy
+  LocallyControlled = true
+
+Remote player on client
+  LocalRole = SimulatedProxy
+  LocallyControlled = false
+----
+
+Detta var viktigt eftersom objektnamn som `BP_PlayerCharacter_C_0` och `_C_1` endast är lokala namn inom respektive World. De identifierar inte logiskt Player 1 och Player 2.
+
+För logisk spelaridentitet används `APlayerState` och Unreals replikerade `PlayerId`/`PlayerName`.
+
+== Player movement
+
+=== Problemet
+
+Den ursprungliga click-to-move-lösningen skickade destinationen till servern och använde server-side `SimpleMoveTo...`.
+
+Det fungerade visuellt för listen-server-spelaren, men gav dåligt beteende för Player 2. Den autonoma klientens lokala movement prediction och serverns rörelse låg inte i samma normala `CharacterMovement`-flöde.
+
+Ett tydligt symptom var att P2 kunde rapportera mycket lägre lokal `GroundSpeed` än serverns faktiska rörelse.
+
+=== Lösningen
+
+Normal click movement flyttades till lokal `AddMovementInput()`.
+
+[source,text]
+----
+Click
+  |
+  v
+Store destination
+  |
+  v
+Controller Tick
+  |
+  v
+Calculate 2D direction
+  |
+  v
+AddMovementInput()
+  |
+  v
+CharacterMovement
+  |
+  v
+UE movement prediction + server reconciliation
+----
+
+Detta använder Unreal Characters avsedda nätverksmodell istället för att bygga en separat movement-modell ovanpå den.
+
+Samma princip används för `MoveIntoRange()` när en ability, exempelvis Bash, behöver flytta spelaren inom range.
+
+Resultatet är att båda spelarna kan röra sig och animera korrekt samtidigt som Unreal hanterar movement prediction och reconciliation.
+
+== GAS och Ability TargetData
+
+Abilities använder ett generiskt inputsystem:
+
+[source,text]
+----
+Physical key
+   |
+   v
+Input.Ability.SlotX
+   |
+   v
+TestGameAbilitySystemComponent
+   |
+   v
+Ability spec Dynamic Tags
+   |
+   v
+GameplayAbility
+----
+
+Input är alltså inte hårdkodad till exempelvis Fireball eller Bash. En ability kan flyttas mellan slots genom konfiguration istället för att inputkoden behöver ändras.
+
+=== FAbilityInputContext
+
+Target-information lagras i ett generiskt `FAbilityInputContext` med `TargetActor`, `HitLocation` och `HitResult`.
+
+Contexten kan konverteras till `FGameplayAbilityTargetDataHandle`.
+
+Det är viktigt eftersom player targeting och AI targeting inte alltid producerar samma sorts data. En spelare kan ha ett riktigt `FHitResult`, medan AI ofta redan känner till ett `TargetActor`.
+
+Därför stödjer `MakeTargetData()` både:
+
+[source,text]
+----
+Blocking HitResult
+    -> FGameplayAbilityTargetData_SingleTargetHit
+
+TargetActor
+    -> FGameplayAbilityTargetData_ActorArray
+----
+
+Detta löste bland annat problemet där player Fireball/Multishot fungerade men AI Mage/Archer slutade skjuta efter TargetData-refaktorn.
+
+=== Generisk targeted ability
+
+`UGA_GenericAbility` innehåller den gemensamma TargetData-hanteringen.
+
+Targeted abilities markerar:
+
+[source,cpp]
+----
+bRequiresTargetData = true;
+----
+
+Bas-klassen hanterar därefter lokal target data, prediction key, `ServerSetReplicatedTargetData`, väntan på replicated TargetData, konsumtion av TargetData och vidarebefordran till `OnTargetDataReady()`.
+
+[source,text]
+----
+ActivateAbility()
+     |
+     v
+UGA_GenericAbility
+     |
+     v
+StartTargetedAbility()
+     |
+     +--> local/server AI: use local context
+     |
+     +--> remote player: send/wait TargetData
+     |
+     v
+OnTargetDataReady()
+     |
+     v
+Concrete ability behavior
+----
+
+Detta gör att Bash, Fireball och Multishot inte behöver duplicera samma networking-plumbing och att nya targeted abilities blir enklare att implementera.
+
+== Projectiles
+
+`AGenericProjectile` används som gemensam projectile-bas för bland annat Fireball och Multishot.
+
+Projectiles har replicated movement, spawnas authority-side för gameplay, ignorerar source/owner/instigator, applicerar sin GameplayEffect authority-side och förstörs efter impact/range/lifetime.
+
+Multishot skapar flera projectiles med separata riktningar och effect contexts.
+
+En viktig korrigering var att projectile abilities behövde acceptera både `HitResult` och `ActorArray` som TargetData. Det gjorde samma projectile-arkitektur användbar för både player targeting och AI targeting.
+
+== Enemy spawning och AI
+
+Enemy spawning flyttades bakom authority-gränsen.
+
+[source,text]
+----
+Server
+  Encounter
+     |
+     v
+  EnemySpawner
+     |
+     v
+  Spawn Enemy
+     |
+     v
+Replicated enemy
+   /       \
+ P1         P2
+----
+
+Detta förhindrar att varje klient skapar sin egen version av encountert.
+
+Enemy AI följer samma princip. `AEnemyAIController::OnPossess()` startar Behavior Tree endast när den kontrollerade pawn-instansen är authority-side.
+
+Därmed behöver inte varje BT task fyllas med identiska authority-checks. Om Behavior Tree aldrig startas på klienten ligger AI-besluten redan på rätt sida av nätverksgränsen.
+
+Detta verifierades med authority-loggar för spawned enemies.
+
+== Death state
+
+Death är gameplay state och kan därför inte endast vara ett lokalt event.
+
+`AGenericCharacter` avgör death från Health authority-side. Ett replikerat `bIsDead` används för att distribuera state:
+
+[source,text]
+----
+Server Health <= 0
+       |
+       v
+EnterDeathState()
+       |
+       v
+bIsDead = true
+       |
+       +-------- replication --------+
+       |                             |
+       v                             v
+ Server presentation           Client OnRep_IsDead
+                                     |
+                                     v
+                               ApplyDeathState()
+----
+
+Servern äger alltså beslutet att karaktären är död, medan klienterna kan reagera visuellt på samma state.
+
+== Encounter progression
+
+`AEncounter` och `AEncounterSequence` gjordes authority-driven.
+
+Servern ansvarar för `StartEncounter`, kontroll av encounter completion, att starta nästa encounter, intermission och att avsluta sekvensen.
+
+Detta är viktigt eftersom encounter progression är gameplay-sanning. Om två klienter själva fick avgöra när en wave var färdig skulle de kunna hamna i olika state.
+
+Fem encounters har verifierats genom hela sekvensen med server authority.
+
+== GameState och level state
+
+Global run-state flyttades till `ATestGameGameState`.
+
+Vi introducerade:
+
+[source,text]
+----
+ELevelState
+  Waiting
+  EncounterActive
+  Intermission
+  Completed
+  Failed
+----
+
+`LevelState` och `CurrentEncounterIndex` är replikerade.
+
+`GameState` är lämpligt för detta eftersom det representerar matchens/runens gemensamma replikerade state. Servern ändrar state och klienterna observerar det.
+
+[source,text]
+----
+Server
+Encounter 3 starts
+    |
+    v
+CurrentEncounterIndex = 3
+LevelState = EncounterActive
+    |
+    +-------- replication --------+
+               |
+         +-----+-----+
+         v           v
+        P1          P2
+----
+
+== Level failure
+
+Player death kopplades till run-state.
+
+När en player death startar authority-side kan servern sätta `LevelState = Failed`. `AEncounterSequence` observerar detta och stoppar den pågående sekvensen.
+
+Den implementerade regeln är för närvarande att en spelares död innebär att hela runnen misslyckas.
+
+Det har verifierats både i multiplayer och i vanlig enspelarkörning.
+
+== Attribute replication
+
+GAS attributes som behöver synas på klienterna har gjorts replikerade med `ReplicatedUsing`.
+
+Mönstret är:
+
+[source,cpp]
+----
+UPROPERTY(ReplicatedUsing = OnRep_Health)
+FGameplayAttributeData Health;
+----
+
+och i `OnRep` används GAS:
+
+[source,cpp]
+----
+GAMEPLAYATTRIBUTE_REPNOTIFY(
+    UHealthAttributeSet,
+    Health,
+    OldHealth
+);
+----
+
+Samma princip används för Health, MaxHealth, Resource och MaxResource.
+
+Det innebär att GAS native attribute delegates kan reagera även när en förändring kommer genom network replication.
+
+== InitialHealth kontra runtime Health
+
+Vi separerade konfiguration från runtime-state.
+
+`InitialHealth` är Blueprint/class configuration:
+
+[source,text]
+----
+BP_SkeletonWarrior
+InitialHealth = 200
+----
+
+När karaktären initieras används detta för GAS:
+
+[source,text]
+----
+InitialHealth
+     |
+     v
+MaxHealth = 200
+Health    = 200
+----
+
+Efter initialization ska UI och gameplay inte använda `InitialHealth` som aktuell max-health. De använder istället `HealthAttributeSet::Health` och `HealthAttributeSet::MaxHealth`.
+
+Det gör systemet kompatibelt med framtida effekter som +MaxHealth från gear, buffs/debuffs, olika enemy tiers och level scaling.
+
+== Listen-server HUD initialization
+
+Ett subtilt problem hittades på P1.
+
+Listen-serverns HUD kunde skapas innan `AGenericCharacter::BeginPlay()` hade initierat Health.
+
+[source,text]
+----
+HUD Init:
+Health = 0
+MaxHealth = 0
+
+senare:
+
+Character BeginPlay:
+Health = 100
+MaxHealth = 100
+----
+
+P2 såg rätt värde eftersom replication senare orsakade GAS-notifiering. P1 fick däremot ingen motsvarande replication av sitt eget servervärde.
+
+Initialization ändrades därför till att gå genom ASC:s attribute-interface, `SetNumericAttributeBase`, så att GAS native attribute change delegates även kan reagera lokalt.
+
+Det löste initial HealthBar för både P1 och P2.
+
+== HUD: GAS native delegates
+
+En viktig lärdom var skillnaden mellan vår egen `OnAttributeChanged` och GAS native delegates.
+
+Vår `UGenericAttributeSet::OnAttributeChanged` broadcastas från `PostGameplayEffectExecute()`. Det beskriver GameplayEffect-execution där den faktiskt sker och är inte i sig ett replikerat event.
+
+UI bör därför inte förlita sig på den för replikerade attributes.
+
+Istället används:
+
+[source,cpp]
+----
+GetGameplayAttributeValueChangeDelegate(
+    UHealthAttributeSet::GetHealthAttribute()
+)
+----
+
+Samma mönster används för Resource.
+
+[source,text]
+----
+Server changes Health
+        |
+        v
+Health replication
+        |
+        v
+Client GAS OnRep
+        |
+        v
+Native attribute delegate
+        |
+        v
+HUD refresh
+----
+
+Resultatet är att Player HUD fungerar korrekt för båda spelarna.
+
+== Enemy HealthBar
+
+Enemy HealthBar hade samma grundproblem.
+
+Den uppdaterades tidigare genom enemy-karaktärens override av den egna `HandleAttributeChanged()`. Det fungerade på server/P1 men inte på P2.
+
+Enemy UI ändrades därför till GAS native delegates för Health och MaxHealth.
+
+`RefreshHealthBar()` använder dessutom runtime `GetMaxHealth()` istället för `InitialHealth`.
+
+[source,text]
+----
+Enemy Health: 200 -> 150
+        |
+        +--> Server GAS delegate -> P1 widget
+        |
+        +--> replicated Health
+                  |
+                  v
+             P2 GAS delegate
+                  |
+                  v
+             P2 widget
+----
+
+Detta har verifierats för båda spelarna.
+
+== Replicated state kontra transient events
+
+Combat Text ledde till en viktig arkitekturprincip.
+
+En Health-förändring och ett damage number representerar inte samma sorts information.
+
+Health är *state*:
+
+[source,text]
+----
+Enemy currently has 173 / 200 Health
+----
+
+Det ska replikeras och finnas tillgängligt även om klienten inte såg exakt när förändringen inträffade.
+
+Combat Text är ett kortlivat *event*:
+
+[source,text]
+----
+"Den här attacken gjorde 27 damage."
+----
+
+Att klienten får `Health: 200 -> 173` är inte samma sak som att klienten fått ett event som säger `ShowDamageNumber(27)`.
+
+Vi valde därför att inte försöka härleda Combat Text från replicated Health.
+
+== Floating Combat Text
+
+På servern broadcastas `OnDamageReceived` när faktisk damage har applicerats.
+
+Enemy reagerar på detta och servern skickar ett multicast presentation-event:
+
+[source,text]
+----
+Server applies damage
+        |
+        v
+OnDamageReceived(27)
+        |
+        v
+NetMulticast
+      /     \
+     v       v
+    P1      P2
+     |       |
+     v       v
+Spawn local DamageNumberActor
+----
+
+`ADamageNumberActor` är medvetet inte replikerad. Varje maskin skapar sin egen lokala, kortlivade presentation.
+
+Det är effektivare än att skapa ett replikerat Actor-lifecycle för en widget actor som endast lever ungefär en sekund.
+
+RPC:n är dessutom `Unreliable`. Det är ett medvetet val: combat text är kosmetiskt. Om ett enskilt damage number skulle tappas ska det inte belasta reliable RPC-trafik. Det viktiga gameplay-resultatet, Health, är fortfarande replikerat korrekt.
+
+== Vad som nu är verifierat
+
+Efter networking-foundation-arbetet har följande verifierats med två spelare:
+
+[cols="2,1,1", options="header"]
+|===
+|System |Player 1 |Player 2
+
+|Movement |Fungerar |Fungerar
+|Bash |Fungerar |Fungerar
+|Fireball |Fungerar |Fungerar
+|Multishot |Fungerar |Fungerar
+|Sprint |Fungerar |Fungerar
+|Mend |Fungerar |Fungerar
+|Player HealthBar |Fungerar |Fungerar
+|Player ResourceBar |Fungerar |Fungerar
+|Enemy HealthBar |Fungerar |Fungerar
+|Floating Combat Text |Fungerar |Fungerar
+|Enemy spawning |Server authoritative |Replicated
+|Enemy AI |Server authoritative |Observeras via replication
+|Enemy death |Server authoritative |Replicated state
+|Encounter progression |Server authoritative |Replicated state
+|Level failure |Server authoritative |Replicated state
+|===
+
+== Varför detta är en foundation och inte slutlig multiplayer
+
+Arbetet betyder inte att all multiplayer-utveckling är färdig. Det betyder att projektet nu har en konsekvent grund att bygga vidare på.
+
+[source,text]
+----
+                 GAMEPLAY TRUTH
+                       |
+                    SERVER
+                       |
+        +--------------+--------------+
+        |              |              |
+      Combat           AI          Encounters
+        |              |              |
+        +--------------+--------------+
+                       |
+               Replicated State
+                       |
+              +--------+--------+
+              |                 |
+           Client 1          Client 2
+              |                 |
+         Input / UI        Input / UI
+         Camera / FX       Camera / FX
+----
+
+Nästa multiplayer-arbete kan därför handla om specifika system istället för att varje ny feature behöver uppfinna sin egen nätverksmodell.
+
+== Rekommenderat nästa steg
+
+Nästa naturliga steg är en separat ticket för mer strikt multiplayer combat/ability validation.
+
+Där bör vi specifikt verifiera att:
+
+* klienten inte själv kan applicera authoritative damage,
+* healing endast beslutas authority-side,
+* resource costs inte kan appliceras inkonsekvent,
+* cooldowns är korrekta mellan server och owning client,
+* projectile spawning är authority-side,
+* Bash inte kan applicera damage både predicted och authority-side,
+* ability failure/cancellation beter sig korrekt över nätverket.
+
+Efter det är en naturlig milstolpe:
+
+[source,text]
+----
+Dedicated Server
+      |
+      +--> Client 1
+      |
+      +--> Client 2
+      |
+      v
+Full Crucible run
+----
+
+Det blir det verkliga beviset på att gameplay inte förlitar sig på att Player 1 samtidigt råkar vara listen server.
+
+== Sammanfattning
+
+Networking-arbetet har flyttat TestGame från ett i huvudsak singleplayer-orienterat gameplayflöde till en server-authoritative grund där två spelare delar samma gameplay-sanning.
+
+De viktigaste principerna är:
+
+. Servern bestämmer gameplay-resultat.
+. Klienterna skickar input och visar presentation.
+. Runtime gameplay-state replikeras.
+. GAS native delegates används för UI som reagerar på replicated attributes.
+. Kortlivade presentation-events, som Combat Text, behandlas separat från state.
+. AI, spawning och encounter progression exekveras authority-side.
+. Unreal CharacterMovement används istället för en parallell egen movementmodell.
+. Ability TargetData är abstraherad så att player och AI kan använda samma ability-arkitektur.
+. Arkitekturen är avsiktligt förberedd för att listen server senare ska kunna ersättas med en dedicated server.
+
+Detta är den networking foundation som framtida multiplayer-, combat-, loot- och progression-system bör byggas ovanpå.

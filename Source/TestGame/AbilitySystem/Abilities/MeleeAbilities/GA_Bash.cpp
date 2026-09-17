@@ -11,62 +11,8 @@ UGA_Bash::UGA_Bash()
 {
     InstancingPolicy =
         EGameplayAbilityInstancingPolicy::InstancedPerActor;
-}
 
-
-void UGA_Bash::ActivateAbility(
-    const FGameplayAbilitySpecHandle Handle,
-    const FGameplayAbilityActorInfo* ActorInfo,
-    const FGameplayAbilityActivationInfo ActivationInfo,
-    const FGameplayEventData* TriggerEventData)
-{
-    Super::ActivateAbility(
-        Handle,
-        ActorInfo,
-        ActivationInfo,
-        TriggerEventData
-    );
-
-    UTestGameAbilitySystemComponent* ASC =
-        Cast<UTestGameAbilitySystemComponent>(
-            GetAbilitySystemComponentFromActorInfo()
-        );
-
-    if (!ASC)
-    {
-        UE_LOG(
-            LogTemp,
-            Error,
-            TEXT("BASH: Invalid TestGame ASC")
-        );
-
-        EndAbility(
-            Handle,
-            ActorInfo,
-            ActivationInfo,
-            true,
-            true
-        );
-
-        return;
-    }
-
-    // This context is populated by AbilityInputTagPressed().
-    const FAbilityInputContext& InputContext =
-        ASC->GetAbilityInputContext();
-
-    CurrentTargetActor =
-        InputContext.TargetActor;
-
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT("BASH: User=%s Target=%s"),
-        *GetNameSafe(GetAvatarActorFromActorInfo()),
-        *GetNameSafe(CurrentTargetActor)
-    );
-
-    PerformBash();
+    bRequiresTargetData = true;
 }
 
 void UGA_Bash::PerformBash()
@@ -135,7 +81,6 @@ void UGA_Bash::PerformBash()
     );
 }
 
-
 void UGA_Bash::ApplyBashDamage()
 {
     if (!IsValid(CurrentTargetActor) ||
@@ -180,4 +125,43 @@ void UGA_Bash::ApplyBashDamage()
         *Spec.Data.Get(),
         TargetASC
     );
+}
+
+void UGA_Bash::OnTargetDataReady(
+    const FGameplayAbilityTargetDataHandle& Data)
+{
+    if (Data.Num() <= 0)
+    {
+        EndAbility(
+            GetCurrentAbilitySpecHandle(),
+            GetCurrentActorInfo(),
+            GetCurrentActivationInfo(),
+            true,
+            true
+        );
+
+        return;
+    }
+
+    const TArray<TWeakObjectPtr<AActor>> TargetActors =
+        Data.Get(0)->GetActors();
+
+    if (TargetActors.IsEmpty() ||
+        !TargetActors[0].IsValid())
+    {
+        EndAbility(
+            GetCurrentAbilitySpecHandle(),
+            GetCurrentActorInfo(),
+            GetCurrentActivationInfo(),
+            true,
+            true
+        );
+
+        return;
+    }
+
+    CurrentTargetActor =
+        TargetActors[0].Get();
+
+    PerformBash();
 }

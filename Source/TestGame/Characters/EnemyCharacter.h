@@ -92,8 +92,6 @@ protected:
 
 	void RefreshHealthBar(float CurrentHealth);
 
-	virtual void HandleAttributeChanged(FGameplayAttribute Attribute, float Magnitude, float NewHealth) override;
-
 	UPROPERTY(
 		EditDefaultsOnly,
 		Category = "Combat Text"
@@ -102,5 +100,31 @@ protected:
 
 private:
 	void InitializeAggroTarget();
-	void HandleDamageReceived(float DamageAmount);
+
+	void HandleDamageReceived(
+		float DamageAmount
+	);
+
+	UFUNCTION(
+		NetMulticast,
+		Unreliable
+	)
+	void MulticastShowDamageNumber(
+		float DamageAmount
+	);
+
+	void SpawnDamageNumber(
+		float DamageAmount
+	);
+
+	void HandleHealthChanged(
+		const FOnAttributeChangeData& Data
+	);
+
+	void HandleMaxHealthChanged(
+		const FOnAttributeChangeData& Data
+	);
+
+	FDelegateHandle HealthChangedHandle;
+	FDelegateHandle MaxHealthChangedHandle;
 };

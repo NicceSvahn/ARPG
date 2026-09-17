@@ -6,9 +6,9 @@
 #include "Components/HorizontalBoxSlot.h"
 #include "Components/ProgressBar.h"
 
+#include "HealthBarWidget.h"
 #include "../Characters/GenericCharacter.h"
 #include "../AbilitySystem/TestGameAbilitySystemComponent.h"
-#include "HealthBarWidget.h"
 #include "../UI/ResourceBarWidget.h"
 #include "../AbilitySystem/Attributes/ResourceAttributeSet.h"
 
@@ -28,11 +28,13 @@ void UPlayerHudWidget::InitializeHud(
             .Remove(AbilityBarChangedHandle);
     }
 
-    if (PlayerCharacter &&
+    if (AbilitySystemComponent &&
         HealthChangedHandle.IsValid())
     {
-        PlayerCharacter
-            ->OnHealthChanged
+        AbilitySystemComponent
+            ->GetGameplayAttributeValueChangeDelegate(
+                UHealthAttributeSet::GetHealthAttribute()
+            )
             .Remove(HealthChangedHandle);
     }
 
@@ -53,13 +55,6 @@ void UPlayerHudWidget::InitializeHud(
             this,
             &UPlayerHudWidget::RefreshAbilitySlots);
 
-    HealthChangedHandle =
-        PlayerCharacter
-        ->OnHealthChanged
-        .AddUObject(
-            this,
-            &UPlayerHudWidget::SetHealth);
-
     BuildAbilitySlots();
 
     RefreshAbilitySlots();
@@ -68,6 +63,16 @@ void UPlayerHudWidget::InitializeHud(
         PlayerCharacter->GetCurrentHealth(),
         PlayerCharacter->GetMaxHealth()
     );
+
+    HealthChangedHandle =
+        AbilitySystemComponent
+        ->GetGameplayAttributeValueChangeDelegate(
+            UHealthAttributeSet::GetHealthAttribute()
+        )
+        .AddUObject(
+            this,
+            &UPlayerHudWidget::HandleHealthChanged
+        );
 
     ResourceChangedHandle =
         AbilitySystemComponent
@@ -200,11 +205,13 @@ void UPlayerHudWidget::NativeDestruct()
             .Remove(AbilityBarChangedHandle);
     }
 
-    if (PlayerCharacter &&
+    if (AbilitySystemComponent &&
         HealthChangedHandle.IsValid())
     {
-        PlayerCharacter
-            ->OnHealthChanged
+        AbilitySystemComponent
+            ->GetGameplayAttributeValueChangeDelegate(
+                UHealthAttributeSet::GetHealthAttribute()
+            )
             .Remove(HealthChangedHandle);
     }
 
@@ -263,5 +270,19 @@ void UPlayerHudWidget::RefreshResourceBar()
     WBP_PlayerResourceBar->SetResource(
         CurrentResource,
         MaxResource
+    );
+}
+
+void UPlayerHudWidget::HandleHealthChanged(
+    const FOnAttributeChangeData& Data)
+{
+    if (!PlayerCharacter)
+    {
+        return;
+    }
+
+    SetHealth(
+        Data.NewValue,
+        PlayerCharacter->GetMaxHealth()
     );
 }

@@ -4,6 +4,9 @@
 #include "Components/WidgetComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "TestGame/AbilitySystem/Attributes/HealthAttributeSet.h"
+#include "../Network/NetworkDebug.h"
+#include "../Game/TestGamePlayerState.h"
+#include "../Game/TestGameGameState.h"
 
 APlayerCharacter::APlayerCharacter()
 {
@@ -19,6 +22,13 @@ APlayerCharacter::APlayerCharacter()
 void APlayerCharacter::BeginPlay()
 {
     Super::BeginPlay();
+
+    NetworkDebug::LogActor(
+        this,
+        TEXT("PlayerCharacter BeginPlay")
+    );
+
+    LogPlayerIdentity();
 }
 
 void APlayerCharacter::HandleAttributeChanged(
@@ -29,17 +39,52 @@ void APlayerCharacter::HandleAttributeChanged(
 {
     Super::HandleAttributeChanged(Attribute, Magnitude, NewValue);
 
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT("PLAYER HEALTH CHANGED -> %f"),
-        NewValue
-    );
-
     if (Attribute == UHealthAttributeSet::GetHealthAttribute())
     {
         return;
     }
 
     return;
+}
+
+void APlayerCharacter::OnRep_PlayerState()
+{
+    Super::OnRep_PlayerState();
+
+    LogPlayerIdentity();
+}
+
+void APlayerCharacter::LogPlayerIdentity() const
+{
+    const ATestGamePlayerState* PS =
+        GetPlayerState<ATestGamePlayerState>();
+
+    if (!PS)
+    {
+        return;
+    }
+}
+
+void APlayerCharacter::OnDeathStarted()
+{
+    Super::OnDeathStarted();
+
+    if (!HasAuthority())
+    {
+        return;
+    }
+
+    ATestGameGameState* GameState =
+        GetWorld()
+        ? GetWorld()->GetGameState<ATestGameGameState>()
+        : nullptr;
+
+    if (!GameState)
+    {
+        return;
+    }
+
+    GameState->SetLevelState(
+        ELevelState::Failed
+    );
 }

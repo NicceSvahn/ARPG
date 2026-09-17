@@ -24,24 +24,6 @@ void ATestGamePlayerController::BeginPlay()
 {
     Super::BeginPlay();
 
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT("PlayerController BeginPlay: %s"),
-        *GetNameSafe(this));
-
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT("IsLocalController: %s"),
-        IsLocalController() ? TEXT("true") : TEXT("false"));
-
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT("PlayerHudWidgetClass: %s"),
-        *GetNameSafe(PlayerHudWidgetClass));
-
     int32 priority = 0; // Low numerical priority means high priority
 
     bShowMouseCursor = true;
@@ -70,7 +52,6 @@ void ATestGamePlayerController::BeginPlay()
         if (PlayerHudWidget)
         {
             PlayerHudWidget->AddToViewport();
-            UE_LOG(LogTemp, Error, TEXT("Added to viewport?"));
         }
     }
 
@@ -118,10 +99,8 @@ void ATestGamePlayerController::SetupInputComponent()
     {
         if (!Binding.InputAction || !Binding.InputTag.IsValid())
         {
-            UE_LOG(LogTemp, Error, TEXT("Setup 1"));
             continue;
         }
-        UE_LOG(LogTemp, Warning, TEXT("INPUT: Binding %s -> %s"), *Binding.InputAction->GetName(), *Binding.InputTag.ToString());
 
         EnhancedInput->BindAction(
             Binding.InputAction,
@@ -143,49 +122,28 @@ void ATestGamePlayerController::SetupInputComponent()
     }
 }
 
-void ATestGamePlayerController::OnClickMove()
+void ATestGamePlayerController::MoveIntoRange(
+    AActor* Target,
+    float DesiredRange,
+    FOnMoveIntoRangeCompleted OnCompleted)
 {
-    FHitResult HitResult;
-
-    const bool bHit = GetHitResultUnderCursor(
-        ECC_MovementGround,
-        false,
-        HitResult
-    );
-
-    if (!bHit || !HitResult.bBlockingHit)
-    {
-        return;
-    }
-
-    CancelMoveIntoRange();
-
-    UAIBlueprintHelperLibrary::SimpleMoveToLocation(
-        this,
-        HitResult.ImpactPoint
-    );
-}
-
-void ATestGamePlayerController::MoveIntoRange(AActor* Target, float DesiredRange, FOnMoveIntoRangeCompleted OnCompleted)
-{
-    if (!Target)
+    if (!Target || !IsLocalController())
     {
         OnCompleted.ExecuteIfBound(false);
         return;
     }
 
-    // Cancel an existing special movement request first.
     if (bIsMovingToTarget)
     {
         CancelMoveIntoRange();
     }
 
+    StopClickMove();
+
     MovementTarget = Target;
     MovementAcceptanceRadius = DesiredRange;
     MoveCompletedDelegate = OnCompleted;
     bIsMovingToTarget = true;
-
-    UAIBlueprintHelperLibrary::SimpleMoveToActor(this, Target);
 }
 
 void ATestGamePlayerController::Tick(float DeltaTime)
@@ -194,29 +152,53 @@ void ATestGamePlayerController::Tick(float DeltaTime)
 
     UpdateCameraOcclusion();
 
-    if (!bIsMovingToTarget)
+    UpdateClickMove();
+
+    if (!bIsMovingToTarget ||
+        !IsLocalController())
     {
         return;
     }
 
-    ACharacter* ControlledCharacter = GetCharacter();
-    AActor* Target = MovementTarget.Get();
+    ACharacter* ControlledCharacter =
+        GetCharacter();
 
-    if (!ControlledCharacter || !Target)
+    AActor* Target =
+        MovementTarget.Get();
+
+    if (!ControlledCharacter ||
+        !Target)
     {
         FinishMoveIntoRange(false);
         return;
     }
 
-    const float Distance = FVector::Dist2D(ControlledCharacter->GetActorLocation(), Target->GetActorLocation());
+    FVector ToTarget =
+        Target->GetActorLocation() -
+        ControlledCharacter->GetActorLocation();
+
+    ToTarget.Z = 0.0f;
+
+    const float Distance =
+        ToTarget.Size();
 
     if (Distance <= MovementAcceptanceRadius)
     {
         FinishMoveIntoRange(true);
+        return;
     }
+
+    const FVector MoveDirection =
+        ToTarget.GetSafeNormal();
+
+    ControlledCharacter->AddMovementInput(
+        MoveDirection,
+        1.0f
+    );
 }
 
-void ATestGamePlayerController::FinishMoveIntoRange(bool bSuccess)
+void ATestGamePlayerController::FinishMoveIntoRange(
+    bool bSuccess)
 {
     if (!bIsMovingToTarget)
     {
@@ -225,16 +207,17 @@ void ATestGamePlayerController::FinishMoveIntoRange(bool bSuccess)
 
     bIsMovingToTarget = false;
 
-    StopMovement();
-
     MovementTarget.Reset();
-    MovementAcceptanceRadius = 0.0f; // Set zero when reached "into range of target"
+    MovementAcceptanceRadius = 0.0f;
 
-    FOnMoveIntoRangeCompleted CompletedDelegate = MoveCompletedDelegate;
+    FOnMoveIntoRangeCompleted CompletedDelegate =
+        MoveCompletedDelegate;
 
     MoveCompletedDelegate.Unbind();
 
-    CompletedDelegate.ExecuteIfBound(bSuccess);
+    CompletedDelegate.ExecuteIfBound(
+        bSuccess
+    );
 }
 
 void ATestGamePlayerController::CancelMoveIntoRange()
@@ -249,18 +232,11 @@ void ATestGamePlayerController::CancelMoveIntoRange()
 
 void ATestGamePlayerController::OnAbilityInputPressed(FGameplayTag InputTag)
 {
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT("1 CONTROLLER: %s"),
-        *InputTag.ToString()
-    );
 
     AGenericCharacter* ControlledCharacter = Cast<AGenericCharacter>(GetPawn());
 
     if (!ControlledCharacter)
     {
-        UE_LOG(LogTemp, Error, TEXT("NO CHARACTER"));
         return;
     }
 
@@ -268,7 +244,6 @@ void ATestGamePlayerController::OnAbilityInputPressed(FGameplayTag InputTag)
 
     if (!ASC)
     {
-        UE_LOG(LogTemp, Error, TEXT("NO ASC"));
         return;
     }
 
@@ -312,12 +287,6 @@ void ATestGamePlayerController::TryInitializeHud()
     {
         if (!PlayerHudWidgetClass)
         {
-            UE_LOG(
-                LogTemp,
-                Error,
-                TEXT("PlayerHudClass is not set")
-            );
-
             return;
         }
 
@@ -349,12 +318,6 @@ void ATestGamePlayerController::ToggleCombatDebug()
     {
         if (!CombatDebugWidgetClass)
         {
-            UE_LOG(
-                LogTemp,
-                Warning,
-                TEXT("CombatDebugWidgetClass is not set")
-            );
-
             return;
         }
 
@@ -509,4 +472,83 @@ UpdateCameraOcclusion()
 
     OccludedComponents =
         MoveTemp(CurrentlyOccluded);
+}
+
+void ATestGamePlayerController::OnClickMove()
+{
+    FHitResult HitResult;
+
+    const bool bHit = GetHitResultUnderCursor(
+        ECC_MovementGround,
+        false,
+        HitResult
+    );
+
+    if (!bHit || !HitResult.bBlockingHit)
+    {
+        return;
+    }
+
+    CancelMoveIntoRange();
+
+    StartClickMove(
+        HitResult.ImpactPoint
+    );
+}
+
+void ATestGamePlayerController::StartClickMove(
+    const FVector& Destination)
+{
+    if (!IsLocalController())
+    {
+        return;
+    }
+
+    ClickMoveDestination = Destination;
+    bIsClickMoving = true;
+}
+
+void ATestGamePlayerController::UpdateClickMove()
+{
+    if (!bIsClickMoving || !IsLocalController())
+    {
+        return;
+    }
+
+    ACharacter* ControlledCharacter = GetCharacter();
+
+    if (!ControlledCharacter)
+    {
+        StopClickMove();
+        return;
+    }
+
+    FVector ToDestination =
+        ClickMoveDestination -
+        ControlledCharacter->GetActorLocation();
+
+    ToDestination.Z = 0.0f;
+
+    const float Distance =
+        ToDestination.Size();
+
+    if (Distance <= ClickMoveAcceptanceRadius)
+    {
+        StopClickMove();
+        return;
+    }
+
+    const FVector MoveDirection =
+        ToDestination.GetSafeNormal();
+
+    ControlledCharacter->AddMovementInput(
+        MoveDirection,
+        1.0f
+    );
+}
+
+void ATestGamePlayerController::StopClickMove()
+{
+    bIsClickMoving = false;
+    ClickMoveDestination = FVector::ZeroVector;
 }

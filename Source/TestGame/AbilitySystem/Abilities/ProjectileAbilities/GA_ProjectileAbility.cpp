@@ -13,11 +13,20 @@ UGA_ProjectileAbility::UGA_ProjectileAbility()
 {
     InstancingPolicy =
         EGameplayAbilityInstancingPolicy::InstancedPerActor;
+    
+    bRequiresTargetData = true;
+
 }
 
-bool UGA_ProjectileAbility::PrepareProjectileAbility(
+bool UGA_ProjectileAbility::PrepareProjectileAbilityFromTargetData(
+    const FGameplayAbilityTargetDataHandle& Data,
     FProjectileAbilityContext& OutContext)
 {
+    if (Data.Num() <= 0)
+    {
+        return false;
+    }
+
     AGenericCharacter* Character =
         GetGenericCharacter();
 
@@ -34,29 +43,69 @@ bool UGA_ProjectileAbility::PrepareProjectileAbility(
         return false;
     }
 
-    const FAbilityInputContext& InputContext =
-        ASC->GetAbilityInputContext();
+    FVector TargetLocation =
+        FVector::ZeroVector;
 
-    FVector TargetLocation = FVector::ZeroVector;
+    AActor* TargetActor = nullptr;
 
-    const bool bCasterIsEnemy =
-        Character->IsA<AEnemyCharacter>();
+    const FGameplayAbilityTargetData* TargetData =
+        Data.Get(0);
 
-    if (IsValid(InputContext.TargetActor) && bCasterIsEnemy)
-    {
-        // AI and actor-targeted abilities.
-        TargetLocation =
-            InputContext.TargetActor->GetActorLocation();
-    }
-    else if (!InputContext.HitResult.bBlockingHit)
+    if (!TargetData)
     {
         return false;
     }
+
+    //
+    // Player targeting:
+    // precise mouse/world HitResult
+    //
+    if (const FHitResult* HitResult =
+        TargetData->GetHitResult())
+    {
+        if (!HitResult->bBlockingHit)
+        {
+            return false;
+        }
+
+        TargetActor =
+            HitResult->GetActor();
+
+        TargetLocation =
+            HitResult->ImpactPoint;
+
+        //
+        // For enemy AI, prefer the actor's
+        // current location.
+        //
+        if (IsValid(TargetActor) &&
+            Character->IsA<AEnemyCharacter>())
+        {
+            TargetLocation =
+                TargetActor->GetActorLocation();
+        }
+    }
     else
     {
-        // Explicit location targeting.
+        //
+        // AI targeting:
+        // direct TargetActor / ActorArray
+        //
+        const TArray<TWeakObjectPtr<AActor>>
+            TargetActors =
+            TargetData->GetActors();
+
+        if (TargetActors.IsEmpty() ||
+            !TargetActors[0].IsValid())
+        {
+            return false;
+        }
+
+        TargetActor =
+            TargetActors[0].Get();
+
         TargetLocation =
-            InputContext.HitLocation;
+            TargetActor->GetActorLocation();
     }
 
     if (TargetLocation.IsNearlyZero())
@@ -105,11 +154,20 @@ bool UGA_ProjectileAbility::PrepareProjectileAbility(
         return false;
     }
 
-    OutContext.Character = Character;
-    OutContext.ASC = ASC;
-    OutContext.TargetLocation = TargetLocation;
-    OutContext.SpawnLocation = SpawnLocation;
-    OutContext.BaseDirection = BaseDirection;
+    OutContext.Character =
+        Character;
+
+    OutContext.ASC =
+        ASC;
+
+    OutContext.TargetLocation =
+        TargetLocation;
+
+    OutContext.SpawnLocation =
+        SpawnLocation;
+
+    OutContext.BaseDirection =
+        BaseDirection;
 
     return true;
 }
@@ -220,4 +278,71 @@ UGA_ProjectileAbility::SpawnProjectile(
     );
 
     return Projectile;
+}
+
+void UGA_ProjectileAbility::SpawnProjectiles(const FProjectileAbilityContext& ProjectileContext){}
+
+void UGA_ProjectileAbility::OnTargetDataReady(
+    const FGameplayAbilityTargetDataHandle& Data)
+{
+    if (Data.Num() <= 0)
+    {
+        EndAbility(
+            GetCurrentAbilitySpecHandle(),
+            GetCurrentActorInfo(),
+            GetCurrentActivationInfo(),
+            true,
+            true
+        );
+
+        return;
+    }
+
+    FProjectileAbilityContext ProjectileContext;
+
+    if (!PrepareProjectileAbilityFromTargetData(
+        Data,
+        ProjectileContext))
+    {
+        EndAbility(
+            GetCurrentAbilitySpecHandle(),
+            GetCurrentActorInfo(),
+            GetCurrentActivationInfo(),
+            true,
+            true
+        );
+
+        return;
+    }
+
+    if (!CommitAbility(
+        GetCurrentAbilitySpecHandle(),
+        GetCurrentActorInfo(),
+        GetCurrentActivationInfo()))
+    {
+        EndAbility(
+            GetCurrentAbilitySpecHandle(),
+            GetCurrentActorInfo(),
+            GetCurrentActivationInfo(),
+            true,
+            true
+        );
+
+        return;
+    }
+
+    if (ProjectileContext.Character->HasAuthority())
+    {
+        SpawnProjectiles(
+            ProjectileContext
+        );
+    }
+
+    EndAbility(
+        GetCurrentAbilitySpecHandle(),
+        GetCurrentActorInfo(),
+        GetCurrentActivationInfo(),
+        true,
+        false
+    );
 }

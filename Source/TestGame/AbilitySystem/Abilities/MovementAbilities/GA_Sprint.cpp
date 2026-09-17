@@ -7,6 +7,8 @@ UGA_Sprint::UGA_Sprint()
 {
     InstancingPolicy =
         EGameplayAbilityInstancingPolicy::InstancedPerActor;
+
+    bRequiresTargetData = false;
 }
 
 void UGA_Sprint::ActivateAbility(
