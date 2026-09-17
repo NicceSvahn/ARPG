@@ -82,11 +82,6 @@ UGA_GenericAoE::FindCharactersInRadius(
             continue;
         }
 
-        if (Character->IsDead())
-        {
-            continue;
-        }
-
         if (!Character->GetAbilitySystemComponent())
         {
             continue;

@@ -13,10 +13,10 @@ class UNiagaraSystem;
 UCLASS()
 class TESTGAME_API UGA_FrostNova : public UGA_GenericAbility
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
 
 public:
-	UGA_FrostNova();
+    UGA_FrostNova();
 
     virtual void ActivateAbility(
         const FGameplayAbilitySpecHandle Handle,
@@ -50,22 +50,51 @@ protected:
     )
     float FreezeDuration = 3.0f;
 
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Frost Nova")
+    UPROPERTY(
+        EditDefaultsOnly,
+        BlueprintReadOnly,
+        Category = "Frost Nova"
+    )
     TSubclassOf<AGenericCharacter> AffectedCharacterClass;
 
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Frost Nova")
+    UPROPERTY(
+        EditDefaultsOnly,
+        BlueprintReadOnly,
+        Category = "Frost Nova"
+    )
     TSubclassOf<UGameplayEffect> DamageEffect;
 
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Frost Nova")
+    UPROPERTY(
+        EditDefaultsOnly,
+        BlueprintReadOnly,
+        Category = "Frost Nova"
+    )
     TSubclassOf<UGameplayEffect> FreezeEffect;
 
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Frost Nova")
+    UPROPERTY(
+        EditDefaultsOnly,
+        BlueprintReadOnly,
+        Category = "Frost Nova"
+    )
     TObjectPtr<UAnimMontage> FrostNovaMontage = nullptr;
 
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Frost Nova|Visuals")
-    TObjectPtr<UNiagaraSystem>FrostNovaEffect = nullptr;
+    UPROPERTY(
+        EditDefaultsOnly,
+        BlueprintReadOnly,
+        Category = "Frost Nova|Visuals"
+    )
+    TObjectPtr<UNiagaraSystem> FrostNovaEffect = nullptr;
 
 private:
+    void ApplyFrostNovaGameplay(
+        AGenericCharacter* SourceCharacter,
+        UAbilitySystemComponent* SourceASC
+    );
+
+    void PlayFrostNovaVisuals(
+        AGenericCharacter* SourceCharacter
+    );
+
     bool ApplyEffectToTarget(
         UAbilitySystemComponent* SourceASC,
         UAbilitySystemComponent* TargetASC,
@@ -73,5 +102,4 @@ private:
         float DurationOverride,
         bool bSetDamageMagnitude
     );
-
 };
