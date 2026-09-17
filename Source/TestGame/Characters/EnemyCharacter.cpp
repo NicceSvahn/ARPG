@@ -18,6 +18,9 @@ AEnemyCharacter::AEnemyCharacter()
  	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = false;
 
+    bReplicates = true;
+    SetReplicateMovement(true);
+
 	AIControllerClass = AEnemyAIController::StaticClass();
 	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
 
@@ -53,8 +56,7 @@ AEnemyCharacter::AEnemyCharacter()
 
     EnemyHealthWidget->SetRelativeLocation(FVector(0.0f, 0.0f, 120.0f));
 
-    bReplicates = true;
-    SetReplicateMovement(true);
+
 }
 
 // Called when the game starts or when spawned
@@ -70,17 +72,33 @@ void AEnemyCharacter::BeginPlay()
         );
     }
 
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT("ENEMY BEGINPLAY: Binding damage event for %s"),
-        *GetName()
-    );
-
     OnDamageReceived.AddUObject(
         this,
         &AEnemyCharacter::HandleDamageReceived
     );
+
+    if (AbilitySystemComponent)
+    {
+        HealthChangedHandle =
+            AbilitySystemComponent
+            ->GetGameplayAttributeValueChangeDelegate(
+                UHealthAttributeSet::GetHealthAttribute()
+            )
+            .AddUObject(
+                this,
+                &AEnemyCharacter::HandleHealthChanged
+            );
+
+        MaxHealthChangedHandle =
+            AbilitySystemComponent
+            ->GetGameplayAttributeValueChangeDelegate(
+                UHealthAttributeSet::GetMaxHealthAttribute()
+            )
+            .AddUObject(
+                this,
+                &AEnemyCharacter::HandleMaxHealthChanged
+            );
+    }
 
     if (HealthAttributeSet)
     {
@@ -245,73 +263,50 @@ void AEnemyCharacter::HandleAggroEndOverlap(
     EnemyController->ClearAggroTarget(OtherActor);
 }
 
-void AEnemyCharacter::RefreshHealthBar(float CurrentHealth)
+void AEnemyCharacter::RefreshHealthBar(
+    float CurrentHealth)
 {
     if (!EnemyHealthWidget)
     {
         return;
     }
 
-    UEnemyHealthBarWidget* HealthBarWidget = Cast<UEnemyHealthBarWidget>(EnemyHealthWidget->GetUserWidgetObject());
+    UEnemyHealthBarWidget* HealthBarWidget =
+        Cast<UEnemyHealthBarWidget>(
+            EnemyHealthWidget->GetUserWidgetObject()
+        );
 
-    if (HealthBarWidget)
-    {
-        HealthBarWidget->SetHealth(CurrentHealth, InitialHealth);
-    }
-}
-
-void AEnemyCharacter::HandleAttributeChanged(FGameplayAttribute Attribute, float Magnitude, float NewHealth)
-{
-    Super::HandleAttributeChanged(Attribute, Magnitude, NewHealth);
-
-    if (Attribute != UHealthAttributeSet::GetHealthAttribute())
+    if (!HealthBarWidget)
     {
         return;
     }
 
-    RefreshHealthBar(NewHealth);
+    HealthBarWidget->SetHealth(
+        CurrentHealth,
+        GetMaxHealth()
+    );
 }
 
 void AEnemyCharacter::HandleDamageReceived(
     float DamageAmount)
 {
+    if (!HasAuthority())
+    {
+        return;
+    }
 
     UE_LOG(
         LogTemp,
         Warning,
-        TEXT("ENEMY SCT DAMAGE: %f"),
+        TEXT(
+            "[COMBAT TEXT] Server damage | "
+            "Enemy=%s | Damage=%.1f"
+        ),
+        *GetNameSafe(this),
         DamageAmount
     );
 
-    if (!DamageNumberActorClass)
-    {
-        return;
-    }
-
-    UWorld* World = GetWorld();
-
-    if (!World)
-    {
-        return;
-    }
-
-    const FVector SpawnLocation =
-        GetActorLocation() +
-        FVector(0.0f, 0.0f, 120.0f);
-
-    ADamageNumberActor* DamageNumber =
-        World->SpawnActor<ADamageNumberActor>(
-            DamageNumberActorClass,
-            SpawnLocation,
-            FRotator::ZeroRotator
-        );
-
-    if (!DamageNumber)
-    {
-        return;
-    }
-
-    DamageNumber->InitializeDamage(
+    MulticastShowDamageNumber(
         DamageAmount
     );
 }
@@ -339,4 +334,82 @@ void AEnemyCharacter::OnDeathStarted()
         EnemyController
             ->HandleControlledPawnDeath();
     }
+}
+
+void AEnemyCharacter::HandleHealthChanged(
+    const FOnAttributeChangeData& Data)
+{
+    RefreshHealthBar(
+        Data.NewValue
+    );
+}
+
+void AEnemyCharacter::HandleMaxHealthChanged(
+    const FOnAttributeChangeData& Data)
+{
+    RefreshHealthBar(
+        GetCurrentHealth()
+    );
+}
+
+void AEnemyCharacter::MulticastShowDamageNumber_Implementation(
+    float DamageAmount)
+{
+    UE_LOG(
+        LogTemp,
+        Warning,
+        TEXT(
+            "[COMBAT TEXT] Received | "
+            "Enemy=%s | Damage=%.1f | Authority=%s"
+        ),
+        *GetNameSafe(this),
+        DamageAmount,
+        HasAuthority()
+        ? TEXT("TRUE")
+        : TEXT("FALSE")
+    );
+
+    SpawnDamageNumber(
+        DamageAmount
+    );
+}
+
+void AEnemyCharacter::SpawnDamageNumber(
+    float DamageAmount)
+{
+    if (!DamageNumberActorClass)
+    {
+        return;
+    }
+
+    UWorld* World = GetWorld();
+
+    if (!World)
+    {
+        return;
+    }
+
+    const FVector SpawnLocation =
+        GetActorLocation() +
+        FVector(
+            0.0f,
+            0.0f,
+            120.0f
+        );
+
+    ADamageNumberActor* DamageNumber =
+        World->SpawnActor<ADamageNumberActor>(
+            DamageNumberActorClass,
+            SpawnLocation,
+            FRotator::ZeroRotator
+        );
+
+    if (!DamageNumber)
+    {
+        return;
+    }
+
+    DamageNumber->InitializeDamage(
+        DamageAmount
+    );
 }

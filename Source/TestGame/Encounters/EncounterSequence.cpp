@@ -11,10 +11,34 @@ AEncounterSequence::AEncounterSequence()
 
 void AEncounterSequence::StartSequence()
 {
+    if (!HasAuthority())
+    {
+        return;
+    }
+
+    if (ATestGameGameState* GameState =
+        GetWorld()->GetGameState<ATestGameGameState>())
+    {
+        GameState->OnLevelStateChanged.AddUniqueDynamic(
+            this,
+            &AEncounterSequence::HandleLevelStateChanged
+        );
+    }
+
     if (bSequenceActive)
     {
         return;
     }
+
+    UE_LOG(
+        LogTemp,
+        Warning,
+        TEXT(
+            "[ENCOUNTER SEQUENCE] Started | "
+            "Sequence=%s | Authority=TRUE"
+        ),
+        *GetNameSafe(this)
+    );
 
     bSequenceActive = true;
     CurrentEncounterIndex = 0;
@@ -36,6 +60,12 @@ void AEncounterSequence::StartSequence()
 
 void AEncounterSequence::StartCurrentEncounter()
 {
+
+    if (!HasAuthority())
+    {
+        return;
+    }
+
     if (!Encounters.IsValidIndex(CurrentEncounterIndex))
     {
         CompleteSequence();
@@ -90,6 +120,11 @@ void AEncounterSequence::StartCurrentEncounter()
 
 void AEncounterSequence::HandleEncounterCompleted()
 {
+    if (!HasAuthority())
+    {
+        return;
+    }
+
     if (!bSequenceActive)
     {
         return;
@@ -135,6 +170,11 @@ void AEncounterSequence::HandleEncounterCompleted()
 
 void AEncounterSequence::CompleteSequence()
 {
+    if (!bSequenceActive)
+    {
+        return;
+    }
+
     bSequenceActive = false;
 
     UE_LOG(
@@ -163,4 +203,62 @@ int32 AEncounterSequence::GetCurrentEncounterNumber() const
     }
 
     return CurrentEncounterIndex + 1;
+}
+
+void AEncounterSequence::StopSequence()
+{
+    if (!HasAuthority())
+    {
+        return;
+    }
+
+    if (!bSequenceActive)
+    {
+        return;
+    }
+
+    UE_LOG(
+        LogTemp,
+        Warning,
+        TEXT(
+            "[ENCOUNTER SEQUENCE] Stopped | "
+            "Sequence=%s"
+        ),
+        *GetNameSafe(this)
+    );
+
+    bSequenceActive = false;
+
+    GetWorldTimerManager().ClearTimer(
+        EncounterDelayTimer
+    );
+
+    AEncounter* CurrentEncounter =
+        Encounters.IsValidIndex(CurrentEncounterIndex)
+        ? Encounters[CurrentEncounterIndex]
+        : nullptr;
+
+    if (CurrentEncounter)
+    {
+        CurrentEncounter->OnEncounterCompleted.RemoveDynamic(
+            this,
+            &AEncounterSequence::HandleEncounterCompleted
+        );
+    }
+}
+
+void AEncounterSequence::HandleLevelStateChanged(
+    ELevelState NewState)
+{
+    if (!HasAuthority())
+    {
+        return;
+    }
+
+    if (NewState != ELevelState::Failed)
+    {
+        return;
+    }
+
+    StopSequence();
 }

@@ -32,10 +32,6 @@ public:
     UGA_ProjectileAbility();
 
 protected:
-    bool PrepareProjectileAbility(
-        FProjectileAbilityContext& OutContext
-    );
-
     FGameplayEffectSpecHandle CreateProjectileDamageSpec(
         UTestGameAbilitySystemComponent* ASC,
         AGenericCharacter* Character,
@@ -66,8 +62,8 @@ protected:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile")
     float SpawnForwardOffset = 30.0f;
 
-    bool PrepareProjectileAbilityFromHitResult(
-        const FHitResult& HitResult,
+    bool PrepareProjectileAbilityFromTargetData(
+        const FGameplayAbilityTargetDataHandle& Data,
         FProjectileAbilityContext& OutContext
     );
 

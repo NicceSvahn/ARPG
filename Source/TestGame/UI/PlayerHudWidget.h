@@ -53,6 +53,10 @@ protected:
 		const FOnAttributeChangeData& Data
 	);
 
+	void HandleHealthChanged(
+		const FOnAttributeChangeData& Data
+	);
+
 private:
 	void BuildAbilitySlots();
 

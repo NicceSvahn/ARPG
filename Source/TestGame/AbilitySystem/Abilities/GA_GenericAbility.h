@@ -41,35 +41,8 @@ public:
     ) override;
 
 protected:
-    AGenericCharacter* GetGenericCharacter() const;
 
-    UTestGameAbilitySystemComponent* GetTestGameASC() const;
-
-    void SendTargetDataToServer(
-        const FGameplayAbilitySpecHandle Handle,
-        const FGameplayAbilityActivationInfo ActivationInfo
-    );
-
-    void WaitForTargetData();
-
-    void HandleTargetDataReceived(
-        const FGameplayAbilityTargetDataHandle& Data,
-        FGameplayTag ActivationTag
-    );
-
-    virtual void OnTargetDataReady(
-        const FGameplayAbilityTargetDataHandle& Data
-    );
-
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ability|UI")
-    FText AbilityName;
-
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ability|UI")
-    TObjectPtr<UTexture2D> AbilityIcon = nullptr;
-
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ability|UI")
-    FText AbilityDescription;
-
+    // Cooldown
     UPROPERTY(
         EditDefaultsOnly,
         BlueprintReadOnly,
@@ -103,6 +76,7 @@ protected:
         const FGameplayAbilityActivationInfo ActivationInfo
     ) const override;
 
+    // Cost
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ability|Cost", meta = (ClampMin = "0.0"))
     float ResourceCost = 0.0f;
 
@@ -125,6 +99,37 @@ protected:
         const FGameplayAbilityActivationInfo ActivationInfo
     ) const override;
 
+    // General
+    AGenericCharacter* GetGenericCharacter() const;
+
+    UTestGameAbilitySystemComponent* GetTestGameASC() const;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ability|UI")
+    FText AbilityName;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ability|UI")
+    TObjectPtr<UTexture2D> AbilityIcon = nullptr;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ability|UI")
+    FText AbilityDescription;
+
+    // Networking
+
+    void SendTargetDataToServer(
+        const FGameplayAbilitySpecHandle Handle,
+        const FGameplayAbilityActivationInfo ActivationInfo
+    );
+
+    void WaitForTargetData();
+
+    void HandleTargetDataReceived(
+        const FGameplayAbilityTargetDataHandle& Data,
+        FGameplayTag ActivationTag
+    );
+
+    virtual void OnTargetDataReady(
+        const FGameplayAbilityTargetDataHandle& Data
+    );
     bool StartTargetedAbility(
         const FGameplayAbilitySpecHandle Handle,
         const FGameplayAbilityActorInfo* ActorInfo,

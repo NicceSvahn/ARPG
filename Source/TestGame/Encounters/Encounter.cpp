@@ -67,6 +67,11 @@ void AEncounter::HandleEnemyDestroyed(
 
 void AEncounter::CheckEncounterComplete()
 {
+    if (!HasAuthority())
+    {
+        return;
+    }
+
     if (EncounterState !=
         EEncounterState::Active)
     {
@@ -85,7 +90,18 @@ void AEncounter::CheckEncounterComplete()
         return;
     }
 
-    EncounterState = EEncounterState::Completed;
+    EncounterState =
+        EEncounterState::Completed;
+
+    UE_LOG(
+        LogTemp,
+        Warning,
+        TEXT(
+            "[ENCOUNTER] Completed | "
+            "Encounter=%s | Authority=TRUE"
+        ),
+        *GetNameSafe(this)
+    );
 
     OnEncounterCompleted.Broadcast();
 }

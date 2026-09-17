@@ -1,6 +1,7 @@
 #include "ResourceAttributeSet.h"
 
 #include "GameplayEffectExtension.h"
+#include "Net/UnrealNetwork.h"
 
 UResourceAttributeSet::UResourceAttributeSet()
 {
@@ -41,4 +42,46 @@ void UResourceAttributeSet::PostGameplayEffectExecute(
             )
         );
     }
+}
+
+void UResourceAttributeSet::GetLifetimeReplicatedProps(
+    TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+    Super::GetLifetimeReplicatedProps(
+        OutLifetimeProps
+    );
+
+    DOREPLIFETIME_CONDITION_NOTIFY(
+        UResourceAttributeSet,
+        Resource,
+        COND_None,
+        REPNOTIFY_Always
+    );
+
+    DOREPLIFETIME_CONDITION_NOTIFY(
+        UResourceAttributeSet,
+        MaxResource,
+        COND_None,
+        REPNOTIFY_Always
+    );
+}
+
+void UResourceAttributeSet::OnRep_Resource(
+    const FGameplayAttributeData& OldResource)
+{
+    GAMEPLAYATTRIBUTE_REPNOTIFY(
+        UResourceAttributeSet,
+        Resource,
+        OldResource
+    );
+}
+
+void UResourceAttributeSet::OnRep_MaxResource(
+    const FGameplayAttributeData& OldMaxResource)
+{
+    GAMEPLAYATTRIBUTE_REPNOTIFY(
+        UResourceAttributeSet,
+        MaxResource,
+        OldMaxResource
+    );
 }

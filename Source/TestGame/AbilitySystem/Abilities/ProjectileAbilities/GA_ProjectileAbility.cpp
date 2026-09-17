@@ -18,9 +18,15 @@ UGA_ProjectileAbility::UGA_ProjectileAbility()
 
 }
 
-bool UGA_ProjectileAbility::PrepareProjectileAbility(
+bool UGA_ProjectileAbility::PrepareProjectileAbilityFromTargetData(
+    const FGameplayAbilityTargetDataHandle& Data,
     FProjectileAbilityContext& OutContext)
 {
+    if (Data.Num() <= 0)
+    {
+        return false;
+    }
+
     AGenericCharacter* Character =
         GetGenericCharacter();
 
@@ -37,68 +43,93 @@ bool UGA_ProjectileAbility::PrepareProjectileAbility(
         return false;
     }
 
-    const FAbilityInputContext& InputContext =
-        ASC->GetAbilityInputContext();
+    FVector TargetLocation =
+        FVector::ZeroVector;
 
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT(
-            "[PROJECTILE CONTEXT] Character=%s | Authority=%s | "
-            "BlockingHit=%s | Target=%s | HitLocation=%s"
-        ),
-        *GetNameSafe(Character),
-        Character->HasAuthority()
-        ? TEXT("TRUE")
-        : TEXT("FALSE"),
-        InputContext.HitResult.bBlockingHit
-        ? TEXT("TRUE")
-        : TEXT("FALSE"),
-        *GetNameSafe(InputContext.TargetActor),
-        *InputContext.HitLocation.ToString()
-    );
+    AActor* TargetActor = nullptr;
 
-    return PrepareProjectileAbilityFromHitResult(
-        InputContext.HitResult,
-        OutContext
-    );
-}
+    const FGameplayAbilityTargetData* TargetData =
+        Data.Get(0);
 
-bool UGA_ProjectileAbility::PrepareProjectileAbilityFromHitResult(
-    const FHitResult& HitResult,
-    FProjectileAbilityContext& OutContext)
-{
-    AGenericCharacter* Character =
-        GetGenericCharacter();
-
-    UTestGameAbilitySystemComponent* ASC =
-        Cast<UTestGameAbilitySystemComponent>(
-            GetAbilitySystemComponentFromActorInfo()
-        );
-
-    if (!Character ||
-        !ASC ||
-        !ProjectileClass ||
-        !DamageEffect ||
-        !HitResult.bBlockingHit)
+    if (!TargetData)
     {
         return false;
     }
 
-    FVector TargetLocation =
-        HitResult.ImpactPoint;
-
-    if (IsValid(HitResult.GetActor()) &&
-        Character->IsA<AEnemyCharacter>())
+    //
+    // Player targeting:
+    // precise mouse/world HitResult
+    //
+    if (const FHitResult* HitResult =
+        TargetData->GetHitResult())
     {
+        if (!HitResult->bBlockingHit)
+        {
+            return false;
+        }
+
+        TargetActor =
+            HitResult->GetActor();
+
         TargetLocation =
-            HitResult.GetActor()->GetActorLocation();
+            HitResult->ImpactPoint;
+
+        //
+        // For enemy AI, prefer the actor's
+        // current location.
+        //
+        if (IsValid(TargetActor) &&
+            Character->IsA<AEnemyCharacter>())
+        {
+            TargetLocation =
+                TargetActor->GetActorLocation();
+        }
+    }
+    else
+    {
+        //
+        // AI targeting:
+        // direct TargetActor / ActorArray
+        //
+        const TArray<TWeakObjectPtr<AActor>>
+            TargetActors =
+            TargetData->GetActors();
+
+        if (TargetActors.IsEmpty() ||
+            !TargetActors[0].IsValid())
+        {
+            return false;
+        }
+
+        TargetActor =
+            TargetActors[0].Get();
+
+        TargetLocation =
+            TargetActor->GetActorLocation();
     }
 
     if (TargetLocation.IsNearlyZero())
     {
         return false;
     }
+
+    UE_LOG(
+        LogTemp,
+        Warning,
+        TEXT(
+            "[PROJECTILE TARGET] "
+            "Character=%s | "
+            "Target=%s | "
+            "Location=%s | "
+            "Authority=%s"
+        ),
+        *GetNameSafe(Character),
+        *GetNameSafe(TargetActor),
+        *TargetLocation.ToString(),
+        Character->HasAuthority()
+        ? TEXT("TRUE")
+        : TEXT("FALSE")
+    );
 
     FVector CharacterAimDirection =
         TargetLocation -
@@ -141,11 +172,20 @@ bool UGA_ProjectileAbility::PrepareProjectileAbilityFromHitResult(
         return false;
     }
 
-    OutContext.Character = Character;
-    OutContext.ASC = ASC;
-    OutContext.TargetLocation = TargetLocation;
-    OutContext.SpawnLocation = SpawnLocation;
-    OutContext.BaseDirection = BaseDirection;
+    OutContext.Character =
+        Character;
+
+    OutContext.ASC =
+        ASC;
+
+    OutContext.TargetLocation =
+        TargetLocation;
+
+    OutContext.SpawnLocation =
+        SpawnLocation;
+
+    OutContext.BaseDirection =
+        BaseDirection;
 
     return true;
 }
@@ -258,10 +298,7 @@ UGA_ProjectileAbility::SpawnProjectile(
     return Projectile;
 }
 
-void UGA_ProjectileAbility::SpawnProjectiles(
-    const FProjectileAbilityContext& ProjectileContext)
-{
-}
+void UGA_ProjectileAbility::SpawnProjectiles(const FProjectileAbilityContext& ProjectileContext){}
 
 void UGA_ProjectileAbility::OnTargetDataReady(
     const FGameplayAbilityTargetDataHandle& Data)
@@ -279,39 +316,25 @@ void UGA_ProjectileAbility::OnTargetDataReady(
         return;
     }
 
-    const FHitResult* HitResult =
-        Data.Get(0)->GetHitResult();
-
-    if (!HitResult)
-    {
-        EndAbility(
-            GetCurrentAbilitySpecHandle(),
-            GetCurrentActorInfo(),
-            GetCurrentActivationInfo(),
-            true,
-            true
-        );
-
-        return;
-    }
-
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT(
-            "[PROJECTILE TARGET DATA] "
-            "HitLocation=%s | Target=%s"
-        ),
-        *HitResult->ImpactPoint.ToString(),
-        *GetNameSafe(HitResult->GetActor())
-    );
-
     FProjectileAbilityContext ProjectileContext;
 
-    if (!PrepareProjectileAbilityFromHitResult(
-        *HitResult,
+    if (!PrepareProjectileAbilityFromTargetData(
+        Data,
         ProjectileContext))
     {
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT(
+                "[PROJECTILE ABILITY] "
+                "Failed to prepare target data | "
+                "Character=%s"
+            ),
+            *GetNameSafe(
+                GetAvatarActorFromActorInfo()
+            )
+        );
+
         EndAbility(
             GetCurrentAbilitySpecHandle(),
             GetCurrentActorInfo(),

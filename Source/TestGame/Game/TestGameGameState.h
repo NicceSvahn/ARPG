@@ -35,6 +35,10 @@ class TESTGAME_API ATestGameGameState
 public:
     ATestGameGameState();
 
+    virtual void GetLifetimeReplicatedProps(
+        TArray<FLifetimeProperty>& OutLifetimeProps
+    ) const override;
+
     UFUNCTION(BlueprintPure)
     ELevelState GetLevelState() const
     {
@@ -57,10 +61,23 @@ public:
     FOnEncounterIndexChanged OnEncounterIndexChanged;
 
 private:
-    UPROPERTY(VisibleInstanceOnly)
+    UPROPERTY(
+        ReplicatedUsing = OnRep_LevelState,
+        VisibleInstanceOnly
+    )
     ELevelState LevelState =
         ELevelState::Waiting;
 
-    UPROPERTY(VisibleInstanceOnly)
-    int32 CurrentEncounterIndex = INDEX_NONE;
+    UPROPERTY(
+        ReplicatedUsing = OnRep_CurrentEncounterIndex,
+        VisibleInstanceOnly
+    )
+    int32 CurrentEncounterIndex =
+        INDEX_NONE;
+
+    UFUNCTION()
+    void OnRep_LevelState();
+
+    UFUNCTION()
+    void OnRep_CurrentEncounterIndex();
 };

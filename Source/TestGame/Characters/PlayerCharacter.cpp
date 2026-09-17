@@ -6,6 +6,7 @@
 #include "TestGame/AbilitySystem/Attributes/HealthAttributeSet.h"
 #include "../Network/NetworkDebug.h"
 #include "../Game/TestGamePlayerState.h"
+#include "../Game/TestGameGameState.h"
 
 APlayerCharacter::APlayerCharacter()
 {
@@ -87,5 +88,39 @@ void APlayerCharacter::LogPlayerIdentity() const
         IsLocallyControlled()
         ? TEXT("TRUE")
         : TEXT("FALSE")
+    );
+}
+
+void APlayerCharacter::OnDeathStarted()
+{
+    Super::OnDeathStarted();
+
+    if (!HasAuthority())
+    {
+        return;
+    }
+
+    ATestGameGameState* GameState =
+        GetWorld()
+        ? GetWorld()->GetGameState<ATestGameGameState>()
+        : nullptr;
+
+    if (!GameState)
+    {
+        return;
+    }
+
+    UE_LOG(
+        LogTemp,
+        Warning,
+        TEXT(
+            "[PLAYER DEATH] Level failed | "
+            "Player=%s | Authority=TRUE"
+        ),
+        *GetNameSafe(this)
+    );
+
+    GameState->SetLevelState(
+        ELevelState::Failed
     );
 }

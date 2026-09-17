@@ -1,8 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "AttributeSet.h"
-#include "AbilitySystemComponent.h"
+#include "GenericAttributeSet.h"
 #include "MovementSpeedAttributeSet.generated.h"
 
 #define ATTRIBUTE_ACCESSORS(ClassName, PropertyName) \
@@ -12,7 +11,7 @@
     GAMEPLAYATTRIBUTE_VALUE_INITTER(PropertyName)
 
 UCLASS()
-class TESTGAME_API UMovementSpeedAttributeSet : public UAttributeSet
+class TESTGAME_API UMovementSpeedAttributeSet : public UGenericAttributeSet
 {
     GENERATED_BODY()
 

@@ -65,7 +65,11 @@ public:
 	UPROPERTY()
 	TObjectPtr<UHealthAttributeSet> HealthAttributeSet;
 
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(
+		EditDefaultsOnly,
+		BlueprintReadOnly,
+		Category = "Health"
+	)
 	float InitialHealth = 100.0f;
 
 	UFUNCTION()

@@ -25,11 +25,3 @@ void UGenericAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCal
 
 	OnAttributeChanged.Broadcast(Attribute, EffectMagnitude, NewValue);
 }
-
-
-
-
-
-
-
-

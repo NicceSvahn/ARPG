@@ -14,16 +14,26 @@ AGenericCharacter::AGenericCharacter()
 	bReplicates = true;
 	SetReplicateMovement(true);
 
-	AbilitySystemComponent = CreateDefaultSubobject<UTestGameAbilitySystemComponent>(TEXT("AbilitySystemComponent"));
+	AbilitySystemComponent =
+		CreateDefaultSubobject<UTestGameAbilitySystemComponent>(
+			TEXT("AbilitySystemComponent")
+		);
 
-	HealthAttributeSet = CreateDefaultSubobject<UHealthAttributeSet>(TEXT("HealthAttributeSet"));
+	HealthAttributeSet =
+		CreateDefaultSubobject<UHealthAttributeSet>(
+			TEXT("HealthAttributeSet")
+		);
 
-	ResourceAttributeSet = CreateDefaultSubobject<UResourceAttributeSet>(TEXT("ResourceAttributeSet"));
+	ResourceAttributeSet =
+		CreateDefaultSubobject<UResourceAttributeSet>(
+			TEXT("ResourceAttributeSet")
+		);
 
-	MovementSpeedAttributeSet =	CreateDefaultSubobject<UMovementSpeedAttributeSet>(TEXT("MovementSpeedAttributeSet"));
-
+	MovementSpeedAttributeSet =
+		CreateDefaultSubobject<UMovementSpeedAttributeSet>(
+			TEXT("MovementSpeedAttributeSet")
+		);
 }
-
 void AGenericCharacter::BeginPlay()
 {
 	Super::BeginPlay();
@@ -51,12 +61,31 @@ void AGenericCharacter::BeginPlay()
 
 	if (HealthAttributeSet)
 	{
-		HealthAttributeSet->OnAttributeChanged.AddDynamic(this, &AGenericCharacter::HandleAttributeChanged);
+		HealthAttributeSet->OnAttributeChanged.AddDynamic(
+			this,
+			&AGenericCharacter::HandleAttributeChanged
+		);
 
-		HealthAttributeSet->InitHealth(GetMaxHealth());
-		PreviousHealth = HealthAttributeSet->GetHealth();
+		if (HasAuthority())
+		{
+			AbilitySystemComponent->SetNumericAttributeBase(
+				UHealthAttributeSet::GetMaxHealthAttribute(),
+				InitialHealth
+			);
 
-		OnHealthChanged.Broadcast(GetCurrentHealth(), GetMaxHealth());
+			AbilitySystemComponent->SetNumericAttributeBase(
+				UHealthAttributeSet::GetHealthAttribute(),
+				InitialHealth
+			);
+		}
+
+		PreviousHealth =
+			HealthAttributeSet->GetHealth();
+
+		OnHealthChanged.Broadcast(
+			GetCurrentHealth(),
+			GetMaxHealth()
+		);
 	}
 
 	if (ResourceAttributeSet) 
@@ -91,7 +120,9 @@ float AGenericCharacter::GetCurrentHealth() const
 
 float AGenericCharacter::GetMaxHealth() const
 {
-	return InitialHealth;
+	return HealthAttributeSet
+		? HealthAttributeSet->GetMaxHealth()
+		: 0.0f;
 }
 
 void AGenericCharacter::HandleAttributeChanged(

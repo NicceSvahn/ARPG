@@ -1,18 +1,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "AttributeSet.h"
-#include "AbilitySystemComponent.h"
+#include "GenericAttributeSet.h"
 #include "ResourceAttributeSet.generated.h"
 
-#define ATTRIBUTE_ACCESSORS(ClassName, PropertyName) \
-    GAMEPLAYATTRIBUTE_PROPERTY_GETTER(ClassName, PropertyName) \
-    GAMEPLAYATTRIBUTE_VALUE_GETTER(PropertyName) \
-    GAMEPLAYATTRIBUTE_VALUE_SETTER(PropertyName) \
-    GAMEPLAYATTRIBUTE_VALUE_INITTER(PropertyName)
-
 UCLASS()
-class TESTGAME_API UResourceAttributeSet : public UAttributeSet
+class TESTGAME_API UResourceAttributeSet : public UGenericAttributeSet
 {
     GENERATED_BODY()
 
@@ -23,19 +16,42 @@ public:
         const FGameplayEffectModCallbackData& Data
     ) override;
 
-    UPROPERTY(BlueprintReadOnly, Category = "Resource")
+    virtual void GetLifetimeReplicatedProps(
+        TArray<FLifetimeProperty>& OutLifetimeProps
+    ) const override;
+
+    UPROPERTY(
+        BlueprintReadOnly,
+        ReplicatedUsing = OnRep_Resource,
+        Category = "Resource"
+    )
     FGameplayAttributeData Resource;
 
-    ATTRIBUTE_ACCESSORS(
+    PLAY_ATTRIBUTE_ACCESSORS(
         UResourceAttributeSet,
         Resource
-    )
+    );
 
-        UPROPERTY(BlueprintReadOnly, Category = "Resource")
+    UPROPERTY(
+        BlueprintReadOnly,
+        ReplicatedUsing = OnRep_MaxResource,
+        Category = "Resource"
+    )
     FGameplayAttributeData MaxResource;
 
-    ATTRIBUTE_ACCESSORS(
+    PLAY_ATTRIBUTE_ACCESSORS(
         UResourceAttributeSet,
         MaxResource
-    )
+    );
+
+protected:
+    UFUNCTION()
+    void OnRep_Resource(
+        const FGameplayAttributeData& OldResource
+    );
+
+    UFUNCTION()
+    void OnRep_MaxResource(
+        const FGameplayAttributeData& OldMaxResource
+    );
 };
