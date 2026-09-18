@@ -6,6 +6,8 @@
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/Controller.h"
 #include "Net/UnrealNetwork.h"
+#include "TimerManager.h"
+#include "Components/SkeletalMeshComponent.h"
 
 AGenericCharacter::AGenericCharacter()
 {
@@ -42,6 +44,19 @@ void AGenericCharacter::BeginPlay()
 	{
 
 		AbilitySystemComponent->InitAbilityActorInfo(this, this);
+
+		HitReactionTag =
+			FGameplayTag::RequestGameplayTag(
+				TEXT("State.HitReaction.Hit"));
+
+		HitReactionTagChangedHandle =
+			AbilitySystemComponent
+			->RegisterGameplayTagEvent(
+				HitReactionTag,
+				EGameplayTagEventType::NewOrRemoved)
+			.AddUObject(
+				this,
+				&AGenericCharacter::HandleHitReactionTagChanged);
 
 		ApplyResourceRegeneration();
 
@@ -142,18 +157,89 @@ void AGenericCharacter::HandleAttributeChanged(
 
 		if (NewValue < OldHealth)
 		{
-			const float DamageAmount = OldHealth - NewValue;
-			OnDamageReceived.Broadcast(DamageAmount);
-		}
-		else if (NewValue > OldHealth)
-		{
-			const float HealingAmount = NewValue - OldHealth;
-			OnHealingReceived.Broadcast(HealingAmount);
-		}
+			const float DamageAmount =
+				OldHealth - NewValue;
 
+			OnDamageReceived.Broadcast(
+				DamageAmount);
+
+			if (NewValue > 0.0f &&
+				HasAuthority())
+			{
+				MulticastHitReaction();
+			}
+		}
 		return;
 	}
 	return;
+}
+
+void AGenericCharacter::MulticastHitReaction_Implementation()
+{
+	if (bIsDead ||
+		!AbilitySystemComponent)
+	{
+		return;
+	}
+
+	if (!AbilitySystemComponent->HasMatchingGameplayTag(
+		HitReactionTag))
+	{
+		AbilitySystemComponent->AddLooseGameplayTag(
+			HitReactionTag);
+	}
+
+	GetWorldTimerManager().ClearTimer(
+		HitReactionTimerHandle);
+
+	if (HitFlashDuration <= 0.0f)
+	{
+		ClearHitReactionState();
+		return;
+	}
+
+	GetWorldTimerManager().SetTimer(
+		HitReactionTimerHandle,
+		this,
+		&AGenericCharacter::ClearHitReactionState,
+		HitFlashDuration,
+		false);
+}
+
+void AGenericCharacter::HandleHitReactionTagChanged(
+	const FGameplayTag Tag,
+	int32 NewCount)
+{
+	USkeletalMeshComponent* CharacterMesh =
+		GetMesh();
+
+	if (!CharacterMesh)
+	{
+		return;
+	}
+
+	if (NewCount > 0 &&
+		HitFlashMaterial)
+	{
+		CharacterMesh->SetOverlayMaterial(
+			HitFlashMaterial);
+	}
+	else
+	{
+		CharacterMesh->SetOverlayMaterial(
+			nullptr);
+	}
+}
+
+void AGenericCharacter::ClearHitReactionState()
+{
+	if (!AbilitySystemComponent)
+	{
+		return;
+	}
+
+	AbilitySystemComponent->RemoveLooseGameplayTag(
+		HitReactionTag);
 }
 
 UTestGameAbilitySystemComponent* AGenericCharacter::GetAbilitySystemComponent() const
@@ -250,6 +336,11 @@ void AGenericCharacter::EnterDeathState()
 	{
 		return;
 	}
+
+	GetWorldTimerManager().ClearTimer(
+		HitReactionTimerHandle);
+
+	ClearHitReactionState();
 
 	bIsDead = true;
 

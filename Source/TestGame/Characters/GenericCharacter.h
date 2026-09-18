@@ -17,6 +17,7 @@ class UGameplayAbility;
 class UResourceAttributeSet;
 class UGameplayEffect;
 class UMovementSpeedAttributeSet;
+class UMaterialInterface;
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(
 	FOnHealthChanged,
@@ -90,6 +91,8 @@ public:
 	virtual void Tick(float DeltaTime) override;
 
 protected:
+
+	//Death
 	UPROPERTY(
 		EditDefaultsOnly,
 		BlueprintReadOnly,
@@ -107,6 +110,26 @@ protected:
 
 	virtual void OnDeathStarted();
 
+	//Hit reaction
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastHitReaction();
+
+	UPROPERTY(
+		EditDefaultsOnly,
+		BlueprintReadOnly,
+		Category = "Combat|Hit Reaction"
+	)
+	TObjectPtr<UMaterialInterface> HitFlashMaterial;
+
+	UPROPERTY(
+		EditDefaultsOnly,
+		BlueprintReadOnly,
+		Category = "Combat|Hit Reaction",
+		meta = (ClampMin = "0.0", Units = "s")
+	)
+	float HitFlashDuration = 0.2f;
+
+	//Startup Abilities
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Abilities")
 	TArray<FGrantedAbility> StartupAbilities;
 
@@ -141,4 +164,15 @@ private:
 	void EnterDeathState();
 	void ApplyDeathState();
 	void ApplyResourceRegeneration();
+
+	//Hit reaction
+	FGameplayTag HitReactionTag;
+	FDelegateHandle HitReactionTagChangedHandle;
+	FTimerHandle HitReactionTimerHandle;
+
+	void HandleHitReactionTagChanged(
+		const FGameplayTag Tag,
+		int32 NewCount);
+
+	void ClearHitReactionState();
 };
