@@ -27,7 +27,7 @@ void UGA_Multishot::SpawnProjectiles(
                 Angle,
                 FVector::UpVector
             )
-            .GetSafeNormal2D();
+            .GetSafeNormal();
 
         const FGameplayEffectSpecHandle DamageSpec =
             CreateProjectileDamageSpec(

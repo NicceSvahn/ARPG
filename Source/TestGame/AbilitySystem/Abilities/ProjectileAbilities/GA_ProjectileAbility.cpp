@@ -8,6 +8,7 @@
 #include "../../TestGameAbilitySystemComponent.h"
 #include "../../AbilityInputContext.h"
 #include "../GenericProjectile.h"
+#include "Components/CapsuleComponent.h"
 
 UGA_ProjectileAbility::UGA_ProjectileAbility()
 {
@@ -117,6 +118,13 @@ bool UGA_ProjectileAbility::PrepareProjectileAbilityFromTargetData(
         TargetLocation -
         Character->GetActorLocation();
 
+    float CharacterHeight = 0.0f;
+
+    const bool bIsAbilityTarget =
+        IsValid(TargetActor) &&
+        UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(
+            TargetActor) != nullptr;
+
     CharacterAimDirection.Z = 0.0f;
 
     if (CharacterAimDirection.IsNearlyZero())
@@ -145,9 +153,31 @@ bool UGA_ProjectileAbility::PrepareProjectileAbilityFromTargetData(
         Character->GetActorForwardVector() *
         SpawnForwardOffset;
 
+
+    //For ground/world aiming
+    if (!bIsAbilityTarget)
+    {
+        if (const UCapsuleComponent* Capsule =
+            Character->GetCapsuleComponent())
+        {
+            const float CasterZ =
+                Character->GetActorLocation().Z -
+                Capsule->GetScaledCapsuleHalfHeight();
+
+            const float CastHeight =
+                SpawnLocation.Z - CasterZ;
+
+            TargetLocation.Z += CastHeight;
+        }
+        else
+        {
+            TargetLocation.Z = SpawnLocation.Z;
+        }
+    }
+
     const FVector BaseDirection =
         (TargetLocation - SpawnLocation)
-        .GetSafeNormal2D();
+        .GetSafeNormal();
 
     if (BaseDirection.IsNearlyZero())
     {
@@ -241,7 +271,7 @@ UGA_ProjectileAbility::SpawnProjectile(
     }
 
     const FVector SafeDirection =
-        LaunchDirection.GetSafeNormal2D();
+        LaunchDirection.GetSafeNormal();
 
     if (SafeDirection.IsNearlyZero())
     {

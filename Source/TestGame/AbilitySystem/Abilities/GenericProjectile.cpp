@@ -115,7 +115,7 @@ void AGenericProjectile::InitializeProjectile(
     ProjectileMovement->ProjectileGravityScale = 0.0f;
 
     const FVector LaunchDirection =
-        InLaunchDirection.GetSafeNormal2D();
+        InLaunchDirection.GetSafeNormal();
 
     if (LaunchDirection.IsNearlyZero())
     {
