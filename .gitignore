@@ -76,3 +76,11 @@ DerivedDataCache/*
 
 # .env Files
 GenerateAndBuild.local.ps1
+
+#Server files
+ServerBuild/WindowsServer/TestGame/Saved/Logs/*
+ServerBuild/WindowsServer/TestGame/Saved/Config/*
+ServerBuild/WindowsServer/Engine/Binaries/*
+ServerBuild/WindowsServer/Manifest*
+ServerBuild/**
+*.log
