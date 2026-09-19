@@ -1,0 +1,7 @@
+{
+  "name": "TestGame-UE5.8.1",
+  "unrealVersion": "5.8.1",
+  "sourceBranch": "5.8.1-release",
+  "installedBuildVersion": "1",
+  "engineAssociation": "{D1FA7A84-426E-5687-4B7E-6C98A8456CFF}" // Should be "engineAssociation": "TestGame-UE5.8.1"
+}
