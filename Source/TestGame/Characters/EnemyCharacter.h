@@ -11,6 +11,7 @@ class UHealthAttributeSet;
 class UWidgetComponent;
 class UEnemyHealthBarWidget;
 class ADamageNumberActor;
+class APlayerCharacter;
 
 UCLASS()
 class TESTGAME_API AEnemyCharacter : public AGenericCharacter
@@ -32,6 +33,7 @@ protected:
 
 	virtual void OnDeathStarted() override;
 
+	//Elite
 	UPROPERTY(
 		EditAnywhere,
 		BlueprintReadOnly,
@@ -45,6 +47,7 @@ protected:
 		return bIsElite;
 	}
 
+	//Ability
 	UPROPERTY(
 		EditDefaultsOnly,
 		BlueprintReadOnly,
@@ -53,6 +56,7 @@ protected:
 	)
 	FGameplayTag PrimaryAttackInputTag;
 
+	//Aggro
 	UPROPERTY(
 		VisibleAnywhere,
 		BlueprintReadOnly,
@@ -87,6 +91,10 @@ protected:
 		int32 OtherBodyIndex
 	);
 
+	UFUNCTION()
+	APlayerCharacter* FindClosestPlayer() const;
+
+	//Enemy healthbar
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UI")
 	TObjectPtr<UWidgetComponent> EnemyHealthWidget;
 
@@ -99,8 +107,12 @@ protected:
 	TSubclassOf<ADamageNumberActor> DamageNumberActorClass;
 
 private:
+	//Aggro
 	void InitializeAggroTarget();
 
+	FTimerHandle AggroSearchTimer;
+
+	//rest
 	void HandleDamageReceived(
 		float DamageAmount
 	);

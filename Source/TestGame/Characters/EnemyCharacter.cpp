@@ -4,12 +4,13 @@
 #include "../UI/EnemyHealthBarWidget.h"
 #include "../UI/FloatingCombatText/DamageNumberActor.h"
 
-#include "AbilitySystemComponent.h"
+#include "TestGame/AbilitySystem/TestGameAbilitySystemComponent.h"
 #include "Components/SphereComponent.h"
 #include "Components/WidgetComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "TimerManager.h"
 #include "TestGame/AbilitySystem/Attributes/HealthAttributeSet.h"
+#include "TestGame/Characters/PlayerCharacter.h"
 
 
 // Sets default values
@@ -105,14 +106,25 @@ void AEnemyCharacter::BeginPlay()
         RefreshHealthBar(HealthAttributeSet->GetHealth());
     }
 
-    GetWorldTimerManager().SetTimerForNextTick(
-        this,
-        &AEnemyCharacter::InitializeAggroTarget
-    );
+    if (HasAuthority())
+    {
+        GetWorldTimerManager().SetTimer(
+            AggroSearchTimer,
+            this,
+            &AEnemyCharacter::InitializeAggroTarget,
+            0.5f,
+            true
+        );
+    }
 }
 
 void AEnemyCharacter::InitializeAggroTarget()
 {
+    if (!HasAuthority())
+    {
+        return;
+    }
+
     if (!AggroSphere)
     {
         return;
@@ -120,18 +132,10 @@ void AEnemyCharacter::InitializeAggroTarget()
 
     AggroSphere->UpdateOverlaps();
 
-    APawn* PlayerPawn =
-        UGameplayStatics::GetPlayerPawn(
-            GetWorld(),
-            0
-        );
+    APlayerCharacter* PlayerCharacter =
+        FindClosestPlayer();
 
-    if (!IsValid(PlayerPawn))
-    {
-        return;
-    }
-
-    if (!AggroSphere->IsOverlappingActor(PlayerPawn))
+    if (!IsValid(PlayerCharacter))
     {
         return;
     }
@@ -146,7 +150,9 @@ void AEnemyCharacter::InitializeAggroTarget()
         return;
     }
 
-    EnemyController->SetAggroTarget(PlayerPawn);
+    EnemyController->SetAggroTarget(
+        PlayerCharacter
+    );
 }
 
 void AEnemyCharacter::HandleAggroBeginOverlap(
@@ -157,33 +163,22 @@ void AEnemyCharacter::HandleAggroBeginOverlap(
     bool bFromSweep,
     const FHitResult& SweepResult)
 {
-    if (!IsValid(OtherActor) || OtherActor == this)
+    if (!HasAuthority())
     {
         return;
     }
 
-    APawn* PlayerPawn =
-        UGameplayStatics::GetPlayerPawn(
-            GetWorld(),
-            0
+    APlayerCharacter* EnteringPlayer =
+        Cast<APlayerCharacter>(
+            OtherActor
         );
 
-    if (OtherActor != PlayerPawn)
+    if (!IsValid(EnteringPlayer))
     {
         return;
     }
 
-    AEnemyAIController* EnemyController =
-        Cast<AEnemyAIController>(
-            GetController()
-        );
-
-    if (!EnemyController)
-    {
-        return;
-    }
-
-    EnemyController->SetAggroTarget(OtherActor);
+    InitializeAggroTarget();
 }
 
 void AEnemyCharacter::HandleAggroEndOverlap(
@@ -192,18 +187,17 @@ void AEnemyCharacter::HandleAggroEndOverlap(
     UPrimitiveComponent* OtherComponent,
     int32 OtherBodyIndex)
 {
-    if (!IsValid(OtherActor))
+    if (!HasAuthority())
     {
         return;
     }
 
-    APawn* PlayerPawn =
-        UGameplayStatics::GetPlayerPawn(
-            GetWorld(),
-            0
+    APlayerCharacter* LeavingPlayer =
+        Cast<APlayerCharacter>(
+            OtherActor
         );
 
-    if (OtherActor != PlayerPawn)
+    if (!IsValid(LeavingPlayer))
     {
         return;
     }
@@ -218,7 +212,98 @@ void AEnemyCharacter::HandleAggroEndOverlap(
         return;
     }
 
-    EnemyController->ClearAggroTarget(OtherActor);
+    EnemyController->ClearAggroTarget(
+        LeavingPlayer
+    );
+
+    GetWorldTimerManager().SetTimerForNextTick(
+        this,
+        &AEnemyCharacter::InitializeAggroTarget
+    );
+}
+
+APlayerCharacter*
+AEnemyCharacter::FindClosestPlayer() const
+{
+    if (!AggroSphere)
+    {
+        return nullptr;
+    }
+
+    TArray<AActor*> OverlappingActors;
+
+    AggroSphere->GetOverlappingActors(
+        OverlappingActors,
+        APlayerCharacter::StaticClass()
+    );
+
+    const FGameplayTag DeadStateTag =
+        FGameplayTag::RequestGameplayTag(
+            FName(TEXT("State.Dead"))
+        );
+
+    APlayerCharacter* ClosestPlayer =
+        nullptr;
+
+    float ClosestDistanceSquared =
+        TNumericLimits<float>::Max();
+
+    const FVector EnemyLocation =
+        GetActorLocation();
+
+    for (AActor* OverlappingActor :
+        OverlappingActors)
+    {
+        APlayerCharacter* PlayerCharacter =
+            Cast<APlayerCharacter>(
+                OverlappingActor
+            );
+
+        if (!IsValid(PlayerCharacter))
+        {
+            continue;
+        }
+
+        UTestGameAbilitySystemComponent*
+            PlayerAbilitySystem =
+            PlayerCharacter
+            ->GetAbilitySystemComponent();
+
+        if (!PlayerAbilitySystem)
+        {
+            continue;
+        }
+
+        const bool bPlayerIsDead =
+            PlayerAbilitySystem
+            ->HasMatchingGameplayTag(
+                DeadStateTag
+            );
+
+        if (bPlayerIsDead)
+        {
+            continue;
+        }
+
+        const float DistanceSquared =
+            FVector::DistSquared(
+                EnemyLocation,
+                PlayerCharacter
+                ->GetActorLocation()
+            );
+
+        if (DistanceSquared <
+            ClosestDistanceSquared)
+        {
+            ClosestDistanceSquared =
+                DistanceSquared;
+
+            ClosestPlayer =
+                PlayerCharacter;
+        }
+    }
+
+    return ClosestPlayer;
 }
 
 void AEnemyCharacter::RefreshHealthBar(
