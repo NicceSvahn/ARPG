@@ -51,11 +51,12 @@ Binaries/*
 Plugins/**/Binaries/*
 
 # Builds
-Build/*
+Build/WindowsServer/*
+!Build/Scipts/**
 
 # Whitelist PakBlacklist-<BuildConfiguration>.txt files
 !Build/*/
-Build/*/**
+Build/WindowsServer/**
 !Build/*/PakBlacklist*.txt
 
 # Don't ignore icon files in Build
@@ -76,3 +77,7 @@ DerivedDataCache/*
 
 # .env Files
 GenerateAndBuild.local.ps1
+
+#Server files
+ServerBuild/**
+*.log
