@@ -93,16 +93,6 @@ void AEncounter::CheckEncounterComplete()
     EncounterState =
         EEncounterState::Completed;
 
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT(
-            "[ENCOUNTER] Completed | "
-            "Encounter=%s | Authority=TRUE"
-        ),
-        *GetNameSafe(this)
-    );
-
     OnEncounterCompleted.Broadcast();
 }
 

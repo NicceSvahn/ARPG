@@ -48,16 +48,6 @@ void ATestGameGameState::SetLevelState(
 
     LevelState = NewState;
 
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT(
-            "[GAME STATE] LevelState=%s | "
-            "Authority=TRUE"
-        ),
-        *UEnum::GetValueAsString(LevelState)
-    );
-
     OnLevelStateChanged.Broadcast(
         LevelState
     );
@@ -68,15 +58,6 @@ void ATestGameGameState::SetCurrentEncounterIndex(
 {
     if (!HasAuthority())
     {
-        UE_LOG(
-            LogTemp,
-            Warning,
-            TEXT(
-                "[GAME STATE] SetCurrentEncounterIndex rejected | "
-                "Authority=FALSE"
-            )
-        );
-
         return;
     }
 
@@ -87,16 +68,6 @@ void ATestGameGameState::SetCurrentEncounterIndex(
 
     CurrentEncounterIndex = NewIndex;
 
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT(
-            "[GAME STATE] EncounterIndex=%d | "
-            "Authority=TRUE"
-        ),
-        CurrentEncounterIndex
-    );
-
     OnEncounterIndexChanged.Broadcast(
         CurrentEncounterIndex
     );
@@ -104,19 +75,6 @@ void ATestGameGameState::SetCurrentEncounterIndex(
 
 void ATestGameGameState::OnRep_LevelState()
 {
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT(
-            "[GAME STATE] LevelState replicated | "
-            "State=%s | Authority=%s"
-        ),
-        *UEnum::GetValueAsString(LevelState),
-        HasAuthority()
-        ? TEXT("TRUE")
-        : TEXT("FALSE")
-    );
-
     OnLevelStateChanged.Broadcast(
         LevelState
     );
@@ -125,19 +83,6 @@ void ATestGameGameState::OnRep_LevelState()
 void ATestGameGameState::
 OnRep_CurrentEncounterIndex()
 {
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT(
-            "[GAME STATE] EncounterIndex replicated | "
-            "Index=%d | Authority=%s"
-        ),
-        CurrentEncounterIndex,
-        HasAuthority()
-        ? TEXT("TRUE")
-        : TEXT("FALSE")
-    );
-
     OnEncounterIndexChanged.Broadcast(
         CurrentEncounterIndex
     );

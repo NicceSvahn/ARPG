@@ -177,12 +177,6 @@ void UPlayerHudWidget::SetHealth(float CurrentHealth, float MaxHealth)
 {
     if (!IsValid(WBP_PlayerHealthBar))
     {
-        UE_LOG(
-            LogTemp,
-            Warning,
-            TEXT("%s: HealthBarWidget is not bound."),
-            *GetNameSafe(this));
-
         return;
     }
 

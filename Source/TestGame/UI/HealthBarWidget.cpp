@@ -9,13 +9,6 @@ void UHealthBarWidget::SetHealth(float CurrentHealth, float MaxHealth)
 
     if (HealthBar)
     {
-        UE_LOG(LogTemp, Warning,
-            TEXT("SetHealth: Current=%f Max=%f Percent=%f Bar=%s"),
-            CurrentHealth,
-            MaxHealth,
-            HealthPercent,
-            *GetNameSafe(HealthBar));
-
         HealthBar->SetPercent(HealthPercent);
     }
 }
