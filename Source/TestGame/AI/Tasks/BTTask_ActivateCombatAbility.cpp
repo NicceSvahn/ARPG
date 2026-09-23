@@ -76,10 +76,6 @@ UBTTask_ActivateCombatAbility::ExecuteTask(
 
 	if (!AbilityInputTag.IsValid())
 	{
-		UE_LOG(
-			LogTemp,
-			Error, TEXT("Activate Combat Ability task has no ability tag"));
-
 		return EBTNodeResult::Failed;
 	}
 
@@ -93,12 +89,6 @@ UBTTask_ActivateCombatAbility::ExecuteTask(
 
 	if (!ASC)
 	{
-		UE_LOG(
-			LogTemp,
-			Error,
-			TEXT("%s has no TestGame Ability System Component"),
-			*ControlledPawn->GetName()
-		);
 
 		return EBTNodeResult::Failed;
 	}
@@ -107,17 +97,6 @@ UBTTask_ActivateCombatAbility::ExecuteTask(
 	Context.TargetActor = TargetActor;
 	Context.HitLocation =
 		TargetActor->GetActorLocation();
-
-	UE_LOG(
-		LogTemp,
-		Warning,
-		TEXT(
-			"AI ABILITY REQUEST: Pawn=%s Target=%s Tag=%s"
-		),
-		*ControlledPawn->GetName(),
-		*TargetActor->GetName(),
-		*AbilityInputTag.ToString()
-	);
 
 	const bool bRequested =
 		ASC->RequestAbility(

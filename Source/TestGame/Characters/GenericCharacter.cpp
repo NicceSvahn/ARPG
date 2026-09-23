@@ -42,9 +42,6 @@ void AGenericCharacter::BeginPlay()
 
 	if (AbilitySystemComponent)
 	{
-
-		AbilitySystemComponent->InitAbilityActorInfo(this, this);
-
 		HitReactionTag =
 			FGameplayTag::RequestGameplayTag(
 				TEXT("State.HitReaction.Hit"));
@@ -60,7 +57,7 @@ void AGenericCharacter::BeginPlay()
 
 		ApplyResourceRegeneration();
 
-		if (HasAuthority())
+		if (HasAuthority()) 
 		{
 			GrantStartupAbilities();
 		}
@@ -252,37 +249,6 @@ void AGenericCharacter::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 }
 
-void AGenericCharacter::GrantStartupAbilities()
-{
-	if (!AbilitySystemComponent)
-	{
-		return;
-	}
-
-	for (const FGrantedAbility& StartupAbility : StartupAbilities)
-	{
-		if (!StartupAbility.AbilityClass)
-		{
-			continue;
-		}
-
-		FGameplayAbilitySpec AbilitySpec(
-			StartupAbility.AbilityClass);
-
-		if (StartupAbility.InputTag.IsValid())
-		{
-			AbilitySpec
-				.GetDynamicSpecSourceTags()
-				.AddTag(StartupAbility.InputTag);
-		}
-
-		AbilitySystemComponent->GiveAbility(
-			AbilitySpec);
-	}
-
-	AbilitySystemComponent->NotifyAbilityBarChanged();
-}
-
 void AGenericCharacter::ApplyResourceRegeneration()
 {
 	if (!AbilitySystemComponent ||
@@ -420,4 +386,120 @@ void AGenericCharacter::GetLifetimeReplicatedProps(
 		AGenericCharacter,
 		bIsDead
 	);
+}
+
+
+// Ability Granting
+void AGenericCharacter::PossessedBy(AController* NewController)
+{
+	Super::PossessedBy(NewController);
+
+	InitializeAbilitySystem();
+}
+
+void AGenericCharacter::OnRep_PlayerState()
+{
+	Super::OnRep_PlayerState();
+
+	InitializeAbilitySystem();
+}
+
+void AGenericCharacter::InitializeAbilitySystem()
+{
+	if (!AbilitySystemComponent)
+	{
+		return;
+	}
+
+	AbilitySystemComponent->InitAbilityActorInfo(this, this);
+}
+
+void AGenericCharacter::GrantStartupAbilities()
+{
+
+	GrantAbilities(StartupAbilities);
+}
+
+void AGenericCharacter::GrantAbilities(
+	const TArray<FGrantedAbility>& AbilitiesToGrant)
+{
+
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	if (!AbilitySystemComponent)
+	{
+		return;
+	}
+
+	for (const FGrantedAbility& GrantedAbility : AbilitiesToGrant)
+	{
+		if (!GrantedAbility.AbilityClass)
+		{
+			continue;
+		}
+
+		FGameplayAbilitySpec AbilitySpec(
+			GrantedAbility.AbilityClass
+		);
+
+		if (GrantedAbility.InputTag.IsValid())
+		{
+			AbilitySpec
+				.GetDynamicSpecSourceTags()
+				.AddTag(GrantedAbility.InputTag);
+		}
+
+		if (GrantedAbility.EventTag.IsValid())
+		{
+			AbilitySpec
+				.GetDynamicSpecSourceTags()
+				.AddTag(GrantedAbility.EventTag);
+		}
+
+		AbilitySystemComponent->GiveAbility(AbilitySpec);
+	}
+
+	AbilitySystemComponent->NotifyAbilityBarChanged();
+}
+
+void AGenericCharacter::RemoveAbilities(
+	const TArray<FGrantedAbility>& AbilitiesToRemove
+)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	if (!AbilitySystemComponent)
+	{
+		return;
+	}
+
+	for (const FGrantedAbility& GrantedAbility : AbilitiesToRemove)
+	{
+		if (!GrantedAbility.AbilityClass)
+		{
+			continue;
+		}
+
+		FGameplayAbilitySpec* AbilitySpec =
+			AbilitySystemComponent->FindAbilitySpecFromClass(
+				GrantedAbility.AbilityClass
+			);
+
+		if (!AbilitySpec)
+		{
+			continue;
+		}
+
+		AbilitySystemComponent->ClearAbility(
+			AbilitySpec->Handle
+		);
+	}
+
+	AbilitySystemComponent->NotifyAbilityBarChanged();
 }

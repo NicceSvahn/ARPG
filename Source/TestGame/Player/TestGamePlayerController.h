@@ -4,9 +4,9 @@
 #include "GameFramework/PlayerController.h"
 #include "GameplayTagContainer.h"
 #include "AbilitySystemBlueprintLibrary.h"
+
 #include "../AbilitySystem/AbilityInputContext.h"
 #include "../UI/PlayerHudWidget.h"
-
 
 #include "TestGamePlayerController.generated.h"
 
@@ -57,6 +57,10 @@ public:
     // For Debugging
     AGenericCharacter* GetCharacterUnderCursor() const;
 
+    // Class
+    UFUNCTION(BlueprintCallable, Category = "Class")
+    void RequestPlayerClass(EPlayerClass NewClass);
+
 protected:
     virtual void BeginPlay() override;
     virtual void SetupInputComponent() override;
@@ -91,6 +95,10 @@ protected:
     bool bCombatDebugVisible = false;
 
     void ToggleCombatDebug();
+    
+    // Class
+    UFUNCTION(Server, Reliable)
+    void ServerRequestPlayerClass(EPlayerClass NewClass);
 
 private:
 

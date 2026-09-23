@@ -119,11 +119,6 @@ void AGenericProjectile::InitializeProjectile(
 
     if (LaunchDirection.IsNearlyZero())
     {
-        UE_LOG(
-            LogTemp,
-            Error,
-            TEXT("PROJECTILE: Invalid launch direction"));
-
         Destroy();
         return;
     }
@@ -136,13 +131,6 @@ void AGenericProjectile::InitializeProjectile(
 
     ProjectileMovement->UpdateComponentVelocity();
     ProjectileMovement->Activate(true);
-
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT("PROJECTILE: Direction=%s Velocity=%s"),
-        *LaunchDirection.ToString(),
-        *ProjectileMovement->Velocity.ToString());
 
     SetLifeSpan(LifeSeconds);
 }

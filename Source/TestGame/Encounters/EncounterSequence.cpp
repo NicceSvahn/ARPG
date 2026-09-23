@@ -30,16 +30,6 @@ void AEncounterSequence::StartSequence()
         return;
     }
 
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT(
-            "[ENCOUNTER SEQUENCE] Started | "
-            "Sequence=%s | Authority=TRUE"
-        ),
-        *GetNameSafe(this)
-    );
-
     bSequenceActive = true;
     CurrentEncounterIndex = 0;
 
@@ -77,16 +67,6 @@ void AEncounterSequence::StartCurrentEncounter()
 
     if (!Encounter)
     {
-        UE_LOG(
-            LogTemp,
-            Warning,
-            TEXT(
-                "EncounterSequence %s has invalid encounter at index %d"
-            ),
-            *GetName(),
-            CurrentEncounterIndex
-        );
-
         CompleteSequence();
         return;
     }
@@ -94,13 +74,6 @@ void AEncounterSequence::StartCurrentEncounter()
     Encounter->OnEncounterCompleted.AddDynamic(
         this,
         &AEncounterSequence::HandleEncounterCompleted
-    );
-
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT("Starting Encounter %d"),
-        CurrentEncounterIndex + 1
     );
 
     if (ATestGameGameState* GameState =
@@ -177,13 +150,6 @@ void AEncounterSequence::CompleteSequence()
 
     bSequenceActive = false;
 
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT("Encounter Sequence Complete: %s"),
-        *GetName()
-    );
-
     if (ATestGameGameState* GameState =
         GetWorld()->GetGameState<ATestGameGameState>())
     {
@@ -216,16 +182,6 @@ void AEncounterSequence::StopSequence()
     {
         return;
     }
-
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT(
-            "[ENCOUNTER SEQUENCE] Stopped | "
-            "Sequence=%s"
-        ),
-        *GetNameSafe(this)
-    );
 
     bSequenceActive = false;
 

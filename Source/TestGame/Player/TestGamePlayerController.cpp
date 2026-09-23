@@ -6,14 +6,16 @@
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/PlayerController.h"
-#include "../UI/PlayerHudWidget.h"
 
+#include "../UI/PlayerHudWidget.h"
 #include "../AbilitySystem/AbilityInputContext.h"
 #include "../AbilitySystem/TestGameAbilitySystemComponent.h"
 #include "../Characters/GenericCharacter.h"
 #include "../UI/PlayerHudWidget.h"
 #include "../UI/CombatDebugWidget.h"
 #include "../Camera/CameraOccludableComponent.h"
+#include "../Characters/PlayerClass.h"
+#include "../Game/TestGamePlayerState.h"
 
 ATestGamePlayerController::ATestGamePlayerController()
 {
@@ -551,4 +553,41 @@ void ATestGamePlayerController::StopClickMove()
 {
     bIsClickMoving = false;
     ClickMoveDestination = FVector::ZeroVector;
+}
+
+void ATestGamePlayerController::RequestPlayerClass(
+    EPlayerClass NewClass
+)
+{
+    if (HasAuthority())
+    {
+        ATestGamePlayerState* TestPlayerState =
+            GetPlayerState<ATestGamePlayerState>();
+
+        if (!IsValid(TestPlayerState))
+        {
+            return;
+        }
+
+        TestPlayerState->SetPlayerClass(NewClass);
+        return;
+    }
+
+    ServerRequestPlayerClass(NewClass);
+}
+
+void ATestGamePlayerController::ServerRequestPlayerClass_Implementation(
+    EPlayerClass NewClass
+)
+{
+    ATestGamePlayerState* TestPlayerState =
+        GetPlayerState<ATestGamePlayerState>();
+
+    if (!IsValid(TestPlayerState))
+    {
+
+        return;
+    }
+
+    TestPlayerState->SetPlayerClass(NewClass);
 }

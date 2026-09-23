@@ -87,6 +87,10 @@ public:
 
 	AGenericCharacter();
 
+	// Granting Abilities
+	virtual void PossessedBy(AController* NewController) override;
+	virtual void OnRep_PlayerState() override;
+
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
@@ -129,11 +133,21 @@ protected:
 	)
 	float HitFlashDuration = 0.2f;
 
-	//Startup Abilities
+	//Granting Abilities
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Abilities")
 	TArray<FGrantedAbility> StartupAbilities;
 
 	void GrantStartupAbilities();
+
+	void GrantAbilities(
+		const TArray<FGrantedAbility>& AbilitiesToGrant
+	);
+
+	void RemoveAbilities(
+		const TArray<FGrantedAbility>& AbilitiesToRemove
+	);
+
+	void InitializeAbilitySystem();
 
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
