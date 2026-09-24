@@ -77,6 +77,23 @@ void AEnemyAIController::ClearAggroTarget(
 	StopMovement();
 }
 
+void AEnemyAIController::ClearAggroTarget()
+{
+    UBlackboardComponent* BlackboardComponent =
+        GetBlackboardComponent();
+
+    if (!BlackboardComponent)
+    {
+        return;
+    }
+
+    BlackboardComponent->ClearValue(
+        TargetActorKey
+    );
+
+    StopMovement();
+}
+
 void AEnemyAIController::
 HandleControlledPawnDeath()
 {

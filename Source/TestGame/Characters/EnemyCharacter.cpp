@@ -178,6 +178,7 @@ void AEnemyCharacter::HandleAggroBeginOverlap(
         return;
     }
 
+    CancelAggroDropTimer();
     InitializeAggroTarget();
 }
 
@@ -202,6 +203,87 @@ void AEnemyCharacter::HandleAggroEndOverlap(
         return;
     }
 
+    GetWorldTimerManager().SetTimerForNextTick(
+        this,
+        &AEnemyCharacter::
+        EvaluateAggroAfterPlayerLeft
+    );
+}
+
+void AEnemyCharacter::
+EvaluateAggroAfterPlayerLeft()
+{
+    if (!HasAuthority())
+    {
+        return;
+    }
+
+    APlayerCharacter* ClosestPlayer =
+        FindClosestPlayer();
+
+    if (IsValid(ClosestPlayer))
+    {
+        CancelAggroDropTimer();
+
+        AEnemyAIController* EnemyController =
+            Cast<AEnemyAIController>(
+                GetController()
+            );
+
+        if (EnemyController)
+        {
+            EnemyController->SetAggroTarget(
+                ClosestPlayer
+            );
+        }
+
+        return;
+    }
+
+    if (GetWorldTimerManager().IsTimerActive(
+        AggroDropTimerHandle))
+    {
+        return;
+    }
+
+    GetWorldTimerManager().SetTimer(
+        AggroDropTimerHandle,
+        this,
+        &AEnemyCharacter::
+        HandleAggroDropTimerExpired,
+        AggroDropDelay,
+        false
+    );
+}
+
+void AEnemyCharacter::
+HandleAggroDropTimerExpired()
+{
+    if (!HasAuthority())
+    {
+        return;
+    }
+
+    APlayerCharacter* ClosestPlayer =
+        FindClosestPlayer();
+
+    if (IsValid(ClosestPlayer))
+    {
+        AEnemyAIController* EnemyController =
+            Cast<AEnemyAIController>(
+                GetController()
+            );
+
+        if (EnemyController)
+        {
+            EnemyController->SetAggroTarget(
+                ClosestPlayer
+            );
+        }
+
+        return;
+    }
+
     AEnemyAIController* EnemyController =
         Cast<AEnemyAIController>(
             GetController()
@@ -212,13 +294,19 @@ void AEnemyCharacter::HandleAggroEndOverlap(
         return;
     }
 
-    EnemyController->ClearAggroTarget(
-        LeavingPlayer
-    );
+    EnemyController->ClearAggroTarget();
+}
 
-    GetWorldTimerManager().SetTimerForNextTick(
-        this,
-        &AEnemyCharacter::InitializeAggroTarget
+void AEnemyCharacter::CancelAggroDropTimer()
+{
+    if (!GetWorldTimerManager().IsTimerActive(
+        AggroDropTimerHandle))
+    {
+        return;
+    }
+
+    GetWorldTimerManager().ClearTimer(
+        AggroDropTimerHandle
     );
 }
 
@@ -345,6 +433,8 @@ void AEnemyCharacter::HandleDamageReceived(
 
 void AEnemyCharacter::OnDeathStarted()
 {
+    GetWorldTimerManager().ClearTimer(AggroDropTimerHandle);
+
     Super::OnDeathStarted();
 
     if (AggroSphere)

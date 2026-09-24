@@ -12,6 +12,7 @@ class UWidgetComponent;
 class UEnemyHealthBarWidget;
 class ADamageNumberActor;
 class APlayerCharacter;
+struct FTimerHandle;
 
 UCLASS()
 class TESTGAME_API AEnemyCharacter : public AGenericCharacter
@@ -73,6 +74,14 @@ protected:
 	)
 	float AggroRange = 700.0f;
 
+	UPROPERTY(
+		EditDefaultsOnly,
+		BlueprintReadOnly,
+		Category = "AI|Aggro",
+		meta = (ClampMin = "0.0", Units = "s")
+	)
+	float AggroDropDelay = 5.0f;
+
 	UFUNCTION()
 	void HandleAggroBeginOverlap(
 		UPrimitiveComponent* OverlappedComponent,
@@ -111,6 +120,11 @@ private:
 	void InitializeAggroTarget();
 
 	FTimerHandle AggroSearchTimer;
+	FTimerHandle AggroDropTimerHandle;
+
+	void EvaluateAggroAfterPlayerLeft();
+	void HandleAggroDropTimerExpired();
+	void CancelAggroDropTimer();
 
 	//rest
 	void HandleDamageReceived(
