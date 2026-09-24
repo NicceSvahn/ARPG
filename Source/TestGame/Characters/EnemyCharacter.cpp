@@ -9,6 +9,9 @@
 #include "Components/WidgetComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "TimerManager.h"
+#include "GameplayEffectExtension.h"
+#include "BehaviorTree/BlackboardComponent.h"
+#include "GameFramework/Controller.h"
 #include "TestGame/AbilitySystem/Attributes/HealthAttributeSet.h"
 #include "TestGame/Characters/PlayerCharacter.h"
 
@@ -131,6 +134,21 @@ void AEnemyCharacter::InitializeAggroTarget()
     }
 
     AggroSphere->UpdateOverlaps();
+
+    if (AEnemyAIController* EnemyController =
+        Cast<AEnemyAIController>(GetController()))
+    {
+        if (UBlackboardComponent* Blackboard =
+            EnemyController->GetBlackboardComponent())
+        {
+            APlayerCharacter* CurrentTarget = Cast<APlayerCharacter>(
+                Blackboard->GetValueAsObject(TEXT("TargetActor")));
+            if (IsValid(CurrentTarget) && !CurrentTarget->bIsDead)
+            {
+                return;
+            }
+        }
+    }
 
     APlayerCharacter* PlayerCharacter =
         FindClosestPlayer();
@@ -464,6 +482,48 @@ void AEnemyCharacter::HandleHealthChanged(
     RefreshHealthBar(
         Data.NewValue
     );
+
+
+    //Updates aggro target on damage taken
+    if (HasAuthority() && !bIsDead && Data.NewValue < Data.OldValue &&
+        Data.GEModData)
+    {
+        const FGameplayEffectContextHandle& Context = Data.GEModData->EffectSpec.GetContext();
+        AActor* DamageInstigator = Context.GetOriginalInstigator();
+        APlayerCharacter* Attacker = Cast<APlayerCharacter>(DamageInstigator);
+
+        if (!Attacker)
+        {
+            if (const AController* AttackingController = Cast<AController>(DamageInstigator))
+            {
+                Attacker = Cast<APlayerCharacter>(AttackingController->GetPawn());
+            }
+        }
+        if (!Attacker)
+        {
+            Attacker = Cast<APlayerCharacter>(Context.GetEffectCauser());
+        }
+        if (IsValid(Attacker) && !Attacker->bIsDead)
+        {
+            CancelAggroDropTimer();
+
+            if (AEnemyAIController* EnemyController =
+                Cast<AEnemyAIController>(GetController()))
+            {
+                EnemyController->SetAggroTarget(Attacker);
+
+                if (!AggroSphere || !AggroSphere->IsOverlappingActor(Attacker))
+                {
+                    GetWorldTimerManager().SetTimer(
+                        AggroDropTimerHandle,
+                        this,
+                        &AEnemyCharacter::HandleAggroDropTimerExpired,
+                        AggroDropDelay,
+                        false);
+                }
+            }
+        }
+    }
 }
 
 void AEnemyCharacter::HandleMaxHealthChanged(
