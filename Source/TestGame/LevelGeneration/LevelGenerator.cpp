@@ -12,21 +12,15 @@ void ALevelGenerator::BeginPlay()
 {
     Super::BeginPlay();
 
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT("[WFC RUNTIME] LevelGenerator BeginPlay")
-    );
-
-    if (bGenerateOnBeginPlay)
+    if (!bGenerateOnBeginPlay)
     {
-        UE_LOG(
-            LogTemp,
-            Warning,
-            TEXT("[WFC RUNTIME] Generating runtime level...")
-        );
+        return;
+    }
 
-        GenerateLevel();
+    GenerateLevel();
+
+    if (!GeneratedChunks.IsEmpty())
+    {
         SpawnGeneratedChunks();
     }
 }
@@ -39,21 +33,18 @@ void ALevelGenerator::GenerateLevel()
             LogTemp,
             Warning,
             TEXT(
-                "[WFC] Cannot generate while chunk levels "
-                "are spawned. Run Clear Generated Chunks first."
+                "[WFC] Cannot generate while chunk levels are spawned. "
+                "Clear generated chunks first."
             )
         );
 
         return;
     }
 
-    GeneratedChunks.Empty();
+    GeneratedChunks.Reset();
 
-    /*
-     * Convert our reflected TObjectPtr array into the raw
-     * pointer array expected by the solver.
-     */
     TArray<ULevelChunkDefinition*> Definitions;
+    Definitions.Reserve(WFCTiles.Num());
 
     for (ULevelChunkDefinition* Definition : WFCTiles)
     {
@@ -68,7 +59,7 @@ void ALevelGenerator::GenerateLevel()
         UE_LOG(
             LogTemp,
             Error,
-            TEXT("[WFC] No WFC tile definitions configured.")
+            TEXT("[WFC] No tile definitions configured.")
         );
 
         return;
@@ -76,48 +67,49 @@ void ALevelGenerator::GenerateLevel()
 
     FWFCLevelSolver Solver;
 
-    const bool bSuccess =
-        Solver.Solve(
-            GridWidth,
-            GridHeight,
-            Definitions,
-            GenerationSeed
-        );
-
-    if (!bSuccess)
+    if (!Solver.Solve(
+        GridWidth,
+        GridHeight,
+        Definitions,
+        GenerationSeed
+    ))
     {
         UE_LOG(
             LogTemp,
             Error,
             TEXT(
-                "[WFC] Generation failed due to a contradiction. "
-                "Seed=%d"
+                "[WFC] Generation failed. "
+                "Grid=%dx%d Seed=%d"
             ),
+            GridWidth,
+            GridHeight,
             GenerationSeed
         );
 
         return;
     }
 
-    /*
-     * Convert the solved WFC grid into the format our
-     * existing level streaming code understands.
-     */
+    GeneratedChunks.Reserve(
+        GridWidth * GridHeight
+    );
+
     for (const FWFCCell& Cell : Solver.GetCells())
     {
         if (!Cell.IsCollapsed())
         {
             UE_LOG(
                 LogTemp,
-                Warning,
+                Error,
                 TEXT(
-                    "[WFC] Cell (%d,%d) was not collapsed."
+                    "[WFC] Solved grid contains an unresolved "
+                    "Cell(%d,%d)."
                 ),
                 Cell.Coordinate.X,
                 Cell.Coordinate.Y
             );
 
-            continue;
+            GeneratedChunks.Reset();
+            return;
         }
 
         const FWFCState& State =
@@ -125,10 +117,12 @@ void ALevelGenerator::GenerateLevel()
 
         if (!IsValid(State.Definition))
         {
-            continue;
+            GeneratedChunks.Reset();
+            return;
         }
 
-        FGeneratedChunk GeneratedChunk;
+        FGeneratedChunk& GeneratedChunk =
+            GeneratedChunks.AddDefaulted_GetRef();
 
         GeneratedChunk.Definition =
             State.Definition;
@@ -138,39 +132,17 @@ void ALevelGenerator::GenerateLevel()
 
         GeneratedChunk.Rotation =
             State.Rotation;
-
-        GeneratedChunks.Add(
-            GeneratedChunk
-        );
-
-        UE_LOG(
-            LogTemp,
-            Verbose,
-            TEXT(
-                "[WFC] Cell (%d,%d) = %s, Rotation=%d"
-            ),
-            Cell.Coordinate.X,
-            Cell.Coordinate.Y,
-            *State.Definition->ChunkId.ToString(),
-            static_cast<int32>(State.Rotation) * 90
-        );
     }
 
-    /*
-     * Validate the final layout that LevelGenerator
-     * is actually going to spawn.
-     */
     if (!ValidateGeneratedChunks())
     {
         UE_LOG(
             LogTemp,
             Error,
-            TEXT(
-                "[WFC] GeneratedChunks failed final validation."
-            )
+            TEXT("[WFC] Generated layout failed final validation.")
         );
 
-        GeneratedChunks.Empty();
+        GeneratedChunks.Reset();
         return;
     }
 
@@ -197,7 +169,7 @@ void ALevelGenerator::SpawnGeneratedChunks()
             Warning,
             TEXT(
                 "[WFC] No generated chunks to spawn. "
-                "Run Generate Level first."
+                "Generate the level first."
             )
         );
 
@@ -251,79 +223,6 @@ void ALevelGenerator::SpawnGeneratedChunks()
                 Chunk.Rotation
             );
 
-        const EChunkEdgeType NorthEdge =
-            Chunk.Definition->GetEdge(
-                EChunkConnectionDirection::North,
-                Chunk.Rotation
-            );
-
-        const EChunkEdgeType EastEdge =
-            Chunk.Definition->GetEdge(
-                EChunkConnectionDirection::East,
-                Chunk.Rotation
-            );
-
-        const EChunkEdgeType SouthEdge =
-            Chunk.Definition->GetEdge(
-                EChunkConnectionDirection::South,
-                Chunk.Rotation
-            );
-
-        const EChunkEdgeType WestEdge =
-            Chunk.Definition->GetEdge(
-                EChunkConnectionDirection::West,
-                Chunk.Rotation
-            );
-
-        auto EdgeToString =
-            [](EChunkEdgeType Edge) -> const TCHAR*
-            {
-                return Edge == EChunkEdgeType::Open
-                    ? TEXT("OPEN")
-                    : TEXT("CLOSED");
-            };
-
-        UE_LOG(
-            LogTemp,
-            Log,
-            TEXT(
-                "[WFC PHYSICAL CHECK] "
-                "%s Grid(%d,%d) Rot=%d Yaw=%.0f | "
-                "N=%s E=%s S=%s W=%s"
-            ),
-            *Chunk.Definition->ChunkId.ToString(),
-            Chunk.GridCoordinate.X,
-            Chunk.GridCoordinate.Y,
-            static_cast<int32>(Chunk.Rotation),
-            WorldRotation.Yaw,
-            EdgeToString(NorthEdge),
-            EdgeToString(EastEdge),
-            EdgeToString(SouthEdge),
-            EdgeToString(WestEdge)
-        );
-
-        /*
-         * Debug:
-         *
-         * This lets us compare the logical WFC rotation
-         * with the actual Unreal world rotation.
-         */
-        UE_LOG(
-            LogTemp,
-            Log,
-            TEXT(
-                "[WFC ROTATION] Tile=%s "
-                "Grid=(%d,%d) "
-                "LogicalRotation=%d "
-                "WorldYaw=%.0f"
-            ),
-            *Chunk.Definition->ChunkId.ToString(),
-            Chunk.GridCoordinate.X,
-            Chunk.GridCoordinate.Y,
-            static_cast<int32>(Chunk.Rotation),
-            WorldRotation.Yaw
-        );
-
         bool bLoadSuccess = false;
 
         ULevelStreamingDynamic* StreamingLevel =
@@ -338,23 +237,7 @@ void ALevelGenerator::SpawnGeneratedChunks()
                 false
             );
 
-        UE_LOG(
-            LogTemp,
-            Warning,
-            TEXT(
-                "[STREAM TRANSFORM] %s Grid(%d,%d) "
-                "RequestedYaw=%.0f "
-                "ActualLevelYaw=%.0f"
-            ),
-            *Chunk.Definition->ChunkId.ToString(),
-            Chunk.GridCoordinate.X,
-            Chunk.GridCoordinate.Y,
-            WorldRotation.Yaw,
-            StreamingLevel->LevelTransform.Rotator().Yaw
-        );
-
-        if (!bLoadSuccess ||
-            !IsValid(StreamingLevel))
+        if (!bLoadSuccess || !IsValid(StreamingLevel))
         {
             UE_LOG(
                 LogTemp,
@@ -370,36 +253,15 @@ void ALevelGenerator::SpawnGeneratedChunks()
             continue;
         }
 
-        SpawnedChunkLevels.Add(
-            StreamingLevel
-        );
-
+        SpawnedChunkLevels.Add(StreamingLevel);
         ++SpawnedCount;
-
-        UE_LOG(
-            LogTemp,
-            Log,
-            TEXT(
-                "[WFC] Spawned %s at Grid(%d,%d) "
-                "Rotation=%d -> World(%.0f,%.0f,%.0f), Yaw=%.0f"
-            ),
-            *Chunk.Definition->ChunkId.ToString(),
-            Chunk.GridCoordinate.X,
-            Chunk.GridCoordinate.Y,
-            static_cast<int32>(Chunk.Rotation),
-            WorldLocation.X,
-            WorldLocation.Y,
-            WorldLocation.Z,
-            WorldRotation.Yaw
-        );
     }
 
     UE_LOG(
         LogTemp,
         Log,
         TEXT(
-            "[WFC] Spawn complete. "
-            "%d/%d tile levels spawned."
+            "[WFC] Spawn complete. %d/%d tile levels spawned."
         ),
         SpawnedCount,
         GeneratedChunks.Num()
@@ -408,8 +270,7 @@ void ALevelGenerator::SpawnGeneratedChunks()
 
 void ALevelGenerator::ClearGeneratedChunks()
 {
-    for (ULevelStreamingDynamic* StreamingLevel :
-        SpawnedChunkLevels)
+    for (ULevelStreamingDynamic* StreamingLevel : SpawnedChunkLevels)
     {
         if (!IsValid(StreamingLevel))
         {
@@ -423,8 +284,8 @@ void ALevelGenerator::ClearGeneratedChunks()
     const int32 RemovedLevelCount =
         SpawnedChunkLevels.Num();
 
-    SpawnedChunkLevels.Empty();
-    GeneratedChunks.Empty();
+    SpawnedChunkLevels.Reset();
+    GeneratedChunks.Reset();
 
     UE_LOG(
         LogTemp,
@@ -442,12 +303,8 @@ FVector ALevelGenerator::GridToWorldLocation(
 ) const
 {
     return FVector(
-        static_cast<double>(GridCoordinate.X) *
-        ChunkSize,
-
-        static_cast<double>(GridCoordinate.Y) *
-        ChunkSize,
-
+        static_cast<double>(GridCoordinate.X) * ChunkSize,
+        static_cast<double>(GridCoordinate.Y) * ChunkSize,
         0.0
     );
 }
@@ -459,32 +316,16 @@ FRotator ALevelGenerator::ChunkRotationToWorldRotation(
     switch (Rotation)
     {
     case EChunkRotation::Degrees0:
-        return FRotator(
-            0.0,
-            0.0,
-            0.0
-        );
+        return FRotator(0.0, 0.0, 0.0);
 
     case EChunkRotation::Degrees90:
-        return FRotator(
-            0.0,
-            90.0,
-            0.0
-        );
+        return FRotator(0.0, 90.0, 0.0);
 
     case EChunkRotation::Degrees180:
-        return FRotator(
-            0.0,
-            180.0,
-            0.0
-        );
+        return FRotator(0.0, 180.0, 0.0);
 
     case EChunkRotation::Degrees270:
-        return FRotator(
-            0.0,
-            -90.0,
-            0.0
-        );
+        return FRotator(0.0, -90.0, 0.0);
 
     default:
         return FRotator::ZeroRotator;
@@ -493,20 +334,36 @@ FRotator ALevelGenerator::ChunkRotationToWorldRotation(
 
 bool ALevelGenerator::ValidateGeneratedChunks() const
 {
-    auto FindChunk =
-        [this](const FIntPoint& Coordinate)
-        -> const FGeneratedChunk*
-        {
-            for (const FGeneratedChunk& Chunk : GeneratedChunks)
-            {
-                if (Chunk.GridCoordinate == Coordinate)
-                {
-                    return &Chunk;
-                }
-            }
+    if (GeneratedChunks.Num() != GridWidth * GridHeight)
+    {
+        UE_LOG(
+            LogTemp,
+            Error,
+            TEXT(
+                "[WFC] Expected %d generated chunks, got %d."
+            ),
+            GridWidth * GridHeight,
+            GeneratedChunks.Num()
+        );
 
-            return nullptr;
-        };
+        return false;
+    }
+
+    TMap<FIntPoint, const FGeneratedChunk*> ChunkByCoordinate;
+    ChunkByCoordinate.Reserve(GeneratedChunks.Num());
+
+    for (const FGeneratedChunk& Chunk : GeneratedChunks)
+    {
+        if (!IsValid(Chunk.Definition))
+        {
+            return false;
+        }
+
+        ChunkByCoordinate.Add(
+            Chunk.GridCoordinate,
+            &Chunk
+        );
+    }
 
     struct FDirectionInfo
     {
@@ -516,74 +373,57 @@ bool ALevelGenerator::ValidateGeneratedChunks() const
 
     static const FDirectionInfo Directions[] =
     {
-        { EChunkConnectionDirection::North, FIntPoint(0, 1) },
-        { EChunkConnectionDirection::East,  FIntPoint(1, 0) },
-        { EChunkConnectionDirection::South, FIntPoint(0, -1) },
-        { EChunkConnectionDirection::West,  FIntPoint(-1, 0) }
+        {
+            EChunkConnectionDirection::North,
+            FIntPoint(0, 1)
+        },
+        {
+            EChunkConnectionDirection::East,
+            FIntPoint(1, 0)
+        }
     };
 
-    bool bValid = true;
-
+    /*
+     * North and East are enough here.
+     * Every internal edge is otherwise checked twice.
+     */
     for (const FGeneratedChunk& Chunk : GeneratedChunks)
     {
-        if (!IsValid(Chunk.Definition))
-        {
-            bValid = false;
-            continue;
-        }
-
         for (const FDirectionInfo& Info : Directions)
         {
+            const FIntPoint NeighborCoordinate =
+                Chunk.GridCoordinate + Info.Offset;
+
+            const FGeneratedChunk* const* NeighborPtr =
+                ChunkByCoordinate.Find(NeighborCoordinate);
+
+            if (!NeighborPtr)
+            {
+                continue;
+            }
+
+            const FGeneratedChunk* Neighbor =
+                *NeighborPtr;
+
+            if (!Neighbor || !IsValid(Neighbor->Definition))
+            {
+                return false;
+            }
+
             const EChunkEdgeType Edge =
                 Chunk.Definition->GetEdge(
                     Info.Direction,
                     Chunk.Rotation
                 );
 
-            const FIntPoint NeighborCoordinate =
-                Chunk.GridCoordinate + Info.Offset;
-
-            const FGeneratedChunk* Neighbor =
-                FindChunk(NeighborCoordinate);
-
-            if (!Neighbor)
-            {
-                if (Edge == EChunkEdgeType::Open)
-                {
-                    UE_LOG(
-                        LogTemp,
-                        Error,
-                        TEXT(
-                            "[FINAL VALIDATION] OUTSIDE OPEN: "
-                            "Grid(%d,%d) %s Rot=%d Direction=%d"
-                        ),
-                        Chunk.GridCoordinate.X,
-                        Chunk.GridCoordinate.Y,
-                        *Chunk.Definition->ChunkId.ToString(),
-                        static_cast<int32>(Chunk.Rotation),
-                        static_cast<int32>(Info.Direction)
-                    );
-
-                    bValid = false;
-                }
-
-                continue;
-            }
-
-            if (!IsValid(Neighbor->Definition))
-            {
-                bValid = false;
-                continue;
-            }
-
-            const EChunkConnectionDirection Opposite =
+            const EChunkConnectionDirection OppositeDirection =
                 ULevelChunkDefinition::GetOppositeDirection(
                     Info.Direction
                 );
 
             const EChunkEdgeType NeighborEdge =
                 Neighbor->Definition->GetEdge(
-                    Opposite,
+                    OppositeDirection,
                     Neighbor->Rotation
                 );
 
@@ -593,49 +433,19 @@ bool ALevelGenerator::ValidateGeneratedChunks() const
                     LogTemp,
                     Error,
                     TEXT(
-                        "[FINAL VALIDATION] MISMATCH: "
-                        "Grid(%d,%d) %s Rot=%d Edge=%d "
-                        "<-> "
-                        "Grid(%d,%d) %s Rot=%d Edge=%d"
+                        "[WFC] Final layout mismatch between "
+                        "Grid(%d,%d) and Grid(%d,%d)."
                     ),
                     Chunk.GridCoordinate.X,
                     Chunk.GridCoordinate.Y,
-                    *Chunk.Definition->ChunkId.ToString(),
-                    static_cast<int32>(Chunk.Rotation),
-                    static_cast<int32>(Edge),
-
                     Neighbor->GridCoordinate.X,
-                    Neighbor->GridCoordinate.Y,
-                    *Neighbor->Definition->ChunkId.ToString(),
-                    static_cast<int32>(Neighbor->Rotation),
-                    static_cast<int32>(NeighborEdge)
+                    Neighbor->GridCoordinate.Y
                 );
 
-                bValid = false;
+                return false;
             }
         }
     }
 
-    if (bValid)
-    {
-        UE_LOG(
-            LogTemp,
-            Log,
-            TEXT(
-                "[FINAL VALIDATION] GeneratedChunks layout is VALID."
-            )
-        );
-    }
-    else
-    {
-        UE_LOG(
-            LogTemp,
-            Error,
-            TEXT(
-                "[FINAL VALIDATION] GeneratedChunks layout is INVALID."
-            )
-        );
-    }
-
-    return bValid;
+    return true;
 }

@@ -1,5 +1,13 @@
 #include "LevelChunkDefinition.h"
 
+namespace
+{
+    int32 GetRotationSteps(EChunkRotation Rotation)
+    {
+        return static_cast<int32>(Rotation);
+    }
+}
+
 EChunkConnectionDirection
 ULevelChunkDefinition::GetOppositeDirection(
     EChunkConnectionDirection Direction
@@ -24,87 +32,31 @@ ULevelChunkDefinition::GetOppositeDirection(
     }
 }
 
-EChunkConnectionDirection
-ULevelChunkDefinition::GetRotatedDirection(
-    EChunkConnectionDirection Direction,
-    EChunkRotation Rotation
-)
-{
-    const int32 DirectionIndex =
-        static_cast<int32>(Direction);
-
-    int32 RotationSteps = 0;
-
-    switch (Rotation)
-    {
-    case EChunkRotation::Degrees0:
-        RotationSteps = 0;
-        break;
-
-    case EChunkRotation::Degrees90:
-        RotationSteps = 1;
-        break;
-
-    case EChunkRotation::Degrees180:
-        RotationSteps = 2;
-        break;
-
-    case EChunkRotation::Degrees270:
-        RotationSteps = 3;
-        break;
-    }
-
-    return static_cast<EChunkConnectionDirection>(
-        (DirectionIndex + RotationSteps) % 4
-        );
-}
-
 EChunkEdgeType ULevelChunkDefinition::GetEdge(
     EChunkConnectionDirection Direction,
     EChunkRotation Rotation
 ) const
 {
-    const int32 DirectionIndex =
+    const int32 WorldDirectionIndex =
         static_cast<int32>(Direction);
 
-    int32 RotationSteps = 0;
-
-    switch (Rotation)
-    {
-    case EChunkRotation::Degrees0:
-        RotationSteps = 0;
-        break;
-
-    case EChunkRotation::Degrees90:
-        RotationSteps = 1;
-        break;
-
-    case EChunkRotation::Degrees180:
-        RotationSteps = 2;
-        break;
-
-    case EChunkRotation::Degrees270:
-        RotationSteps = 3;
-        break;
-
-    default:
-        RotationSteps = 0;
-        break;
-    }
+    const int32 RotationSteps =
+        GetRotationSteps(Rotation);
 
     /*
-     * Physical Unreal rotation:
+     * Convert the queried world direction into the tile's
+     * corresponding local direction.
      *
-     * Degrees0   -> Yaw   0 -> Local North faces World North
-     * Degrees90  -> Yaw +90 -> Local North faces World East
-     * Degrees180 -> Yaw 180 -> Local North faces World South
-     * Degrees270 -> Yaw -90 -> Local North faces World West
+     * This matches the physical Unreal rotation used when
+     * streaming the tile:
      *
-     * Direction is the WORLD direction we are querying.
-     * Convert it back into the corresponding LOCAL direction.
+     * 0   -> Yaw   0
+     * 90  -> Yaw +90
+     * 180 -> Yaw 180
+     * 270 -> Yaw -90
      */
     const int32 LocalDirectionIndex =
-        (DirectionIndex + RotationSteps) % 4;
+        (WorldDirectionIndex + RotationSteps) % 4;
 
     const EChunkConnectionDirection LocalDirection =
         static_cast<EChunkConnectionDirection>(

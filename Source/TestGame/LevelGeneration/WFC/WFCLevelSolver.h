@@ -2,12 +2,12 @@
 
 #include "CoreMinimal.h"
 #include "WFCLevelTypes.h"
-#include "../LevelChunkDefinition.h"
+
+class ULevelChunkDefinition;
 
 class TESTGAME_API FWFCLevelSolver
 {
 public:
-
     bool Solve(
         int32 Width,
         int32 Height,
@@ -21,14 +21,7 @@ public:
     }
 
 private:
-
-    int32 GridWidth = 0;
-    int32 GridHeight = 0;
-
-    TArray<FWFCCell> Cells;
-
-    FRandomStream RandomStream;
-
+    // Solver lifecycle
     bool Initialize(
         int32 Width,
         int32 Height,
@@ -36,10 +29,10 @@ private:
     );
 
     bool RunCollapse();
+    bool SolveRecursive();
 
+    // WFC
     int32 FindLowestEntropyCell();
-
-    bool CollapseCell(int32 CellIndex);
 
     bool PropagateFrom(int32 CellIndex);
 
@@ -49,36 +42,7 @@ private:
         EChunkConnectionDirection DirectionFromA
     ) const;
 
-    bool HasCompatibleNeighborState(
-        const FWFCState& State,
-        const FWFCCell& Neighbor,
-        EChunkConnectionDirection DirectionFromState
-    ) const;
-
-    bool IsInsideGrid(
-        const FIntPoint& Coordinate
-    ) const;
-
-    int32 CoordinateToIndex(
-        const FIntPoint& Coordinate
-    ) const;
-
-    static FIntPoint DirectionToOffset(
-        EChunkConnectionDirection Direction
-    );
-
-    bool ValidateSolution() const;
-
-    bool ValidateConnectivity() const;
-
-    static const TCHAR* EdgeToString(
-        EChunkEdgeType Edge
-    );
-
-    static const TCHAR* DirectionToString(
-        EChunkConnectionDirection Direction
-    );
-
+    // Constraints
     bool ApplyBoundaryConstraints();
 
     bool CanStillBecomeFullyConnected() const;
@@ -89,5 +53,35 @@ private:
         EChunkConnectionDirection DirectionFromA
     ) const;
 
-    bool SolveRecursive();
+    // Validation
+    bool ValidateSolution() const;
+    bool ValidateConnectivity() const;
+
+    // Grid helpers
+    bool IsInsideGrid(const FIntPoint& Coordinate) const;
+
+    int32 CoordinateToIndex(
+        const FIntPoint& Coordinate
+    ) const;
+
+    static FIntPoint DirectionToOffset(
+        EChunkConnectionDirection Direction
+    );
+
+    // Debug helpers
+    static const TCHAR* EdgeToString(
+        EChunkEdgeType Edge
+    );
+
+    static const TCHAR* DirectionToString(
+        EChunkConnectionDirection Direction
+    );
+
+private:
+    int32 GridWidth = 0;
+    int32 GridHeight = 0;
+
+    TArray<FWFCCell> Cells;
+
+    FRandomStream RandomStream;
 };

@@ -17,9 +17,8 @@ struct FWFCState
 
     bool operator==(const FWFCState& Other) const
     {
-        return
-            Definition == Other.Definition &&
-            Rotation == Other.Rotation;
+        return Definition == Other.Definition
+            && Rotation == Other.Rotation;
     }
 };
 

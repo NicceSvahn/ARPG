@@ -43,12 +43,17 @@ protected:
     virtual void BeginPlay() override;
 
 private:
-    /*
-     * Size of one WFC tile in Unreal Units.
-     *
-     * Indoor V1:
-     * 2000 UU = 20 meters.
-     */
+    FVector GridToWorldLocation(
+        const FIntPoint& GridCoordinate
+    ) const;
+
+    static FRotator ChunkRotationToWorldRotation(
+        EChunkRotation Rotation
+    );
+
+    bool ValidateGeneratedChunks() const;
+
+private:
     UPROPERTY(
         EditAnywhere,
         Category = "Level Generation|WFC",
@@ -70,40 +75,18 @@ private:
     )
     int32 GridHeight = 6;
 
-    UPROPERTY(
-        EditAnywhere,
-        Category = "Level Generation|WFC"
-    )
+    UPROPERTY(EditAnywhere, Category = "Level Generation|WFC")
     int32 GenerationSeed = 1337;
 
-    UPROPERTY(
-        EditAnywhere,
-        Category = "Level Generation|WFC"
-    )
+    UPROPERTY(EditAnywhere, Category = "Level Generation|WFC")
     TArray<TObjectPtr<ULevelChunkDefinition>> WFCTiles;
 
-    UPROPERTY(
-        EditAnywhere,
-        Category = "Level Generation|Runtime"
-    )
+    UPROPERTY(EditAnywhere, Category = "Level Generation|Runtime")
     bool bGenerateOnBeginPlay = false;
 
-    UPROPERTY(
-        VisibleAnywhere,
-        Category = "Level Generation|Debug"
-    )
+    UPROPERTY(VisibleAnywhere, Category = "Level Generation|Debug")
     TArray<FGeneratedChunk> GeneratedChunks;
 
     UPROPERTY(Transient)
     TArray<TObjectPtr<ULevelStreamingDynamic>> SpawnedChunkLevels;
-
-    FVector GridToWorldLocation(
-        const FIntPoint& GridCoordinate
-    ) const;
-
-    static FRotator ChunkRotationToWorldRotation(
-        EChunkRotation Rotation
-    );
-
-    bool ValidateGeneratedChunks() const;
 };
