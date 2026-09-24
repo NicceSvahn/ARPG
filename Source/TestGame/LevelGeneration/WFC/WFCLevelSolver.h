@@ -80,4 +80,14 @@ private:
     );
 
     bool ApplyBoundaryConstraints();
+
+    bool CanStillBecomeFullyConnected() const;
+
+    bool CanPotentiallyConnect(
+        const FWFCCell& A,
+        const FWFCCell& B,
+        EChunkConnectionDirection DirectionFromA
+    ) const;
+
+    bool SolveRecursive();
 };

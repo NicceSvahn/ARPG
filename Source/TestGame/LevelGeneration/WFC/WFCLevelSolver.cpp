@@ -105,29 +105,38 @@ bool FWFCLevelSolver::Initialize(
 
 bool FWFCLevelSolver::RunCollapse()
 {
-    while (true)
+    if (!CanStillBecomeFullyConnected())
     {
-        const int32 CellIndex =
-            FindLowestEntropyCell();
+        UE_LOG(
+            LogTemp,
+            Error,
+            TEXT(
+                "[WFC CONNECTIVITY] Initial state cannot "
+                "form a fully connected layout."
+            )
+        );
 
-        /*
-         * -1 means every cell has exactly one state.
-         */
-        if (CellIndex == INDEX_NONE)
-        {
-            return ValidateSolution();
-        }
-
-        if (!CollapseCell(CellIndex))
-        {
-            return false;
-        }
-
-        if (!PropagateFrom(CellIndex))
-        {
-            return false;
-        }
+        return false;
     }
+
+    const bool bSolved =
+        SolveRecursive();
+
+    if (!bSolved)
+    {
+        UE_LOG(
+            LogTemp,
+            Error,
+            TEXT(
+                "[WFC] No fully connected solution exists "
+                "for the current grid and tile set."
+            )
+        );
+
+        return false;
+    }
+
+    return true;
 }
 
 int32 FWFCLevelSolver::FindLowestEntropyCell()
@@ -842,4 +851,312 @@ bool FWFCLevelSolver::ApplyBoundaryConstraints()
     );
 
     return true;
+}
+
+bool FWFCLevelSolver::CanPotentiallyConnect(
+    const FWFCCell& A,
+    const FWFCCell& B,
+    EChunkConnectionDirection DirectionFromA
+) const
+{
+    const EChunkConnectionDirection DirectionFromB =
+        ULevelChunkDefinition::GetOppositeDirection(
+            DirectionFromA
+        );
+
+    for (const FWFCState& StateA : A.PossibleStates)
+    {
+        if (!StateA.Definition)
+        {
+            continue;
+        }
+
+        const EChunkEdgeType EdgeA =
+            StateA.Definition->GetEdge(
+                DirectionFromA,
+                StateA.Rotation
+            );
+
+        if (EdgeA != EChunkEdgeType::Open)
+        {
+            continue;
+        }
+
+        for (const FWFCState& StateB : B.PossibleStates)
+        {
+            if (!StateB.Definition)
+            {
+                continue;
+            }
+
+            const EChunkEdgeType EdgeB =
+                StateB.Definition->GetEdge(
+                    DirectionFromB,
+                    StateB.Rotation
+                );
+
+            if (EdgeB == EChunkEdgeType::Open)
+            {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+bool FWFCLevelSolver::CanStillBecomeFullyConnected() const
+{
+    if (Cells.IsEmpty())
+    {
+        return false;
+    }
+
+    /*
+     * Start from Grid(0,0).
+     */
+    const int32 StartIndex =
+        CoordinateToIndex(FIntPoint(0, 0));
+
+    if (!Cells.IsValidIndex(StartIndex))
+    {
+        return false;
+    }
+
+    TArray<int32> Queue;
+    TSet<int32> Visited;
+
+    Queue.Add(StartIndex);
+    Visited.Add(StartIndex);
+
+    int32 QueuePosition = 0;
+
+    static const EChunkConnectionDirection Directions[] =
+    {
+        EChunkConnectionDirection::North,
+        EChunkConnectionDirection::East,
+        EChunkConnectionDirection::South,
+        EChunkConnectionDirection::West
+    };
+
+    while (QueuePosition < Queue.Num())
+    {
+        const int32 CurrentIndex =
+            Queue[QueuePosition++];
+
+        const FWFCCell& CurrentCell =
+            Cells[CurrentIndex];
+
+        for (const EChunkConnectionDirection Direction : Directions)
+        {
+            const FIntPoint NeighborCoordinate =
+                CurrentCell.Coordinate +
+                DirectionToOffset(Direction);
+
+            if (!IsInsideGrid(NeighborCoordinate))
+            {
+                continue;
+            }
+
+            const int32 NeighborIndex =
+                CoordinateToIndex(NeighborCoordinate);
+
+            if (!Cells.IsValidIndex(NeighborIndex))
+            {
+                continue;
+            }
+
+            if (Visited.Contains(NeighborIndex))
+            {
+                continue;
+            }
+
+            const FWFCCell& Neighbor =
+                Cells[NeighborIndex];
+
+            if (!CanPotentiallyConnect(
+                CurrentCell,
+                Neighbor,
+                Direction
+            ))
+            {
+                continue;
+            }
+
+            Visited.Add(NeighborIndex);
+            Queue.Add(NeighborIndex);
+        }
+    }
+
+    const bool bConnected =
+        Visited.Num() == Cells.Num();
+
+    if (!bConnected)
+    {
+        UE_LOG(
+            LogTemp,
+            Verbose,
+            TEXT(
+                "[WFC CONNECTIVITY] Partial solution would "
+                "disconnect grid. PotentialReachable=%d/%d"
+            ),
+            Visited.Num(),
+            Cells.Num()
+        );
+    }
+
+    return bConnected;
+}
+
+bool FWFCLevelSolver::SolveRecursive()
+{
+    /*
+     * First make sure the current partial solution
+     * has not already become globally disconnected.
+     */
+    if (!CanStillBecomeFullyConnected())
+    {
+        return false;
+    }
+
+    const int32 CellIndex =
+        FindLowestEntropyCell();
+
+    /*
+     * No unresolved cells remain.
+     */
+    if (CellIndex == INDEX_NONE)
+    {
+        return ValidateSolution();
+    }
+
+    if (!Cells.IsValidIndex(CellIndex))
+    {
+        return false;
+    }
+
+    const TArray<FWFCState> CandidateStates =
+        Cells[CellIndex].PossibleStates;
+
+    if (CandidateStates.IsEmpty())
+    {
+        return false;
+    }
+
+    /*
+     * We are going to try states one by one.
+     *
+     * Randomize the order using our seeded RandomStream
+     * so generation remains deterministic for a seed.
+     */
+    TArray<FWFCState> ShuffledStates =
+        CandidateStates;
+
+    for (int32 Index = ShuffledStates.Num() - 1;
+        Index > 0;
+        --Index)
+    {
+        const int32 SwapIndex =
+            RandomStream.RandRange(0, Index);
+
+        ShuffledStates.Swap(
+            Index,
+            SwapIndex
+        );
+    }
+
+    for (const FWFCState& CandidateState : ShuffledStates)
+    {
+        /*
+         * Save the complete WFC state before trying
+         * this candidate.
+         */
+        const TArray<FWFCCell> SavedCells =
+            Cells;
+
+        /*
+         * Force this cell to the candidate state.
+         */
+        Cells[CellIndex].PossibleStates.Reset();
+        Cells[CellIndex].PossibleStates.Add(
+            CandidateState
+        );
+
+        UE_LOG(
+            LogTemp,
+            Verbose,
+            TEXT(
+                "[WFC BACKTRACK] Trying Cell(%d,%d) "
+                "Tile=%s Rot=%d"
+            ),
+            Cells[CellIndex].Coordinate.X,
+            Cells[CellIndex].Coordinate.Y,
+            CandidateState.Definition
+            ? *CandidateState.Definition->ChunkId.ToString()
+            : TEXT("NULL"),
+            static_cast<int32>(
+                CandidateState.Rotation
+                ) * 90
+        );
+
+        /*
+         * First propagate ordinary WFC constraints.
+         */
+        if (PropagateFrom(CellIndex))
+        {
+            /*
+             * Then make sure we have not cut the
+             * potential connectivity graph in half.
+             */
+            if (CanStillBecomeFullyConnected())
+            {
+                /*
+                 * Continue solving from this state.
+                 */
+                if (SolveRecursive())
+                {
+                    return true;
+                }
+            }
+        }
+
+        /*
+         * This choice eventually caused either:
+         *
+         * - a normal WFC contradiction
+         * - impossible global connectivity
+         * - a contradiction deeper in the search
+         *
+         * Restore the exact previous state and try
+         * another candidate.
+         */
+        Cells = SavedCells;
+
+        UE_LOG(
+            LogTemp,
+            Verbose,
+            TEXT(
+                "[WFC BACKTRACK] Rejected candidate at "
+                "Cell(%d,%d). Trying another state."
+            ),
+            Cells[CellIndex].Coordinate.X,
+            Cells[CellIndex].Coordinate.Y
+        );
+    }
+
+    if (CellIndex == INDEX_NONE)
+    {
+        if (!ValidateSolution())
+        {
+            return false;
+        }
+
+        return ValidateConnectivity();
+    }
+
+    /*
+     * Every possible state for this cell failed.
+     * Let the previous recursion level backtrack.
+     */
+    return false;
 }
