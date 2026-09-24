@@ -28,10 +28,35 @@ enum class EChunkRotation : uint8
 UENUM(BlueprintType)
 enum class EChunkConnectionDirection : uint8
 {
-    North   UMETA(DisplayName = "North"),
-    East    UMETA(DisplayName = "East"),
-    South   UMETA(DisplayName = "South"),
-    West    UMETA(DisplayName = "West")
+    North,
+    East,
+    South,
+    West
+};
+
+UENUM(BlueprintType)
+enum class EChunkEdgeType : uint8
+{
+    Closed  UMETA(DisplayName = "Closed"),
+    Open    UMETA(DisplayName = "Open")
+};
+
+USTRUCT(BlueprintType)
+struct FChunkEdges
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+    EChunkEdgeType North = EChunkEdgeType::Closed;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+    EChunkEdgeType East = EChunkEdgeType::Closed;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+    EChunkEdgeType South = EChunkEdgeType::Closed;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+    EChunkEdgeType West = EChunkEdgeType::Closed;
 };
 
 UCLASS(BlueprintType)
@@ -41,33 +66,22 @@ class TESTGAME_API ULevelChunkDefinition : public UPrimaryDataAsset
 
 public:
 
-    UPROPERTY(
-        EditDefaultsOnly,
-        BlueprintReadOnly,
-        Category = "Chunk"
-    )
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Chunk")
     FName ChunkId;
 
-    UPROPERTY(
-        EditDefaultsOnly,
-        BlueprintReadOnly,
-        Category = "Chunk"
-    )
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Chunk")
     ELevelChunkType ChunkType = ELevelChunkType::Traversal;
 
-    UPROPERTY(
-        EditDefaultsOnly,
-        BlueprintReadOnly,
-        Category = "Grid",
-        meta = (ClampMin = "1")
-    )
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Chunk")
     FIntPoint GridSize = FIntPoint(1, 1);
 
-    UPROPERTY(
-        EditDefaultsOnly,
-        BlueprintReadOnly,
-        Category = "Generation"
-    )
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Chunk")
+    TSoftObjectPtr<UWorld> ChunkLevel;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "WFC")
+    FChunkEdges Edges;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "WFC")
     TArray<EChunkRotation> AllowedRotations =
     {
         EChunkRotation::Degrees0,
@@ -79,55 +93,23 @@ public:
     UPROPERTY(
         EditDefaultsOnly,
         BlueprintReadOnly,
-        Category = "Generation",
-        meta = (ClampMin = "0.0")
+        Category = "WFC",
+        meta = (ClampMin = "0.01")
     )
     float GenerationWeight = 1.0f;
 
-    UPROPERTY(
-        EditDefaultsOnly,
-        BlueprintReadOnly,
-        Category = "Connections"
-    )
-    TSet<EChunkConnectionDirection> Connections;
-
-    UFUNCTION(
-        BlueprintPure,
-        Category = "Connections"
-    )
-    bool HasConnection(
-        EChunkConnectionDirection Direction
+    UFUNCTION(BlueprintPure, Category = "WFC")
+    EChunkEdgeType GetEdge(
+        EChunkConnectionDirection Direction,
+        EChunkRotation Rotation
     ) const;
 
-    UFUNCTION(
-        BlueprintPure,
-        Category = "Connections"
-    )
     static EChunkConnectionDirection GetOppositeDirection(
         EChunkConnectionDirection Direction
     );
 
-    UFUNCTION(
-        BlueprintPure,
-        Category = "Connections"
-    )
     static EChunkConnectionDirection GetRotatedDirection(
         EChunkConnectionDirection Direction,
         EChunkRotation Rotation
     );
-
-    UFUNCTION(
-        BlueprintPure,
-        Category = "Connections"
-    )
-    TSet<EChunkConnectionDirection> GetConnectionsForRotation(
-        EChunkRotation Rotation
-    ) const;
-
-    UPROPERTY(
-        EditDefaultsOnly,
-        BlueprintReadOnly,
-        Category = "Chunk"
-    )
-    TSoftObjectPtr<UWorld> ChunkLevel;
 };
