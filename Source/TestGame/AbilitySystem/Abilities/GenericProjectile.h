@@ -18,7 +18,10 @@ public:
 	void InitializeProjectile(
 		UAbilitySystemComponent* InSourceASC,
 		const FGameplayEffectSpecHandle& InEffectSpec,
-		const FVector& InLaunchDirection);
+		const FVector& InLaunchDirection,
+		const FGameplayEffectSpecHandle& InAdditionalEffectSpec =
+		FGameplayEffectSpecHandle()
+	);
 
 protected:
 	UPROPERTY(
@@ -54,7 +57,9 @@ protected:
 
 private:
 	TWeakObjectPtr<UAbilitySystemComponent> SourceASC;
+
 	FGameplayEffectSpecHandle EffectSpec;
+	FGameplayEffectSpecHandle AdditionalEffectSpec;
 
 	bool bHasImpacted = false;
 

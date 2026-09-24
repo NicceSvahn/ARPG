@@ -63,10 +63,13 @@ void AGenericProjectile::Tick(float DeltaTime)
 void AGenericProjectile::InitializeProjectile(
     UAbilitySystemComponent* InSourceASC,
     const FGameplayEffectSpecHandle& InEffectSpec,
-    const FVector& InLaunchDirection)
+    const FVector& InLaunchDirection,
+    const FGameplayEffectSpecHandle& InAdditionalEffectSpec)
 {
     SourceASC = InSourceASC;
     EffectSpec = InEffectSpec;
+    AdditionalEffectSpec = InAdditionalEffectSpec;
+
 
     if (InSourceASC)
     {
@@ -229,4 +232,17 @@ void AGenericProjectile::HandleImpact(
     Source->ApplyGameplayEffectSpecToTarget(
         *EffectSpec.Data.Get(),
         TargetASC);
+
+    if (AdditionalEffectSpec.IsValid())
+    {
+        AdditionalEffectSpec.Data->GetContext().AddHitResult(
+            Hit,
+            true
+        );
+
+        Source->ApplyGameplayEffectSpecToTarget(
+            *AdditionalEffectSpec.Data.Get(),
+            TargetASC
+        );
+    }
 }

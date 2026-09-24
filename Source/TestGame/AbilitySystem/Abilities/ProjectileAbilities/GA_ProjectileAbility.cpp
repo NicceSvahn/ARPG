@@ -254,8 +254,8 @@ UGA_ProjectileAbility::SpawnProjectile(
     UTestGameAbilitySystemComponent* ASC,
     const FVector& SpawnLocation,
     const FVector& LaunchDirection,
-    const FGameplayEffectSpecHandle& DamageSpec
-)
+    const FGameplayEffectSpecHandle& DamageSpec,
+    const FGameplayEffectSpecHandle& AdditionalEffectSpec)
 {
     if (!Character ||
         !ASC ||
@@ -300,7 +300,8 @@ UGA_ProjectileAbility::SpawnProjectile(
     Projectile->InitializeProjectile(
         ASC,
         DamageSpec,
-        SafeDirection
+        SafeDirection,
+        AdditionalEffectSpec
     );
 
     Projectile->FinishSpawning(
