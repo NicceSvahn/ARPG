@@ -16,6 +16,7 @@ public:
 
 	void SetAggroTarget(AActor* NewTarget);
 	void ClearAggroTarget(AActor* TargetToClear);
+	void ClearAggroTarget();
 
 	void HandleControlledPawnDeath();
 
