@@ -88,8 +88,29 @@ bool UTestGameAbilitySystemComponent::TryActivateRequestedAbility(
 {
     AbilityInputContext = Context;
 
-    const FGameplayAbilityTargetDataHandle TargetData =
-        Context.MakeTargetData();
+    FGameplayAbilitySpec* Spec =
+        FindAbilitySpecFromHandle(AbilityHandle);
+
+    if (!Spec || !Spec->Ability)
+    {
+        return false;
+    }
+
+    FGameplayTagContainer FailureTags;
+
+    const bool bCanActivate =
+        Spec->Ability->CanActivateAbility(
+            AbilityHandle,
+            AbilityActorInfo.Get(),
+            nullptr,
+            nullptr,
+            &FailureTags
+        );
+
+    if (!bCanActivate)
+    {
+        return false;
+    }
 
     const bool bActivated =
         TryActivateAbility(AbilityHandle);

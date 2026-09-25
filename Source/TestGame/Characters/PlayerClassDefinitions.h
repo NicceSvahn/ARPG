@@ -3,8 +3,9 @@
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
 #include "GameplayTagContainer.h"
-#include "Abilities/GameplayAbility.h"
+//#include "Abilities/GameplayAbility.h"
 #include "PlayerClass.h"
+#include "../AbilitySystem/GrantedAbility.h"
 
 #include "PlayerClassDefinitions.generated.h"
 
@@ -22,5 +23,5 @@ public:
     FGameplayTag ClassTag;
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Abilities")
-    TArray<TSubclassOf<UGameplayAbility>> Abilities;
+    TArray<FGrantedAbility> Abilities;
 };
