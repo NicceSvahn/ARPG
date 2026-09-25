@@ -1,5 +1,7 @@
 #include "GA_GenericAbility.h"
 
+#include "AbilitySystemBlueprintLibrary.h"
+
 #include "../Attributes/ResourceAttributeSet.h"
 #include "../TestGameAbilitySystemComponent.h"
 #include "../AbilityInputContext.h"
@@ -358,4 +360,88 @@ void UGA_GenericAbility::ActivateAbility(
             true
         );
     }
+}
+
+FGameplayEffectSpecHandle UGA_GenericAbility::CreateDamageSpec(
+    UAbilitySystemComponent* SourceASC,
+    TSubclassOf<UGameplayEffect> DamageEffect,
+    float Damage) const
+{
+    if (!SourceASC || !DamageEffect)
+    {
+        return FGameplayEffectSpecHandle();
+    }
+
+    FGameplayEffectContextHandle EffectContext =
+        SourceASC->MakeEffectContext();
+
+    EffectContext.AddSourceObject(
+        GetAvatarActorFromActorInfo()
+    );
+
+    FGameplayEffectSpecHandle DamageSpec =
+        SourceASC->MakeOutgoingSpec(
+            DamageEffect,
+            GetAbilityLevel(),
+            EffectContext
+        );
+
+    if (!DamageSpec.IsValid())
+    {
+        return FGameplayEffectSpecHandle();
+    }
+
+    const FGameplayTag DamageTag =
+        FGameplayTag::RequestGameplayTag(
+            TEXT("Data.Damage")
+        );
+
+    DamageSpec.Data->SetSetByCallerMagnitude(
+        DamageTag,
+        Damage
+    );
+
+    return DamageSpec;
+}
+
+bool UGA_GenericAbility::ApplyDamageToTarget(
+    AActor* TargetActor,
+    TSubclassOf<UGameplayEffect> DamageEffect,
+    float Damage) const
+{
+    if (!IsValid(TargetActor))
+    {
+        return false;
+    }
+
+    UAbilitySystemComponent* SourceASC =
+        GetAbilitySystemComponentFromActorInfo();
+
+    UAbilitySystemComponent* TargetASC =
+        UAbilitySystemBlueprintLibrary::
+        GetAbilitySystemComponent(TargetActor);
+
+    if (!SourceASC || !TargetASC)
+    {
+        return false;
+    }
+
+    const FGameplayEffectSpecHandle DamageSpec =
+        CreateDamageSpec(
+            SourceASC,
+            DamageEffect,
+            Damage
+        );
+
+    if (!DamageSpec.IsValid())
+    {
+        return false;
+    }
+
+    SourceASC->ApplyGameplayEffectSpecToTarget(
+        *DamageSpec.Data.Get(),
+        TargetASC
+    );
+
+    return true;
 }

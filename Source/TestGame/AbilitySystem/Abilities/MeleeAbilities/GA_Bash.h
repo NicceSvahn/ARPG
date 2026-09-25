@@ -27,7 +27,7 @@ protected:
     float BashResourceCost = 10.0f; 
 
     UPROPERTY(EditDefaultsOnly, Category = "Bash")
-    float BashDamage = 20.0f;
+    float BashDamage = -20.0f;
 
     UPROPERTY(EditDefaultsOnly, Category = "Bash")
     TSubclassOf<UGameplayEffect> DamageEffect;

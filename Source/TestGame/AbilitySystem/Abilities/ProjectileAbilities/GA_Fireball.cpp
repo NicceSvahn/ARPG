@@ -7,9 +7,9 @@ void UGA_Fireball::SpawnProjectiles(
     const FProjectileAbilityContext& ProjectileContext)
 {
     const FGameplayEffectSpecHandle DamageSpec =
-        CreateProjectileDamageSpec(
+        CreateDamageSpec(
             ProjectileContext.ASC,
-            ProjectileContext.Character,
+            DamageEffect,
             FireballDamage
         );
 

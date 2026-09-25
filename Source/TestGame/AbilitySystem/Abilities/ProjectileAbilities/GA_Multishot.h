@@ -35,5 +35,5 @@ protected:
     float SpreadAngle = 30.0f;
 
     UPROPERTY(EditDefaultsOnly, Category = "Multishot")
-    float MultishotDamage = 15.0f;
+    float MultishotDamage = -15.0f;
 };

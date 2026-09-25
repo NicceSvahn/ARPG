@@ -18,13 +18,13 @@ protected:
     TObjectPtr<UAnimMontage> CastMontage;
 
     UPROPERTY(EditDefaultsOnly, Category = "Fireball")
-    float FireballDamage = 25.0f;
+    float FireballDamage = -25.0f;
 
     UPROPERTY(EditDefaultsOnly, Category = "Fireball|Burn")
     TSubclassOf<UGameplayEffect> BurnEffect;
 
     UPROPERTY(EditDefaultsOnly, Category = "Fireball|Burn")
-    float BurnDamage = 2.0f;
+    float BurnDamage = -2.0f;
 
     virtual void SpawnProjectiles(
         const FProjectileAbilityContext& ProjectileContext

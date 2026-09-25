@@ -7,6 +7,7 @@
 #include "../Network/NetworkDebug.h"
 #include "../Game/TestGamePlayerState.h"
 #include "../Game/TestGameGameState.h"
+#include "PlayerClassDefinitions.h"
 
 APlayerCharacter::APlayerCharacter()
 {
@@ -86,5 +87,43 @@ void APlayerCharacter::OnDeathStarted()
 
     GameState->SetLevelState(
         ELevelState::Failed
+    );
+}
+
+void APlayerCharacter::ApplyPlayerClassDefinition(
+    const UPlayerClassDefinitions* ClassDefinition
+)
+{
+    if (!HasAuthority())
+    {
+        return;
+    }
+
+    if (!ClassDefinition)
+    {
+        return;
+    }
+
+    GrantAbilities(
+        ClassDefinition->Abilities
+    );
+}
+
+void APlayerCharacter::RemovePlayerClassDefinition(
+    const UPlayerClassDefinitions* ClassDefinition
+)
+{
+    if (!HasAuthority())
+    {
+        return;
+    }
+
+    if (!ClassDefinition)
+    {
+        return;
+    }
+
+    RemoveAbilities(
+        ClassDefinition->Abilities
     );
 }
