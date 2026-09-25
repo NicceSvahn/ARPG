@@ -113,8 +113,20 @@ protected:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ability|UI")
     FText AbilityDescription;
 
-    // Networking
+    // Damage
+    FGameplayEffectSpecHandle CreateDamageSpec(
+        UAbilitySystemComponent* SourceASC,
+        TSubclassOf<UGameplayEffect> DamageEffect,
+        float Damage
+    ) const;
 
+    bool ApplyDamageToTarget(
+        AActor* TargetActor,
+        TSubclassOf<UGameplayEffect> DamageEffect,
+        float Damage
+    ) const;
+
+    // Networking
     void SendTargetDataToServer(
         const FGameplayAbilitySpecHandle Handle,
         const FGameplayAbilityActivationInfo ActivationInfo

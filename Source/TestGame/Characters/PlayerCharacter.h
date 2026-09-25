@@ -7,6 +7,7 @@
 class UAbilitySystemComponent;
 class UHealthAttributeSet;
 class ADamageNumberActor;
+class UPlayerClassDefinitions;
 
 
 UCLASS()
@@ -22,6 +23,15 @@ public:
         Category = "Combat Text"
     )
     TSubclassOf<ADamageNumberActor>HealingNumberActorClass;
+
+    //Class
+    void ApplyPlayerClassDefinition(
+        const UPlayerClassDefinitions* ClassDefinition
+    );
+
+    void RemovePlayerClassDefinition(
+        const UPlayerClassDefinitions* ClassDefinition
+    );
 protected:
     virtual void BeginPlay() override;
 

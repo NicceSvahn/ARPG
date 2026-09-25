@@ -83,47 +83,10 @@ void UGA_Bash::PerformBash()
 
 void UGA_Bash::ApplyBashDamage()
 {
-    if (!IsValid(CurrentTargetActor) ||
-        !DamageEffect)
-    {
-        return;
-    }
-
-    UAbilitySystemComponent* SourceASC =
-        GetAbilitySystemComponentFromActorInfo();
-
-    UAbilitySystemComponent* TargetASC =
-        UAbilitySystemBlueprintLibrary::
-        GetAbilitySystemComponent(
-            CurrentTargetActor
-        );
-
-    if (!SourceASC ||
-        !TargetASC)
-    {
-        return;
-    }
-
-    FGameplayEffectContextHandle EffectContext =
-        SourceASC->MakeEffectContext();
-
-    EffectContext.AddSourceObject(this);
-
-    FGameplayEffectSpecHandle Spec =
-        SourceASC->MakeOutgoingSpec(
-            DamageEffect,
-            1.0f,
-            EffectContext
-        );
-
-    if (!Spec.IsValid())
-    {
-        return;
-    }
-
-    SourceASC->ApplyGameplayEffectSpecToTarget(
-        *Spec.Data.Get(),
-        TargetASC
+    ApplyDamageToTarget(
+        CurrentTargetActor,
+        DamageEffect,
+        BashDamage
     );
 }
 
@@ -143,11 +106,10 @@ void UGA_Bash::OnTargetDataReady(
         return;
     }
 
-    const TArray<TWeakObjectPtr<AActor>> TargetActors =
-        Data.Get(0)->GetActors();
+    const FGameplayAbilityTargetData* TargetData =
+        Data.Get(0);
 
-    if (TargetActors.IsEmpty() ||
-        !TargetActors[0].IsValid())
+    if (!TargetData)
     {
         EndAbility(
             GetCurrentAbilitySpecHandle(),
@@ -160,8 +122,39 @@ void UGA_Bash::OnTargetDataReady(
         return;
     }
 
-    CurrentTargetActor =
-        TargetActors[0].Get();
+    AActor* TargetActor = nullptr;
+
+    if (const FHitResult* HitResult =
+        TargetData->GetHitResult())
+    {
+        TargetActor = HitResult->GetActor();
+    }
+    else
+    {
+        const TArray<TWeakObjectPtr<AActor>> TargetActors =
+            TargetData->GetActors();
+
+        if (!TargetActors.IsEmpty() &&
+            TargetActors[0].IsValid())
+        {
+            TargetActor = TargetActors[0].Get();
+        }
+    }
+
+    if (!IsValid(TargetActor))
+    {
+        EndAbility(
+            GetCurrentAbilitySpecHandle(),
+            GetCurrentActorInfo(),
+            GetCurrentActivationInfo(),
+            true,
+            true
+        );
+
+        return;
+    }
+
+    CurrentTargetActor = TargetActor;
 
     PerformBash();
 }

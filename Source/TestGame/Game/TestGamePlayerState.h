@@ -5,6 +5,8 @@
 #include "../Characters/PlayerClass.h"
 #include "TestGamePlayerState.generated.h"
 
+class UPlayerClassDefinitions;
+
 UCLASS()
 class TESTGAME_API ATestGamePlayerState : public APlayerState
 {
@@ -43,9 +45,19 @@ protected:
     )
     EPlayerClass SelectedClass = EPlayerClass::None;
 
+    UPROPERTY(
+        EditDefaultsOnly,
+        BlueprintReadOnly,
+        Category = "Class"
+    )
+    TArray<TObjectPtr<UPlayerClassDefinitions>> ClassDefinitions;
+
     UFUNCTION()
     void OnRep_SelectedClass();
 
     void SyncPlayerClassTag();
     void ApplyPlayerClassTagToASC();
+
+    const UPlayerClassDefinitions*
+        FindClassDefinition(EPlayerClass PlayerClass) const;
 };

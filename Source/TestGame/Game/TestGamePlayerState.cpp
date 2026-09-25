@@ -4,6 +4,8 @@
 #include "Net/UnrealNetwork.h"
 #include "GameplayTagContainer.h"
 #include "AbilitySystemInterface.h"
+#include "../Characters/PlayerCharacter.h"
+#include "../Characters/PlayerClassDefinitions.h"
 
 ATestGamePlayerState::ATestGamePlayerState()
 {
@@ -55,14 +57,63 @@ void ATestGamePlayerState::SetPlayerClass(EPlayerClass NewClass)
 
     if (SelectedClass == NewClass)
     {
-        // Still sync in case the Pawn/ASC was replaced.
         SyncPlayerClassTag();
+
+        APlayerCharacter* PlayerCharacter =
+            Cast<APlayerCharacter>(GetPawn());
+
+        if (PlayerCharacter)
+        {
+            const UPlayerClassDefinitions* Definition =
+                FindClassDefinition(SelectedClass);
+
+            if (Definition)
+            {
+                PlayerCharacter->ApplyPlayerClassDefinition(
+                    Definition
+                );
+            }
+        }
+
         return;
     }
 
+    APlayerCharacter* PlayerCharacter =
+        Cast<APlayerCharacter>(GetPawn());
+
+    //Remove abilities belonging to the OLD class.
+    if (PlayerCharacter)
+    {
+        const UPlayerClassDefinitions* OldDefinition =
+            FindClassDefinition(SelectedClass);
+
+        if (OldDefinition)
+        {
+            PlayerCharacter->RemovePlayerClassDefinition(
+                OldDefinition
+            );
+        }
+    }
+
+    //Change class.
     SelectedClass = NewClass;
 
+    //Update Class.Warrior / Class.Mage / etc.
     SyncPlayerClassTag();
+
+    //Grant abilities belonging to the NEW class.
+    if (PlayerCharacter)
+    {
+        const UPlayerClassDefinitions* NewDefinition =
+            FindClassDefinition(SelectedClass);
+
+        if (NewDefinition)
+        {
+            PlayerCharacter->ApplyPlayerClassDefinition(
+                NewDefinition
+            );
+        }
+    }
 }
 
 void ATestGamePlayerState::SyncPlayerClassTag()
@@ -145,4 +196,26 @@ void ATestGamePlayerState::ApplyPlayerClassTagToASC()
 
     FGameplayTagContainer OwnedTags;
     ASC->GetOwnedGameplayTags(OwnedTags);
+}
+
+const UPlayerClassDefinitions*
+ATestGamePlayerState::FindClassDefinition(
+    EPlayerClass PlayerClass
+) const
+{
+    for (const UPlayerClassDefinitions* Definition :
+        ClassDefinitions)
+    {
+        if (!Definition)
+        {
+            continue;
+        }
+
+        if (Definition->PlayerClass == PlayerClass)
+        {
+            return Definition;
+        }
+    }
+
+    return nullptr;
 }
