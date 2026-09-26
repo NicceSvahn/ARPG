@@ -6,6 +6,7 @@
 #include "LevelGenerator.generated.h"
 
 class ULevelStreamingDynamic;
+class ANavMeshBoundsVolume;
 
 USTRUCT(BlueprintType)
 struct FGeneratedChunk
@@ -81,6 +82,8 @@ private:
 
     bool ValidateGeneratedChunks() const;
 
+    void UpdateNavigationBounds();
+
 private:
     UPROPERTY(
         EditAnywhere,
@@ -123,4 +126,30 @@ private:
 
     UPROPERTY(Transient)
     TArray<FGeneratedChunkInstance> GeneratedChunkInstances;
+
+    UPROPERTY(
+        EditInstanceOnly,
+        Category = "Level Generation|Navigation"
+    )
+    TObjectPtr<ANavMeshBoundsVolume> NavigationBoundsVolume = nullptr;
+
+    UPROPERTY(
+        EditAnywhere,
+        Category = "Level Generation|Navigation",
+        meta = (ClampMin = "0.0")
+    )
+    float NavigationMargin = 200.0f;
+
+    UPROPERTY(
+        EditAnywhere,
+        Category = "Level Generation|Navigation",
+        meta = (ClampMin = "100.0")
+    )
+    float NavigationHeight = 1000.0f;
+
+    UPROPERTY(
+        EditAnywhere,
+        Category = "Level Generation|Navigation"
+    )
+    float NavigationCenterZ = 100.0f;
 };
