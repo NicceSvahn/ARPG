@@ -81,6 +81,11 @@ public:
         return ChunkSize;
     }
 
+    bool IsGeneratedMapReady() const
+    {
+        return bMapReadyBroadcast;
+    }
+
 protected:
     virtual void BeginPlay() override;
 
