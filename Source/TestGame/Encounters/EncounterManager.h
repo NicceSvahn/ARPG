@@ -87,7 +87,7 @@ private:
         Category = "Encounters",
         meta = (ClampMin = "0.0")
     )
-    float MinDistanceFromPlayers = 600.0f;
+    float MinDistanceFromPlayers = 2000.0f;
 
     FRandomStream RandomStream;
     FTimerHandle NavigationRetryTimer;
