@@ -365,12 +365,44 @@ void UGA_GenericAbility::ActivateAbility(
 FGameplayEffectSpecHandle UGA_GenericAbility::CreateDamageSpec(
     UAbilitySystemComponent* SourceASC,
     TSubclassOf<UGameplayEffect> DamageEffect,
-    float Damage) const
+    const FAbilityDamageData& InDamageData) const
 {
     if (!SourceASC || !DamageEffect)
     {
         return FGameplayEffectSpecHandle();
     }
+
+    // Gameplay Tags are registered in Project Settings -> Gameplay Tags.
+    static const FGameplayTag DataDamageBaseTag =
+        FGameplayTag::RequestGameplayTag(FName("Data.Damage.Base"));
+
+    static const FGameplayTag DataDamageWeaponCoefficientTag =
+        FGameplayTag::RequestGameplayTag(FName("Data.Damage.WeaponCoefficient"));
+
+    static const FGameplayTag DataDamageStrengthCoefficientTag =
+        FGameplayTag::RequestGameplayTag(FName("Data.Damage.StrengthCoefficient"));
+
+    static const FGameplayTag DataDamageDexterityCoefficientTag =
+        FGameplayTag::RequestGameplayTag(FName("Data.Damage.DexterityCoefficient"));
+
+    static const FGameplayTag DataDamageIntellectCoefficientTag =
+        FGameplayTag::RequestGameplayTag(FName("Data.Damage.IntellectCoefficient"));
+
+    static const FGameplayTag DataDamageAttackPowerCoefficientTag =
+        FGameplayTag::RequestGameplayTag(FName("Data.Damage.AttackPowerCoefficient"));
+
+    static const FGameplayTag DataDamageSpellPowerCoefficientTag =
+        FGameplayTag::RequestGameplayTag(FName("Data.Damage.SpellPowerCoefficient"));
+
+    static const FGameplayTag DataDamageIsMagicTag =
+        FGameplayTag::RequestGameplayTag(FName("Data.Damage.IsMagic"));
+
+    static const FGameplayTag DamageTypePhysicalTag =
+        FGameplayTag::RequestGameplayTag(FName("Damage.Type.Physical"));
+
+    static const FGameplayTag DamageTypeMagicTag =
+        FGameplayTag::RequestGameplayTag(FName("Damage.Type.Magic"));
+
 
     FGameplayEffectContextHandle EffectContext =
         SourceASC->MakeEffectContext();
@@ -391,15 +423,62 @@ FGameplayEffectSpecHandle UGA_GenericAbility::CreateDamageSpec(
         return FGameplayEffectSpecHandle();
     }
 
-    const FGameplayTag DamageTag =
-        FGameplayTag::RequestGameplayTag(
-            TEXT("Data.Damage")
-        );
+
+    // ------------------------------------------------------------
+    // Damage scaling data
+    // ------------------------------------------------------------
 
     DamageSpec.Data->SetSetByCallerMagnitude(
-        DamageTag,
-        Damage
+        DataDamageBaseTag,
+        InDamageData.BaseDamage
     );
+
+    DamageSpec.Data->SetSetByCallerMagnitude(
+        DataDamageWeaponCoefficientTag,
+        InDamageData.WeaponDamageCoefficient
+    );
+
+    DamageSpec.Data->SetSetByCallerMagnitude(
+        DataDamageStrengthCoefficientTag,
+        InDamageData.StrengthCoefficient
+    );
+
+    DamageSpec.Data->SetSetByCallerMagnitude(
+        DataDamageDexterityCoefficientTag,
+        InDamageData.DexterityCoefficient
+    );
+
+    DamageSpec.Data->SetSetByCallerMagnitude(
+        DataDamageIntellectCoefficientTag,
+        InDamageData.IntellectCoefficient
+    );
+
+    DamageSpec.Data->SetSetByCallerMagnitude(
+        DataDamageAttackPowerCoefficientTag,
+        InDamageData.AttackPowerCoefficient
+    );
+
+    DamageSpec.Data->SetSetByCallerMagnitude(
+        DataDamageSpellPowerCoefficientTag,
+        InDamageData.SpellPowerCoefficient
+    );
+
+
+    // Damage types
+    const bool bIsMagic =
+        InDamageData.DamageType == EAbilityDamageType::Magic;
+
+    DamageSpec.Data->SetSetByCallerMagnitude(
+        DataDamageIsMagicTag,
+        bIsMagic ? 1.0f : 0.0f
+    );
+
+    DamageSpec.Data->AddDynamicAssetTag(
+        bIsMagic
+        ? DamageTypeMagicTag
+        : DamageTypePhysicalTag
+    );
+
 
     return DamageSpec;
 }
@@ -407,7 +486,7 @@ FGameplayEffectSpecHandle UGA_GenericAbility::CreateDamageSpec(
 bool UGA_GenericAbility::ApplyDamageToTarget(
     AActor* TargetActor,
     TSubclassOf<UGameplayEffect> DamageEffect,
-    float Damage) const
+    const FAbilityDamageData& InDamageData) const
 {
     if (!IsValid(TargetActor))
     {
@@ -430,7 +509,7 @@ bool UGA_GenericAbility::ApplyDamageToTarget(
         CreateDamageSpec(
             SourceASC,
             DamageEffect,
-            Damage
+            InDamageData
         );
 
     if (!DamageSpec.IsValid())

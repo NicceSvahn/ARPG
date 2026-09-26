@@ -17,6 +17,10 @@ class UGameplayAbility;
 class UResourceAttributeSet;
 class UGameplayEffect;
 class UMovementSpeedAttributeSet;
+class UPrimaryAttributeSet;
+class UDefensiveAttributeSet;
+class UOffensiveAttributeSet;
+class UUtilityAttributeSet;
 class UMaterialInterface;
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(
@@ -65,6 +69,18 @@ public:
 
 	UPROPERTY()
 	TObjectPtr<UHealthAttributeSet> HealthAttributeSet;
+
+	UPROPERTY()
+	TObjectPtr<UPrimaryAttributeSet> PrimaryAttributeSet;
+
+	UPROPERTY()
+	TObjectPtr<UDefensiveAttributeSet> DefensiveAttributeSet;
+
+	UPROPERTY()
+	TObjectPtr<UOffensiveAttributeSet> OffensiveAttributeSet;
+
+	UPROPERTY()
+	TObjectPtr<UUtilityAttributeSet> UtilityAttributeSet;
 
 	UPROPERTY(
 		EditDefaultsOnly,
@@ -171,6 +187,24 @@ protected:
 		Category = "Movement"
 	)
 	float InitialMovementSpeed = 600.0f;
+
+
+	// Stats
+	UPROPERTY(EditDefaultsOnly, Category = "Abilities|Attributes")
+	TSubclassOf<UGameplayEffect> PrimaryStatDerivedEffect;
+
+	UPROPERTY(
+		EditDefaultsOnly,
+		BlueprintReadOnly,
+		Category = "Abilities|Attributes"
+	)
+	TSubclassOf<UGameplayEffect> BaseStatsEffect;
+
+	void ApplyPrimaryStatDerivedEffect();
+
+	void ApplyAttributeEffect(
+		TSubclassOf<UGameplayEffect> EffectClass
+	);
 
 private:	
 	float PreviousHealth = 0.0f;

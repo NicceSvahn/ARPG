@@ -44,6 +44,18 @@ public:
         MaxResource
     );
 
+    UPROPERTY(
+        BlueprintReadOnly,
+        ReplicatedUsing = OnRep_ResourceRegeneration,
+        Category = "Resource"
+    )
+    FGameplayAttributeData ResourceRegeneration;
+
+    PLAY_ATTRIBUTE_ACCESSORS(
+        UResourceAttributeSet,
+        ResourceRegeneration
+    );
+
 protected:
     UFUNCTION()
     void OnRep_Resource(
@@ -53,5 +65,10 @@ protected:
     UFUNCTION()
     void OnRep_MaxResource(
         const FGameplayAttributeData& OldMaxResource
+    );
+
+    UFUNCTION()
+    void OnRep_ResourceRegeneration(
+        const FGameplayAttributeData& OldResourceRegeneration
     );
 };

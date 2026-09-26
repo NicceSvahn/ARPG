@@ -4,6 +4,7 @@
 #include "Abilities/GameplayAbility.h"
 #include "Abilities/GameplayAbilityTargetTypes.h"
 #include "GameFramework/Pawn.h"
+#include "AbilityDamageData.h"
 #include "GA_GenericAbility.generated.h"
 
 class AGenericCharacter;
@@ -114,16 +115,25 @@ protected:
     FText AbilityDescription;
 
     // Damage
+    UPROPERTY(
+        EditDefaultsOnly,
+        BlueprintReadOnly,
+        Category = "Ability|Damage"
+    )
+    FAbilityDamageData DamageData;
+
+    // New scalable damage path. The ability describes its scaling; the
+    // GameplayEffect execution calculates source stats, crit and mitigation.
     FGameplayEffectSpecHandle CreateDamageSpec(
         UAbilitySystemComponent* SourceASC,
         TSubclassOf<UGameplayEffect> DamageEffect,
-        float Damage
+        const FAbilityDamageData& InDamageData
     ) const;
 
     bool ApplyDamageToTarget(
         AActor* TargetActor,
         TSubclassOf<UGameplayEffect> DamageEffect,
-        float Damage
+        const FAbilityDamageData& InDamageData
     ) const;
 
     // Networking

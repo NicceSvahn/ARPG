@@ -8,4 +8,7 @@ UCLASS()
 class TESTGAME_API UGA_Bash : public UGA_GenericMelee
 {
     GENERATED_BODY()
+
+public:
+    UGA_Bash();
 };

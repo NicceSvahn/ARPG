@@ -44,6 +44,16 @@ void UResourceAttributeSet::PostGameplayEffectExecute(
     }
 }
 
+void UResourceAttributeSet::OnRep_ResourceRegeneration(
+    const FGameplayAttributeData& OldResourceRegeneration)
+{
+    GAMEPLAYATTRIBUTE_REPNOTIFY(
+        UResourceAttributeSet,
+        ResourceRegeneration,
+        OldResourceRegeneration
+    );
+}
+
 void UResourceAttributeSet::GetLifetimeReplicatedProps(
     TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
@@ -61,6 +71,13 @@ void UResourceAttributeSet::GetLifetimeReplicatedProps(
     DOREPLIFETIME_CONDITION_NOTIFY(
         UResourceAttributeSet,
         MaxResource,
+        COND_None,
+        REPNOTIFY_Always
+    );
+
+    DOREPLIFETIME_CONDITION_NOTIFY(
+        UResourceAttributeSet,
+        ResourceRegeneration,
         COND_None,
         REPNOTIFY_Always
     );

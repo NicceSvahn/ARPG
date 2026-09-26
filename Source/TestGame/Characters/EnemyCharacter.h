@@ -48,6 +48,9 @@ protected:
 		return bIsElite;
 	}
 
+	UPROPERTY(EditDefaultsOnly, Category = "Abilities|Attribute")
+	TSubclassOf<UGameplayEffect> EliteModifierEffect;
+
 	//Ability
 	UPROPERTY(
 		EditDefaultsOnly,

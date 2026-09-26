@@ -11,6 +11,9 @@ class TESTGAME_API UGA_Multishot : public UGA_ProjectileAbility
 {
     GENERATED_BODY()
 
+public:
+    UGA_Multishot();
+
 protected:
 
     virtual void SpawnProjectiles(
@@ -34,6 +37,4 @@ protected:
     )
     float SpreadAngle = 30.0f;
 
-    UPROPERTY(EditDefaultsOnly, Category = "Multishot")
-    float MultishotDamage = -15.0f;
 };

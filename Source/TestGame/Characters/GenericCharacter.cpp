@@ -1,8 +1,13 @@
 #include "GenericCharacter.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Abilities/GameplayAbility.h"
+#include "GameplayEffect.h"
 #include "../AbilitySystem/Attributes/ResourceAttributeSet.h"
 #include "../AbilitySystem/Attributes/MovementSpeedAttributeSet.h"
+#include "../AbilitySystem/Attributes/PrimaryAttributeSet.h"
+#include "../AbilitySystem/Attributes/DefensiveAttributeSet.h"
+#include "../AbilitySystem/Attributes/OffensiveAttributeSet.h"
+#include "../AbilitySystem/Attributes/UtilityAttributeSet.h"
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/Controller.h"
 #include "Net/UnrealNetwork.h"
@@ -24,6 +29,26 @@ AGenericCharacter::AGenericCharacter()
 	HealthAttributeSet =
 		CreateDefaultSubobject<UHealthAttributeSet>(
 			TEXT("HealthAttributeSet")
+		);
+
+	PrimaryAttributeSet =
+		CreateDefaultSubobject<UPrimaryAttributeSet>(
+			TEXT("PrimaryAttributeSet")
+		);
+
+	DefensiveAttributeSet =
+		CreateDefaultSubobject<UDefensiveAttributeSet>(
+			TEXT("DefensiveAttributeSet")
+		);
+
+	OffensiveAttributeSet =
+		CreateDefaultSubobject<UOffensiveAttributeSet>(
+			TEXT("OffensiveAttributeSet")
+		);
+
+	UtilityAttributeSet =
+		CreateDefaultSubobject<UUtilityAttributeSet>(
+			TEXT("UtilityAttributeSet")
 		);
 
 	ResourceAttributeSet =
@@ -412,6 +437,36 @@ void AGenericCharacter::InitializeAbilitySystem()
 	}
 
 	AbilitySystemComponent->InitAbilityActorInfo(this, this);
+
+	ApplyAttributeEffect(BaseStatsEffect);
+	ApplyAttributeEffect(PrimaryStatDerivedEffect);
+
+	if (HasAuthority())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("===== ATTRIBUTE TEST: %s ====="), *GetName());
+
+		UE_LOG(LogTemp, Warning, TEXT("Primary:"));
+		UE_LOG(LogTemp, Warning, TEXT("  Strength: %.2f"),
+			PrimaryAttributeSet->GetStrength());
+		UE_LOG(LogTemp, Warning, TEXT("  Dexterity: %.2f"),
+			PrimaryAttributeSet->GetDexterity());
+		UE_LOG(LogTemp, Warning, TEXT("  Intellect: %.2f"),
+			PrimaryAttributeSet->GetIntellect());
+
+		UE_LOG(LogTemp, Warning, TEXT("Derived:"));
+		UE_LOG(LogTemp, Warning, TEXT("  MaxHealth: %.2f"),
+			HealthAttributeSet->GetMaxHealth());
+		UE_LOG(LogTemp, Warning, TEXT("  PhysicalDamage: %.3f"),
+			OffensiveAttributeSet->GetPhysicalDamage());
+		UE_LOG(LogTemp, Warning, TEXT("  Evasion: %.3f"),
+			DefensiveAttributeSet->GetEvasion());
+		UE_LOG(LogTemp, Warning, TEXT("  CritChance: %.3f"),
+			OffensiveAttributeSet->GetCritChance());
+		UE_LOG(LogTemp, Warning, TEXT("  MagicResistance: %.2f"),
+			DefensiveAttributeSet->GetMagicResistance());
+		UE_LOG(LogTemp, Warning, TEXT("  MagicDamage: %.3f"),
+			OffensiveAttributeSet->GetMagicDamage());
+	}
 }
 
 void AGenericCharacter::GrantStartupAbilities()
@@ -502,4 +557,39 @@ void AGenericCharacter::RemoveAbilities(
 	}
 
 	AbilitySystemComponent->NotifyAbilityBarChanged();
+}
+
+void AGenericCharacter::ApplyAttributeEffect(
+	TSubclassOf<UGameplayEffect> EffectClass)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	if (!AbilitySystemComponent || !EffectClass)
+	{
+		return;
+	}
+
+	FGameplayEffectContextHandle EffectContext =
+		AbilitySystemComponent->MakeEffectContext();
+
+	EffectContext.AddSourceObject(this);
+
+	FGameplayEffectSpecHandle SpecHandle =
+		AbilitySystemComponent->MakeOutgoingSpec(
+			EffectClass,
+			1.0f,
+			EffectContext
+		);
+
+	if (!SpecHandle.IsValid())
+	{
+		return;
+	}
+
+	AbilitySystemComponent->ApplyGameplayEffectSpecToSelf(
+		*SpecHandle.Data.Get()
+	);
 }

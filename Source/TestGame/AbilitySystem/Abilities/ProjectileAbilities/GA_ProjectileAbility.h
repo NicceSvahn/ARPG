@@ -35,7 +35,7 @@ protected:
     FGameplayEffectSpecHandle CreateProjectileDamageSpec(
         UTestGameAbilitySystemComponent* ASC,
         AGenericCharacter* Character,
-        float Damage
+        const FAbilityDamageData& InDamageData
     ) const;
 
     AGenericProjectile* SpawnProjectile(
