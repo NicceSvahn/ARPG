@@ -67,8 +67,6 @@ void UPlayerHudWidget::UnbindFromAbilitySystem()
     AbilityBarChangedHandle.Reset();
     TestGameAbilitySystemComponent.Reset();
 
-    // Child widgets own and clean up their own GAS delegates. Reinitializing
-    // them with nullptr explicitly detaches them when the root HUD changes actor.
     if (WBP_PlayerHealthBar)
     {
         WBP_PlayerHealthBar->InitializeFromActor(nullptr);
@@ -132,10 +130,11 @@ void UPlayerHudWidget::BuildAbilitySlots()
         UHorizontalBoxSlot* BoxSlot =
             HP_AbilityBar->AddChildToHorizontalBox(SlotWidget);
 
+        // AbilitySlot Padding
         if (BoxSlot)
         {
             BoxSlot->SetPadding(
-                FMargin(3.0f, 0.0f, 3.0f, 0.0f)
+                FMargin(1.0f, 0.0f, 1.0f, 0.0f)
             );
         }
 
