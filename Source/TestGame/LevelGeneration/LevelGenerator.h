@@ -22,6 +22,31 @@ struct FGeneratedChunk
     EChunkRotation Rotation = EChunkRotation::Degrees0;
 };
 
+DECLARE_MULTICAST_DELEGATE_ThreeParams(
+    FOnGeneratedChunkReady,
+    ULevelStreamingDynamic*,
+    ULevelChunkDefinition*,
+    FIntPoint
+);
+
+DECLARE_MULTICAST_DELEGATE(FOnGeneratedChunksClearing);
+
+USTRUCT()
+struct FGeneratedChunkInstance
+{
+    GENERATED_BODY()
+
+    UPROPERTY()
+    TObjectPtr<ULevelStreamingDynamic> StreamingLevel = nullptr;
+
+    UPROPERTY()
+    TObjectPtr<ULevelChunkDefinition> Definition = nullptr;
+
+    FIntPoint GridCoordinate = FIntPoint::ZeroValue;
+
+    bool bReadyBroadcast = false;
+};
+
 UCLASS()
 class TESTGAME_API ALevelGenerator : public AActor
 {
@@ -38,6 +63,9 @@ public:
 
     UFUNCTION(CallInEditor, BlueprintCallable, Category = "Level Generation")
     void ClearGeneratedChunks();
+
+    FOnGeneratedChunkReady OnGeneratedChunkReady;
+    FOnGeneratedChunksClearing OnGeneratedChunksClearing;
 
 protected:
     virtual void BeginPlay() override;
@@ -89,4 +117,10 @@ private:
 
     UPROPERTY(Transient)
     TArray<TObjectPtr<ULevelStreamingDynamic>> SpawnedChunkLevels;
+
+    UFUNCTION()
+    void HandleChunkLevelShown();
+
+    UPROPERTY(Transient)
+    TArray<FGeneratedChunkInstance> GeneratedChunkInstances;
 };

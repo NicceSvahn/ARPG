@@ -1,6 +1,7 @@
 #include "LevelGenerator.h"
 
 #include "Engine/LevelStreamingDynamic.h"
+#include "Engine/LevelStreaming.h"
 #include "WFC/WFCLevelSolver.h"
 
 ALevelGenerator::ALevelGenerator()
@@ -253,8 +254,23 @@ void ALevelGenerator::SpawnGeneratedChunks()
             continue;
         }
 
+        FGeneratedChunkInstance& Instance =
+            GeneratedChunkInstances.AddDefaulted_GetRef();
+
+        Instance.StreamingLevel = StreamingLevel;
+        Instance.Definition = Chunk.Definition;
+        Instance.GridCoordinate = Chunk.GridCoordinate;
+
+        StreamingLevel->OnLevelShown.AddDynamic(
+            this,
+            &ALevelGenerator::HandleChunkLevelShown
+        );
+
         SpawnedChunkLevels.Add(StreamingLevel);
         ++SpawnedCount;
+
+        // Also handles an instance that became visible before binding.
+        HandleChunkLevelShown();
     }
 
     UE_LOG(
@@ -270,6 +286,22 @@ void ALevelGenerator::SpawnGeneratedChunks()
 
 void ALevelGenerator::ClearGeneratedChunks()
 {
+    OnGeneratedChunksClearing.Broadcast();
+
+    for (FGeneratedChunkInstance& Instance :
+        GeneratedChunkInstances)
+    {
+        if (IsValid(Instance.StreamingLevel))
+        {
+            Instance.StreamingLevel->OnLevelShown.RemoveDynamic(
+                this,
+                &ALevelGenerator::HandleChunkLevelShown
+            );
+        }
+    }
+
+    GeneratedChunkInstances.Reset();
+
     for (ULevelStreamingDynamic* StreamingLevel : SpawnedChunkLevels)
     {
         if (!IsValid(StreamingLevel))
@@ -448,4 +480,30 @@ bool ALevelGenerator::ValidateGeneratedChunks() const
     }
 
     return true;
+}
+
+void ALevelGenerator::HandleChunkLevelShown()
+{
+    for (FGeneratedChunkInstance& Instance :
+        GeneratedChunkInstances)
+    {
+        if (Instance.bReadyBroadcast ||
+            !IsValid(Instance.StreamingLevel) ||
+            !IsValid(Instance.Definition) ||
+            !Instance.StreamingLevel->IsLevelVisible() ||
+            !Instance.StreamingLevel->GetLoadedLevel())
+        {
+            continue;
+        }
+
+        // Set this before broadcasting so listeners cannot cause
+        // this instance to be announced twice.
+        Instance.bReadyBroadcast = true;
+
+        OnGeneratedChunkReady.Broadcast(
+            Instance.StreamingLevel,
+            Instance.Definition,
+            Instance.GridCoordinate
+        );
+    }
 }
