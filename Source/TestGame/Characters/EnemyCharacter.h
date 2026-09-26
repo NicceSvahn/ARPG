@@ -31,6 +31,7 @@ public:
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	virtual void OnDeathStarted() override;
 
@@ -110,8 +111,6 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UI")
 	TObjectPtr<UWidgetComponent> EnemyHealthWidget;
 
-	void RefreshHealthBar(float CurrentHealth);
-
 	UPROPERTY(
 		EditDefaultsOnly,
 		Category = "Combat Text"
@@ -146,14 +145,11 @@ private:
 		float DamageAmount
 	);
 
-	void HandleHealthChanged(
+	void InitializeHealthBar();
+
+	void HandleHealthChangedForAggro(
 		const FOnAttributeChangeData& Data
 	);
 
-	void HandleMaxHealthChanged(
-		const FOnAttributeChangeData& Data
-	);
-
-	FDelegateHandle HealthChangedHandle;
-	FDelegateHandle MaxHealthChangedHandle;
+	FDelegateHandle AggroHealthChangedHandle;
 };

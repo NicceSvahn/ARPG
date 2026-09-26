@@ -1,107 +1,95 @@
 #include "PlayerHudWidget.h"
 
 #include "AbilitySlotWidget.h"
+#include "HealthBarWidget.h"
+#include "ResourceBarWidget.h"
 
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
-#include "Components/ProgressBar.h"
 
-#include "HealthBarWidget.h"
-#include "../Characters/GenericCharacter.h"
 #include "../AbilitySystem/TestGameAbilitySystemComponent.h"
-#include "../UI/ResourceBarWidget.h"
-#include "../AbilitySystem/Attributes/ResourceAttributeSet.h"
+#include "../Characters/GenericCharacter.h"
 
 void UPlayerHudWidget::InitializeHud(
     AGenericCharacter* InCharacter)
 {
-    if (!InCharacter)
+    InitializeFromActor(InCharacter);
+}
+
+void UPlayerHudWidget::OnAbilitySystemReady()
+{
+    Super::OnAbilitySystemReady();
+
+    UTestGameAbilitySystemComponent* ASC =
+        Cast<UTestGameAbilitySystemComponent>(
+            GetObservedAbilitySystem()
+        );
+
+    if (!ASC)
     {
         return;
     }
 
-    if (AbilitySystemComponent &&
+    TestGameAbilitySystemComponent = ASC;
+
+    AActor* PlayerActor = GetObservedActor();
+
+    if (WBP_PlayerHealthBar)
+    {
+        WBP_PlayerHealthBar->InitializeFromActor(PlayerActor);
+    }
+
+    if (WBP_PlayerResourceBar)
+    {
+        WBP_PlayerResourceBar->InitializeFromActor(PlayerActor);
+    }
+
+    AbilityBarChangedHandle =
+        ASC->OnAbilityBarChanged.AddUObject(
+            this,
+            &UPlayerHudWidget::RefreshAbilitySlots
+        );
+
+    BuildAbilitySlots();
+    RefreshAbilitySlots();
+}
+
+void UPlayerHudWidget::UnbindFromAbilitySystem()
+{
+    if (TestGameAbilitySystemComponent.IsValid() &&
         AbilityBarChangedHandle.IsValid())
     {
-        AbilitySystemComponent
+        TestGameAbilitySystemComponent
             ->OnAbilityBarChanged
             .Remove(AbilityBarChangedHandle);
     }
 
-    if (AbilitySystemComponent &&
-        HealthChangedHandle.IsValid())
+    AbilityBarChangedHandle.Reset();
+    TestGameAbilitySystemComponent.Reset();
+
+    // Child widgets own and clean up their own GAS delegates. Reinitializing
+    // them with nullptr explicitly detaches them when the root HUD changes actor.
+    if (WBP_PlayerHealthBar)
     {
-        AbilitySystemComponent
-            ->GetGameplayAttributeValueChangeDelegate(
-                UHealthAttributeSet::GetHealthAttribute()
-            )
-            .Remove(HealthChangedHandle);
+        WBP_PlayerHealthBar->InitializeFromActor(nullptr);
     }
 
-    PlayerCharacter = InCharacter;
-
-    AbilitySystemComponent =
-        PlayerCharacter->GetAbilitySystemComponent();
-
-    if (!AbilitySystemComponent)
+    if (WBP_PlayerResourceBar)
     {
-        return;
+        WBP_PlayerResourceBar->InitializeFromActor(nullptr);
     }
 
-    AbilityBarChangedHandle =
-        AbilitySystemComponent
-        ->OnAbilityBarChanged
-        .AddUObject(
-            this,
-            &UPlayerHudWidget::RefreshAbilitySlots);
-
-    BuildAbilitySlots();
-
-    RefreshAbilitySlots();
-
-    SetHealth(
-        PlayerCharacter->GetCurrentHealth(),
-        PlayerCharacter->GetMaxHealth()
-    );
-
-    HealthChangedHandle =
-        AbilitySystemComponent
-        ->GetGameplayAttributeValueChangeDelegate(
-            UHealthAttributeSet::GetHealthAttribute()
-        )
-        .AddUObject(
-            this,
-            &UPlayerHudWidget::HandleHealthChanged
-        );
-
-    ResourceChangedHandle =
-        AbilitySystemComponent
-        ->GetGameplayAttributeValueChangeDelegate(
-            UResourceAttributeSet::GetResourceAttribute()
-        )
-        .AddUObject(
-            this,
-            &UPlayerHudWidget::HandleResourceChanged
-        );
-
-    MaxResourceChangedHandle =
-        AbilitySystemComponent
-        ->GetGameplayAttributeValueChangeDelegate(
-            UResourceAttributeSet::GetMaxResourceAttribute()
-        )
-        .AddUObject(
-            this,
-            &UPlayerHudWidget::HandleMaxResourceChanged
-        );
-
-    RefreshResourceBar();
+    Super::UnbindFromAbilitySystem();
 }
 
 void UPlayerHudWidget::BuildAbilitySlots()
 {
+    UTestGameAbilitySystemComponent* ASC =
+        TestGameAbilitySystemComponent.Get();
+
     if (!HP_AbilityBar ||
         !AbilitySlotWidgetClass ||
-        !AbilitySystemComponent)
+        !ASC)
     {
         return;
     }
@@ -119,16 +107,16 @@ void UPlayerHudWidget::BuildAbilitySlots()
         TEXT("Input.Ability.Slot6")
     };
 
-    for (int32 Index = 0; Index < 6; ++Index)
+    for (int32 Index = 0; Index < UE_ARRAY_COUNT(SlotTags); ++Index)
     {
         const FGameplayTag InputTag =
-            FGameplayTag::RequestGameplayTag(
-                SlotTags[Index]);
+            FGameplayTag::RequestGameplayTag(SlotTags[Index]);
 
         UAbilitySlotWidget* SlotWidget =
             CreateWidget<UAbilitySlotWidget>(
                 GetOwningPlayer(),
-                AbilitySlotWidgetClass);
+                AbilitySlotWidgetClass
+            );
 
         if (!SlotWidget)
         {
@@ -136,147 +124,32 @@ void UPlayerHudWidget::BuildAbilitySlots()
         }
 
         SlotWidget->InitializeSlot(
-            AbilitySystemComponent,
+            ASC,
             InputTag,
-            FText::AsNumber(Index + 1));
+            FText::AsNumber(Index + 1)
+        );
 
         UHorizontalBoxSlot* BoxSlot =
-            HP_AbilityBar
-            ->AddChildToHorizontalBox(
-                SlotWidget);
+            HP_AbilityBar->AddChildToHorizontalBox(SlotWidget);
 
         if (BoxSlot)
         {
             BoxSlot->SetPadding(
-                FMargin(
-                    3.0f,
-                    0.0f,
-                    3.0f,
-                    0.0f));
+                FMargin(3.0f, 0.0f, 3.0f, 0.0f)
+            );
         }
 
-        AbilitySlotWidgets.Add(
-            SlotWidget);
+        AbilitySlotWidgets.Add(SlotWidget);
     }
 }
 
 void UPlayerHudWidget::RefreshAbilitySlots()
 {
-    for (UAbilitySlotWidget* SlotWidget :
-        AbilitySlotWidgets)
+    for (UAbilitySlotWidget* SlotWidget : AbilitySlotWidgets)
     {
         if (SlotWidget)
         {
             SlotWidget->RefreshAbility();
         }
     }
-}
-
-
-void UPlayerHudWidget::SetHealth(float CurrentHealth, float MaxHealth)
-{
-    if (!IsValid(WBP_PlayerHealthBar))
-    {
-        return;
-    }
-
-    WBP_PlayerHealthBar->SetHealth(CurrentHealth, MaxHealth);
-}
-
-
-void UPlayerHudWidget::NativeConstruct()
-{
-    ;
-}
-
-void UPlayerHudWidget::NativeDestruct()
-{
-    if (AbilitySystemComponent &&
-        AbilityBarChangedHandle.IsValid())
-    {
-        AbilitySystemComponent
-            ->OnAbilityBarChanged
-            .Remove(AbilityBarChangedHandle);
-    }
-
-    if (AbilitySystemComponent &&
-        HealthChangedHandle.IsValid())
-    {
-        AbilitySystemComponent
-            ->GetGameplayAttributeValueChangeDelegate(
-                UHealthAttributeSet::GetHealthAttribute()
-            )
-            .Remove(HealthChangedHandle);
-    }
-
-    if (AbilitySystemComponent)
-    {
-        if (ResourceChangedHandle.IsValid())
-        {
-            AbilitySystemComponent
-                ->GetGameplayAttributeValueChangeDelegate(
-                    UResourceAttributeSet::GetResourceAttribute()
-                )
-                .Remove(ResourceChangedHandle);
-        }
-
-        if (MaxResourceChangedHandle.IsValid())
-        {
-            AbilitySystemComponent
-                ->GetGameplayAttributeValueChangeDelegate(
-                    UResourceAttributeSet::GetMaxResourceAttribute()
-                )
-                .Remove(MaxResourceChangedHandle);
-        }
-    }
-}
-
-void UPlayerHudWidget::HandleResourceChanged(
-    const FOnAttributeChangeData& Data)
-{
-    RefreshResourceBar();
-}
-
-void UPlayerHudWidget::HandleMaxResourceChanged(
-    const FOnAttributeChangeData& Data)
-{
-    RefreshResourceBar();
-}
-
-void UPlayerHudWidget::RefreshResourceBar()
-{
-    if (!AbilitySystemComponent ||
-        !WBP_PlayerResourceBar)
-    {
-        return;
-    }
-
-    const float CurrentResource =
-        AbilitySystemComponent->GetNumericAttribute(
-            UResourceAttributeSet::GetResourceAttribute()
-        );
-
-    const float MaxResource =
-        AbilitySystemComponent->GetNumericAttribute(
-            UResourceAttributeSet::GetMaxResourceAttribute()
-        );
-
-    WBP_PlayerResourceBar->SetResource(
-        CurrentResource,
-        MaxResource
-    );
-}
-
-void UPlayerHudWidget::HandleHealthChanged(
-    const FOnAttributeChangeData& Data)
-{
-    if (!PlayerCharacter)
-    {
-        return;
-    }
-
-    SetHealth(
-        Data.NewValue,
-        PlayerCharacter->GetMaxHealth()
-    );
 }

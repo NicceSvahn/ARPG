@@ -66,14 +66,11 @@ AEnemyCharacter::AEnemyCharacter()
 // Called when the game starts or when spawned
 void AEnemyCharacter::BeginPlay()
 {
-	Super::BeginPlay();	
+    Super::BeginPlay();
 
     if (AggroSphere)
     {
-        AggroSphere->SetSphereRadius(
-            AggroRange,
-            true
-        );
+        AggroSphere->SetSphereRadius(AggroRange, true);
     }
 
     OnDamageReceived.AddUObject(
@@ -81,38 +78,26 @@ void AEnemyCharacter::BeginPlay()
         &AEnemyCharacter::HandleDamageReceived
     );
 
-    if (AbilitySystemComponent)
+    // Gameplay-only health observation. The health bar owns its own UI bindings.
+    if (HasAuthority() && AbilitySystemComponent)
     {
-        HealthChangedHandle =
+        AggroHealthChangedHandle =
             AbilitySystemComponent
             ->GetGameplayAttributeValueChangeDelegate(
                 UHealthAttributeSet::GetHealthAttribute()
             )
             .AddUObject(
                 this,
-                &AEnemyCharacter::HandleHealthChanged
-            );
-
-        MaxHealthChangedHandle =
-            AbilitySystemComponent
-            ->GetGameplayAttributeValueChangeDelegate(
-                UHealthAttributeSet::GetMaxHealthAttribute()
-            )
-            .AddUObject(
-                this,
-                &AEnemyCharacter::HandleMaxHealthChanged
+                &AEnemyCharacter::HandleHealthChangedForAggro
             );
 
         if (bIsElite)
         {
-            AGenericCharacter::ApplyAttributeEffect(EliteModifierEffect);
+            ApplyAttributeEffect(EliteModifierEffect);
         }
     }
 
-    if (HealthAttributeSet)
-    {
-        RefreshHealthBar(HealthAttributeSet->GetHealth());
-    }
+    InitializeHealthBar();
 
     if (HasAuthority())
     {
@@ -124,6 +109,49 @@ void AEnemyCharacter::BeginPlay()
             true
         );
     }
+}
+
+void AEnemyCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+    GetWorldTimerManager().ClearTimer(AggroSearchTimer);
+    GetWorldTimerManager().ClearTimer(AggroDropTimerHandle);
+
+    OnDamageReceived.RemoveAll(this);
+
+    if (AbilitySystemComponent && AggroHealthChangedHandle.IsValid())
+    {
+        AbilitySystemComponent
+            ->GetGameplayAttributeValueChangeDelegate(
+                UHealthAttributeSet::GetHealthAttribute()
+            )
+            .Remove(AggroHealthChangedHandle);
+
+        AggroHealthChangedHandle.Reset();
+    }
+
+    Super::EndPlay(EndPlayReason);
+}
+
+void AEnemyCharacter::InitializeHealthBar()
+{
+    if (!EnemyHealthWidget)
+    {
+        return;
+    }
+
+    EnemyHealthWidget->InitWidget();
+
+    UEnemyHealthBarWidget* HealthWidget =
+        Cast<UEnemyHealthBarWidget>(
+            EnemyHealthWidget->GetUserWidgetObject()
+        );
+
+    if (!HealthWidget)
+    {
+        return;
+    }
+
+    HealthWidget->InitializeFromActor(this);
 }
 
 void AEnemyCharacter::InitializeAggroTarget()
@@ -417,29 +445,6 @@ AEnemyCharacter::FindClosestPlayer() const
     return ClosestPlayer;
 }
 
-void AEnemyCharacter::RefreshHealthBar(
-    float CurrentHealth)
-{
-    if (!EnemyHealthWidget)
-    {
-        return;
-    }
-
-    UEnemyHealthBarWidget* HealthBarWidget =
-        Cast<UEnemyHealthBarWidget>(
-            EnemyHealthWidget->GetUserWidgetObject()
-        );
-
-    if (!HealthBarWidget)
-    {
-        return;
-    }
-
-    HealthBarWidget->SetHealth(
-        CurrentHealth,
-        GetMaxHealth()
-    );
-}
 
 void AEnemyCharacter::HandleDamageReceived(
     float DamageAmount)
@@ -481,15 +486,10 @@ void AEnemyCharacter::OnDeathStarted()
     }
 }
 
-void AEnemyCharacter::HandleHealthChanged(
+void AEnemyCharacter::HandleHealthChangedForAggro(
     const FOnAttributeChangeData& Data)
 {
-    RefreshHealthBar(
-        Data.NewValue
-    );
-
-
-    //Updates aggro target on damage taken
+    // Updates aggro target when damage is taken.
     if (HasAuthority() && !bIsDead && Data.NewValue < Data.OldValue &&
         Data.GEModData)
     {
@@ -531,13 +531,6 @@ void AEnemyCharacter::HandleHealthChanged(
     }
 }
 
-void AEnemyCharacter::HandleMaxHealthChanged(
-    const FOnAttributeChangeData& Data)
-{
-    RefreshHealthBar(
-        GetCurrentHealth()
-    );
-}
 
 void AEnemyCharacter::MulticastShowDamageNumber_Implementation(
     float DamageAmount)

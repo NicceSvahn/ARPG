@@ -1,82 +1,54 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
-#include "HealthBarWidget.h"
-#include "../AbilitySystem/TestGameAbilitySystemComponent.h"
+#include "AbilitySystemWidget.h"
 #include "PlayerHudWidget.generated.h"
 
-class UHorizontalBox;
-class UAbilitySlotWidget;
-class UTestGameAbilitySystemComponent;
 class AGenericCharacter;
-class UProgressBar;
-class UResourceAttributeSet;
+class UAbilitySlotWidget;
+class UHealthBarWidget;
+class UHorizontalBox;
 class UResourceBarWidget;
+class UTestGameAbilitySystemComponent;
 
+/**
+ * Root player HUD. It coordinates child widgets but does not own health or
+ * resource attribute-update logic. Those widgets observe GAS themselves.
+ */
 UCLASS()
-class TESTGAME_API UPlayerHudWidget : public UUserWidget
+class TESTGAME_API UPlayerHudWidget : public UAbilitySystemWidget
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
 
 public:
-	UFUNCTION(BlueprintCallable, Category = "HUD|Health")
-	void SetHealth(float CurrentHealth, float MaxHealth);
+    // Compatibility wrapper for existing PlayerController/Blueprint calls.
+    void InitializeHud(AGenericCharacter* InCharacter);
 
-	void InitializeHud(AGenericCharacter* InCharacter);
-
-	void RefreshAbilitySlots();
+    void RefreshAbilitySlots();
 
 protected:
-	virtual void NativeConstruct() override;
+    virtual void OnAbilitySystemReady() override;
+    virtual void UnbindFromAbilitySystem() override;
 
-	virtual void NativeDestruct() override;
+    UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
+    TObjectPtr<UHealthBarWidget> WBP_PlayerHealthBar;
 
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
-	TObjectPtr<UHealthBarWidget> WBP_PlayerHealthBar;
-	
-	UPROPERTY(meta = (BindWidget))
-	TObjectPtr<UHorizontalBox> HP_AbilityBar;
+    UPROPERTY(meta = (BindWidget))
+    TObjectPtr<UHorizontalBox> HP_AbilityBar;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Ability Bar")
-	TSubclassOf<UAbilitySlotWidget>
-		AbilitySlotWidgetClass;
+    UPROPERTY(EditDefaultsOnly, Category = "Ability Bar")
+    TSubclassOf<UAbilitySlotWidget> AbilitySlotWidgetClass;
 
-	UPROPERTY(meta = (BindWidget))
-	TObjectPtr<UResourceBarWidget> WBP_PlayerResourceBar;
-
-	void HandleResourceChanged(
-		const FOnAttributeChangeData& Data
-	);
-
-	void HandleMaxResourceChanged(
-		const FOnAttributeChangeData& Data
-	);
-
-	void HandleHealthChanged(
-		const FOnAttributeChangeData& Data
-	);
+    UPROPERTY(meta = (BindWidget))
+    TObjectPtr<UResourceBarWidget> WBP_PlayerResourceBar;
 
 private:
-	void BuildAbilitySlots();
+    void BuildAbilitySlots();
 
-	void RefreshResourceBar();
+    TWeakObjectPtr<UTestGameAbilitySystemComponent> TestGameAbilitySystemComponent;
 
-	UPROPERTY()
-	TObjectPtr<UTestGameAbilitySystemComponent>
-		AbilitySystemComponent;
+    UPROPERTY()
+    TArray<TObjectPtr<UAbilitySlotWidget>> AbilitySlotWidgets;
 
-	UPROPERTY()
-	TArray<TObjectPtr<UAbilitySlotWidget>>
-		AbilitySlotWidgets;
-
-	FDelegateHandle AbilityBarChangedHandle;
-
-	UPROPERTY()
-	TObjectPtr<AGenericCharacter> PlayerCharacter;
-
-	FDelegateHandle HealthChangedHandle;
-
-	FDelegateHandle ResourceChangedHandle;
-	FDelegateHandle MaxResourceChangedHandle;
+    FDelegateHandle AbilityBarChangedHandle;
 };
