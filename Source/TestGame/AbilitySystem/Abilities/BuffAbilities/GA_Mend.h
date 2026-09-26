@@ -1,31 +1,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "../GA_GenericAbility.h"
+#include "GA_GenericBuff.h"
 #include "GA_Mend.generated.h"
 
-class UGameplayEffect;
-
 UCLASS()
-class TESTGAME_API UGA_Mend : public UGA_GenericAbility
+class TESTGAME_API UGA_Mend : public UGA_GenericBuff
 {
     GENERATED_BODY()
-
-public:
-    UGA_Mend();
-
-    virtual void ActivateAbility(
-        const FGameplayAbilitySpecHandle Handle,
-        const FGameplayAbilityActorInfo* ActorInfo,
-        const FGameplayAbilityActivationInfo ActivationInfo,
-        const FGameplayEventData* TriggerEventData
-    ) override;
-
-protected:
-    UPROPERTY(
-        EditDefaultsOnly,
-        BlueprintReadOnly,
-        Category = "Healing"
-    )
-    TSubclassOf<UGameplayEffect> MendEffect;
 };
