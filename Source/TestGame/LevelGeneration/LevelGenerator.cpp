@@ -196,6 +196,9 @@ void ALevelGenerator::SpawnGeneratedChunks()
 
     int32 SpawnedCount = 0;
 
+    bFinishedSchedulingChunks = false;
+    bMapReadyBroadcast = false;
+
     for (const FGeneratedChunk& Chunk : GeneratedChunks)
     {
         if (!IsValid(Chunk.Definition))
@@ -281,6 +284,9 @@ void ALevelGenerator::SpawnGeneratedChunks()
         UpdateNavigationBounds();
     }
 
+    bFinishedSchedulingChunks = true;
+    TryBroadcastMapReady();
+
     UE_LOG(
         LogTemp,
         Log,
@@ -326,6 +332,9 @@ void ALevelGenerator::ClearGeneratedChunks()
 
     SpawnedChunkLevels.Reset();
     GeneratedChunks.Reset();
+
+    bFinishedSchedulingChunks = false;
+    bMapReadyBroadcast = false;
 
     UE_LOG(
         LogTemp,
@@ -514,6 +523,8 @@ void ALevelGenerator::HandleChunkLevelShown()
             Instance.GridCoordinate
         );
     }
+
+    TryBroadcastMapReady();
 }
 
 void ALevelGenerator::UpdateNavigationBounds()
@@ -611,3 +622,24 @@ void ALevelGenerator::UpdateNavigationBounds()
     );
 }
 
+void ALevelGenerator::TryBroadcastMapReady()
+{
+    if (!bFinishedSchedulingChunks ||
+        bMapReadyBroadcast ||
+        GeneratedChunkInstances.IsEmpty())
+    {
+        return;
+    }
+
+    for (const FGeneratedChunkInstance& Instance :
+        GeneratedChunkInstances)
+    {
+        if (!Instance.bReadyBroadcast)
+        {
+            return;
+        }
+    }
+
+    bMapReadyBroadcast = true;
+    OnGeneratedMapReady.Broadcast();
+}

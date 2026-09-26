@@ -2,12 +2,13 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "TimerManager.h"
 #include "EncounterManager.generated.h"
 
 class AEnemyCharacter;
 class ALevelGenerator;
-class ULevelChunkDefinition;
-class ULevelStreamingDynamic;
+class UNavigationSystemV1;
+struct FGeneratedChunkInstance;
 
 UCLASS()
 class TESTGAME_API AEncounterManager : public AActor
@@ -25,24 +26,19 @@ protected:
     ) override;
 
 private:
-    void HandleChunkReady(
-        ULevelStreamingDynamic* StreamingLevel,
-        ULevelChunkDefinition* Definition,
-        FIntPoint GridCoordinate
-    );
-
+    void HandleMapReady();
+    void TryPopulateMap();
     void HandleChunksClearing();
 
-    UPROPERTY(
-        EditInstanceOnly,
-        Category = "Encounters"
-    )
+    void SpawnInChunk(
+        const FGeneratedChunkInstance& Chunk,
+        UNavigationSystemV1* NavSystem
+    );
+
+    UPROPERTY(EditInstanceOnly, Category = "Encounters")
     TObjectPtr<ALevelGenerator> LevelGenerator = nullptr;
 
-    UPROPERTY(
-        EditAnywhere,
-        Category = "Encounters"
-    )
+    UPROPERTY(EditAnywhere, Category = "Encounters")
     TSubclassOf<AEnemyCharacter> EnemyClass;
 
     UPROPERTY(
@@ -59,13 +55,29 @@ private:
     )
     int32 MaxEnemiesPerCombatChunk = 3;
 
-    UPROPERTY(
-        EditAnywhere,
-        Category = "Encounters"
-    )
+    UPROPERTY(EditAnywhere, Category = "Encounters")
     int32 EncounterSeed = 4217;
 
+    // Keep spawns away from the edge of a chunk.
+    UPROPERTY(
+        EditAnywhere,
+        Category = "Encounters",
+        meta = (ClampMin = "0.0")
+    )
+    float SpawnInset = 250.0f;
+
+    UPROPERTY(
+        EditAnywhere,
+        Category = "Encounters",
+        meta = (ClampMin = "0.0")
+    )
+    float MinDistanceFromPlayers = 600.0f;
+
     FRandomStream RandomStream;
+    FTimerHandle NavigationRetryTimer;
+
+    int32 NavigationRetryCount = 0;
+    bool bMapPopulated = false;
 
     TArray<TWeakObjectPtr<AEnemyCharacter>> SpawnedEnemies;
 };

@@ -1,19 +1,17 @@
 #include "EncounterManager.h"
 
-
-#include "../Spawners/EnemySpawnMarker.h"
 #include "../LevelGeneration/LevelGenerator.h"
 #include "../LevelGeneration/LevelChunkDefinition.h"
 #include "../Characters/EnemyCharacter.h"
 
-#include "Engine/Level.h"
-#include "Engine/LevelStreamingDynamic.h"
+#include "Components/CapsuleComponent.h"
 #include "Engine/World.h"
+#include "GameFramework/PlayerController.h"
+#include "NavigationSystem.h"
 
 AEncounterManager::AEncounterManager()
 {
     PrimaryActorTick.bCanEverTick = false;
-
     bReplicates = false;
 }
 
@@ -21,16 +19,19 @@ void AEncounterManager::PostInitializeComponents()
 {
     Super::PostInitializeComponents();
 
-    if (!HasAuthority() || !IsValid(LevelGenerator))
+    if (!GetWorld() ||
+        !GetWorld()->IsGameWorld() ||
+        !HasAuthority() ||
+        !IsValid(LevelGenerator))
     {
         return;
     }
 
     RandomStream.Initialize(EncounterSeed);
 
-    LevelGenerator->OnGeneratedChunkReady.AddUObject(
+    LevelGenerator->OnGeneratedMapReady.AddUObject(
         this,
-        &AEncounterManager::HandleChunkReady
+        &AEncounterManager::HandleMapReady
     );
 
     LevelGenerator->OnGeneratedChunksClearing.AddUObject(
@@ -45,78 +46,139 @@ void AEncounterManager::EndPlay(
 {
     if (IsValid(LevelGenerator))
     {
-        LevelGenerator->OnGeneratedChunkReady.RemoveAll(this);
+        LevelGenerator->OnGeneratedMapReady.RemoveAll(this);
         LevelGenerator->OnGeneratedChunksClearing.RemoveAll(this);
     }
 
     HandleChunksClearing();
-
     Super::EndPlay(EndPlayReason);
 }
 
-void AEncounterManager::HandleChunkReady(
-    ULevelStreamingDynamic* StreamingLevel,
-    ULevelChunkDefinition* Definition,
-    FIntPoint GridCoordinate
-)
+void AEncounterManager::HandleMapReady()
 {
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT("[ENCOUNTER] ChunkReady (%d,%d), type=%d, class=%s"),
-        GridCoordinate.X,
-        GridCoordinate.Y,
-        IsValid(Definition)
-        ? static_cast<int32>(Definition->ChunkType)
-        : -1,
-        *GetNameSafe(EnemyClass.Get())
+    if (!HasAuthority() || bMapPopulated)
+    {
+        return;
+    }
+
+    NavigationRetryCount = 0;
+
+    // Streamed geometry and dynamic navigation need some time
+    // after the last chunk becomes visible.
+    GetWorldTimerManager().SetTimer(
+        NavigationRetryTimer,
+        this,
+        &AEncounterManager::TryPopulateMap,
+        0.5f,
+        true
     );
 
+    UE_LOG(
+        LogTemp,
+        Log,
+        TEXT("[ENCOUNTER] Map visible; waiting for navigation.")
+    );
+}
+
+void AEncounterManager::TryPopulateMap()
+{
     if (!HasAuthority() ||
-        !IsValid(StreamingLevel) ||
-        !IsValid(Definition) ||
-        Definition->ChunkType != ELevelChunkType::Combat ||
-        !EnemyClass)
+        !IsValid(LevelGenerator) ||
+        bMapPopulated)
     {
+        GetWorldTimerManager().ClearTimer(NavigationRetryTimer);
         return;
     }
 
-    ULevel* LoadedLevel = StreamingLevel->GetLoadedLevel();
-    UWorld* World = GetWorld();
+    UNavigationSystemV1* NavSystem =
+        FNavigationSystem::GetCurrent<UNavigationSystemV1>(
+            GetWorld()
+        );
 
-    if (!LoadedLevel || !World)
+    if (!NavSystem ||
+        NavSystem->IsNavigationBuildInProgress())
     {
-        return;
-    }
+        ++NavigationRetryCount;
 
-    TArray<AEnemySpawnMarker*> Markers;
-
-    //Search this instance's loaded level, not the whole world.
-    //Multiple WFC cells can use the same tile asset.
-    for (AActor* Actor : LoadedLevel->Actors)
-    {
-        if (AEnemySpawnMarker* Marker =
-            Cast<AEnemySpawnMarker>(Actor))
+        if (NavigationRetryCount >= 80)
         {
-            Markers.Add(Marker);
+            UE_LOG(
+                LogTemp,
+                Error,
+                TEXT(
+                    "[ENCOUNTER] Timed out waiting for "
+                    "navigation to finish building."
+                )
+            );
+
+            GetWorldTimerManager().ClearTimer(
+                NavigationRetryTimer
+            );
+        }
+
+        return;
+    }
+
+    GetWorldTimerManager().ClearTimer(NavigationRetryTimer);
+    bMapPopulated = true;
+
+    for (const FGeneratedChunkInstance& Chunk :
+        LevelGenerator->GetChunkInstances())
+    {
+        if (IsValid(Chunk.Definition) &&
+            Chunk.Definition->ChunkType ==
+            ELevelChunkType::Combat)
+        {
+            SpawnInChunk(Chunk, NavSystem);
         }
     }
+}
 
-    if (Markers.IsEmpty())
+void AEncounterManager::SpawnInChunk(
+    const FGeneratedChunkInstance& Chunk,
+    UNavigationSystemV1* NavSystem
+)
+{
+    if (!EnemyClass || !NavSystem || !GetWorld())
+    {
+        return;
+    }
+
+    const float ChunkSize =
+        LevelGenerator->GetChunkSize();
+
+    const float UsableHalfSize =
+        ChunkSize * 0.5f - SpawnInset;
+
+    if (UsableHalfSize <= 0.0f)
     {
         UE_LOG(
             LogTemp,
-            Warning,
-            TEXT(
-                "[ENCOUNTER] Combat chunk (%d,%d) "
-                "has no spawn markers."
-            ),
-            GridCoordinate.X,
-            GridCoordinate.Y
+            Error,
+            TEXT("[ENCOUNTER] SpawnInset is too large.")
         );
-
         return;
     }
+
+    // Matches the generator's current GridToWorldLocation().
+    const FVector ChunkCenter(
+        Chunk.GridCoordinate.X * ChunkSize,
+        Chunk.GridCoordinate.Y * ChunkSize,
+        0.0f
+    );
+
+    const AEnemyCharacter* EnemyDefaults =
+        EnemyClass->GetDefaultObject<AEnemyCharacter>();
+
+    const UCapsuleComponent* Capsule =
+        EnemyDefaults
+        ? EnemyDefaults->GetCapsuleComponent()
+        : nullptr;
+
+    const float CapsuleHalfHeight =
+        Capsule
+        ? Capsule->GetScaledCapsuleHalfHeight()
+        : 100.0f;
 
     const int32 MinCount =
         FMath::Max(0, MinEnemiesPerCombatChunk);
@@ -128,69 +190,120 @@ void AEncounterManager::HandleChunkReady(
         );
 
     const int32 DesiredCount =
-        RandomStream.RandRange(
-            MinCount,
-            MaxCount
-        );
+        RandomStream.RandRange(MinCount, MaxCount);
 
-    //Fisher-Yates shuffle. Afterward, taking the first N
-    //markers chooses N distinct locations.
-    for (int32 Index = Markers.Num() - 1;
-        Index > 0;
-        --Index)
+    int32 SpawnedCount = 0;
+
+    const int32 MaxAttempts =
+        FMath::Max(20, DesiredCount * 20);
+
+    for (int32 Attempt = 0;
+        Attempt < MaxAttempts &&
+        SpawnedCount < DesiredCount;
+        ++Attempt)
     {
-        const int32 SwapIndex =
-            RandomStream.RandRange(
-                0,
-                Index
-            );
-
-        Markers.Swap(
-            Index,
-            SwapIndex
-        );
-    }
-
-    const int32 AttemptCount =
-        FMath::Min(
-            DesiredCount,
-            Markers.Num()
+        const FVector Candidate(
+            ChunkCenter.X +
+            RandomStream.FRandRange(
+                -UsableHalfSize,
+                UsableHalfSize
+            ),
+            ChunkCenter.Y +
+            RandomStream.FRandRange(
+                -UsableHalfSize,
+                UsableHalfSize
+            ),
+            ChunkCenter.Z
         );
 
-    int32 SuccessfulSpawns = 0;
+        FNavLocation NavPoint;
 
-    for (int32 Index = 0;
-        Index < AttemptCount;
-        ++Index)
-    {
-        AEnemySpawnMarker* Marker = Markers[Index];
-
-        if (!IsValid(Marker))
+        if (!NavSystem->ProjectPointToNavigation(
+            Candidate,
+            NavPoint,
+            FVector(75.0f, 75.0f, 300.0f)
+        ))
         {
             continue;
         }
 
-        FActorSpawnParameters SpawnParameters;
+        const FVector NavPosition =
+            NavPoint.Location;
 
-        SpawnParameters.SpawnCollisionHandlingOverride =
+        // A navigation projection must remain in this chunk.
+        if (FMath::Abs(
+            NavPosition.X - ChunkCenter.X
+        ) > UsableHalfSize ||
+            FMath::Abs(
+                NavPosition.Y - ChunkCenter.Y
+            ) > UsableHalfSize)
+        {
+            continue;
+        }
+
+        bool bNearPlayer = false;
+
+        for (FConstPlayerControllerIterator It =
+            GetWorld()->GetPlayerControllerIterator();
+            It;
+            ++It)
+        {
+            const APlayerController* Controller =
+                It->Get();
+
+            if (Controller &&
+                Controller->GetPawn() &&
+                FVector::Dist2D(
+                    NavPosition,
+                    Controller->GetPawn()->GetActorLocation()
+                ) < MinDistanceFromPlayers)
+            {
+                bNearPlayer = true;
+                break;
+            }
+        }
+
+        if (bNearPlayer)
+        {
+            continue;
+        }
+
+        const FVector SpawnPosition =
+            NavPosition +
+            FVector(
+                0.0f,
+                0.0f,
+                CapsuleHalfHeight + 2.0f
+            );
+
+        const FRotator SpawnRotation(
+            0.0f,
+            RandomStream.FRandRange(
+                -180.0f,
+                180.0f
+            ),
+            0.0f
+        );
+
+        FActorSpawnParameters Params;
+
+        Params.SpawnCollisionHandlingOverride =
             ESpawnActorCollisionHandlingMethod::
             AdjustIfPossibleButDontSpawnIfColliding;
 
         AEnemyCharacter* Enemy =
-            World->SpawnActor<AEnemyCharacter>(
+            GetWorld()->SpawnActor<AEnemyCharacter>(
                 EnemyClass,
-                Marker->GetActorLocation(),
-                Marker->GetActorRotation(),
-                SpawnParameters
+                SpawnPosition,
+                SpawnRotation,
+                Params
             );
 
-        if (!IsValid(Enemy))
+        if (IsValid(Enemy))
         {
-            continue;
+            SpawnedEnemies.Add(Enemy);
+            ++SpawnedCount;
         }
-
-        SpawnedEnemies.Add(Enemy);
-        ++SuccessfulSpawns;
     }
 
     UE_LOG(
@@ -198,30 +311,37 @@ void AEncounterManager::HandleChunkReady(
         Log,
         TEXT(
             "[ENCOUNTER] Combat chunk (%d,%d): "
-            "spawned %d enemies from %d markers."
+            "spawned %d/%d enemies."
         ),
-        GridCoordinate.X,
-        GridCoordinate.Y,
-        SuccessfulSpawns,
-        Markers.Num()
+        Chunk.GridCoordinate.X,
+        Chunk.GridCoordinate.Y,
+        SpawnedCount,
+        DesiredCount
     );
 }
 
 void AEncounterManager::HandleChunksClearing()
 {
-    if (!HasAuthority())
+    if (GetWorld())
     {
-        return;
+        GetWorldTimerManager().ClearTimer(
+            NavigationRetryTimer
+        );
     }
 
-    for (const TWeakObjectPtr<AEnemyCharacter>& Enemy :
-        SpawnedEnemies)
+    if (HasAuthority())
     {
-        if (Enemy.IsValid())
+        for (const TWeakObjectPtr<AEnemyCharacter>& Enemy :
+            SpawnedEnemies)
         {
-            Enemy->Destroy();
+            if (Enemy.IsValid())
+            {
+                Enemy->Destroy();
+            }
         }
     }
 
     SpawnedEnemies.Reset();
+    NavigationRetryCount = 0;
+    bMapPopulated = false;
 }

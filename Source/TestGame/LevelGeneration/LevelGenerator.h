@@ -30,6 +30,7 @@ DECLARE_MULTICAST_DELEGATE_ThreeParams(
     FIntPoint
 );
 
+DECLARE_MULTICAST_DELEGATE(FOnGeneratedMapReady);
 DECLARE_MULTICAST_DELEGATE(FOnGeneratedChunksClearing);
 
 USTRUCT()
@@ -67,6 +68,18 @@ public:
 
     FOnGeneratedChunkReady OnGeneratedChunkReady;
     FOnGeneratedChunksClearing OnGeneratedChunksClearing;
+
+    FOnGeneratedMapReady OnGeneratedMapReady;
+
+    const TArray<FGeneratedChunkInstance>& GetChunkInstances() const
+    {
+        return GeneratedChunkInstances;
+    }
+
+    float GetChunkSize() const
+    {
+        return ChunkSize;
+    }
 
 protected:
     virtual void BeginPlay() override;
@@ -152,4 +165,9 @@ private:
         Category = "Level Generation|Navigation"
     )
     float NavigationCenterZ = 100.0f;
+
+    void TryBroadcastMapReady();
+
+    bool bFinishedSchedulingChunks = false;
+    bool bMapReadyBroadcast = false;
 };
