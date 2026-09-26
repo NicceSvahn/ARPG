@@ -1,6 +1,7 @@
 #include "GA_ProjectileAbility.h"
 
 #include "AbilitySystemComponent.h"
+#include "AbilitySystemBlueprintLibrary.h"
 #include "GameplayEffect.h"
 
 #include "../../../Characters/GenericCharacter.h"
@@ -206,7 +207,7 @@ FGameplayEffectSpecHandle
 UGA_ProjectileAbility::CreateProjectileDamageSpec(
     UTestGameAbilitySystemComponent* ASC,
     AGenericCharacter* Character,
-    float Damage
+    const FAbilityDamageData& InDamageData
 ) const
 {
     if (!ASC ||
@@ -216,36 +217,11 @@ UGA_ProjectileAbility::CreateProjectileDamageSpec(
         return FGameplayEffectSpecHandle();
     }
 
-    FGameplayEffectContextHandle EffectContext =
-        ASC->MakeEffectContext();
-
-    EffectContext.AddSourceObject(
-        Character
+    return CreateDamageSpec(
+        ASC,
+        DamageEffect,
+        InDamageData
     );
-
-    FGameplayEffectSpecHandle DamageSpec =
-        ASC->MakeOutgoingSpec(
-            DamageEffect,
-            GetAbilityLevel(),
-            EffectContext
-        );
-
-    if (!DamageSpec.IsValid())
-    {
-        return FGameplayEffectSpecHandle();
-    }
-
-    const FGameplayTag DamageTag =
-        FGameplayTag::RequestGameplayTag(
-            TEXT("Data.Damage")
-        );
-
-    DamageSpec.Data->SetSetByCallerMagnitude(
-        DamageTag,
-        Damage
-    );
-
-    return DamageSpec;
 }
 
 AGenericProjectile*

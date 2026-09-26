@@ -13,18 +13,22 @@ class TESTGAME_API UGA_Fireball : public UGA_ProjectileAbility
 {
 	GENERATED_BODY()
 
+public:
+    UGA_Fireball();
+
 protected:
     UPROPERTY(EditDefaultsOnly, Category = "Fireball")
     TObjectPtr<UAnimMontage> CastMontage;
 
-    UPROPERTY(EditDefaultsOnly, Category = "Fireball")
-    float FireballDamage = -25.0f;
-
     UPROPERTY(EditDefaultsOnly, Category = "Fireball|Burn")
     TSubclassOf<UGameplayEffect> BurnEffect;
 
-    UPROPERTY(EditDefaultsOnly, Category = "Fireball|Burn")
-    float BurnDamage = -2.0f;
+    UPROPERTY(
+        EditDefaultsOnly,
+        BlueprintReadOnly,
+        Category = "Fireball|Burn"
+    )
+    FAbilityDamageData BurnDamageData;
 
     virtual void SpawnProjectiles(
         const FProjectileAbilityContext& ProjectileContext

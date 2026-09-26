@@ -15,6 +15,11 @@ UGA_FrostNova::UGA_FrostNova()
         EGameplayAbilityInstancingPolicy::InstancedPerActor;
 
     AffectedCharacterClass = AEnemyCharacter::StaticClass();
+
+    DamageData.BaseDamage = 15.0f;
+    DamageData.IntellectCoefficient = 0.25f;
+    DamageData.SpellPowerCoefficient = 0.50f;
+    DamageData.DamageType = EAbilityDamageType::Magic;
 }
 
 void UGA_FrostNova::ActivateAbility(
@@ -131,20 +136,17 @@ void UGA_FrostNova::ApplyFrostNovaGameplay(
             continue;
         }
 
-        ApplyEffectToTarget(
-            SourceASC,
-            TargetASC,
+        ApplyDamageToTarget(
+            Target,
             DamageEffect,
-            0.0f,
-            true
+            DamageData
         );
 
         ApplyEffectToTarget(
             SourceASC,
             TargetASC,
             FreezeEffect,
-            FreezeDuration,
-            false
+            FreezeDuration
         );
     }
 }
@@ -153,8 +155,7 @@ bool UGA_FrostNova::ApplyEffectToTarget(
     UAbilitySystemComponent* SourceASC,
     UAbilitySystemComponent* TargetASC,
     TSubclassOf<UGameplayEffect> EffectClass,
-    const float DurationOverride,
-    const bool bSetDamageMagnitude)
+    const float DurationOverride)
 {
     if (!SourceASC || !TargetASC || !EffectClass)
     {
@@ -183,19 +184,6 @@ bool UGA_FrostNova::ApplyEffectToTarget(
         EffectSpec.Data->SetDuration(
             DurationOverride,
             true
-        );
-    }
-
-    if (bSetDamageMagnitude)
-    {
-        const FGameplayTag DamageDataTag =
-            FGameplayTag::RequestGameplayTag(
-                FName(TEXT("Data.Damage"))
-            );
-
-        EffectSpec.Data->SetSetByCallerMagnitude(
-            DamageDataTag,
-            -FMath::Abs(NovaDamage)
         );
     }
 

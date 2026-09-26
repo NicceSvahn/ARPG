@@ -62,6 +62,17 @@ void UOffensiveAttributeSet::OnRep_SpellPower(
     );
 }
 
+
+void UOffensiveAttributeSet::OnRep_WeaponDamage(
+    const FGameplayAttributeData& OldWeaponDamage)
+{
+    GAMEPLAYATTRIBUTE_REPNOTIFY(
+        UOffensiveAttributeSet,
+        WeaponDamage,
+        OldWeaponDamage
+    );
+}
+
 void UOffensiveAttributeSet::OnRep_PhysicalDamage(
     const FGameplayAttributeData& OldPhysicalDamage)
 {
@@ -125,6 +136,14 @@ void UOffensiveAttributeSet::GetLifetimeReplicatedProps(
     DOREPLIFETIME_CONDITION_NOTIFY(
         UOffensiveAttributeSet,
         SpellPower,
+        COND_None,
+        REPNOTIFY_Always
+    );
+
+
+    DOREPLIFETIME_CONDITION_NOTIFY(
+        UOffensiveAttributeSet,
+        WeaponDamage,
         COND_None,
         REPNOTIFY_Always
     );

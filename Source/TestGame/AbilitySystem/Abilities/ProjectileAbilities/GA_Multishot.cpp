@@ -1,5 +1,13 @@
 #include "GA_Multishot.h"
 
+UGA_Multishot::UGA_Multishot()
+{
+    DamageData.BaseDamage = 15.0f;
+    DamageData.WeaponDamageCoefficient = 0.75f;
+    DamageData.DexterityCoefficient = 0.35f;
+    DamageData.DamageType = EAbilityDamageType::Physical;
+}
+
 void UGA_Multishot::SpawnProjectiles(
     const FProjectileAbilityContext& ProjectileContext)
 {
@@ -33,7 +41,7 @@ void UGA_Multishot::SpawnProjectiles(
             CreateProjectileDamageSpec(
                 ProjectileContext.ASC,
                 ProjectileContext.Character,
-                MultishotDamage
+                DamageData
             );
 
         if (!DamageSpec.IsValid())

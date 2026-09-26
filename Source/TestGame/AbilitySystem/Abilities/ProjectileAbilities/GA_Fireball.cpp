@@ -3,14 +3,27 @@
 #include "../../TestGameAbilitySystemComponent.h"
 #include "../../../Characters/GenericCharacter.h"
 
+UGA_Fireball::UGA_Fireball()
+{
+    DamageData.BaseDamage = 25.0f;
+    DamageData.IntellectCoefficient = 0.30f;
+    DamageData.SpellPowerCoefficient = 0.80f;
+    DamageData.DamageType = EAbilityDamageType::Magic;
+
+    BurnDamageData.BaseDamage = 2.0f;
+    BurnDamageData.IntellectCoefficient = 0.05f;
+    BurnDamageData.SpellPowerCoefficient = 0.10f;
+    BurnDamageData.DamageType = EAbilityDamageType::Magic;
+}
+
 void UGA_Fireball::SpawnProjectiles(
     const FProjectileAbilityContext& ProjectileContext)
 {
     const FGameplayEffectSpecHandle DamageSpec =
-        CreateDamageSpec(
+        CreateProjectileDamageSpec(
             ProjectileContext.ASC,
-            DamageEffect,
-            FireballDamage
+            ProjectileContext.Character,
+            DamageData
         );
 
     if (!DamageSpec.IsValid())
@@ -22,32 +35,11 @@ void UGA_Fireball::SpawnProjectiles(
 
     if (BurnEffect)
     {
-        FGameplayEffectContextHandle BurnContext =
-            ProjectileContext.ASC->MakeEffectContext();
-
-        BurnContext.AddSourceObject(
-            ProjectileContext.Character
+        BurnSpec = CreateDamageSpec(
+            ProjectileContext.ASC,
+            BurnEffect,
+            BurnDamageData
         );
-
-        BurnSpec =
-            ProjectileContext.ASC->MakeOutgoingSpec(
-                BurnEffect,
-                GetAbilityLevel(),
-                BurnContext
-            );
-
-        if (BurnSpec.IsValid())
-        {
-            const FGameplayTag DamageTag =
-                FGameplayTag::RequestGameplayTag(
-                    TEXT("Data.Damage")
-                );
-
-            BurnSpec.Data->SetSetByCallerMagnitude(
-                DamageTag,
-                BurnDamage
-            );
-        }
     }
 
     SpawnProjectile(

@@ -42,13 +42,6 @@ protected:
         BlueprintReadOnly,
         Category = "Ability|Melee"
     )
-    float MeleeDamage = -20.0f;
-
-    UPROPERTY(
-        EditDefaultsOnly,
-        BlueprintReadOnly,
-        Category = "Ability|Melee"
-    )
     TSubclassOf<UGameplayEffect> DamageEffect;
 
     UPROPERTY(
@@ -70,7 +63,7 @@ protected:
 
     /**
      * Override this when a melee ability needs custom hit behavior.
-     * The default implementation applies MeleeDamage through DamageEffect.
+     * The default implementation applies inherited DamageData through DamageEffect.
      */
     virtual void OnMeleeHit(AActor* TargetActor);
 

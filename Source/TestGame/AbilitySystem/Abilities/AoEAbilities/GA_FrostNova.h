@@ -38,14 +38,6 @@ protected:
         EditDefaultsOnly,
         BlueprintReadOnly,
         Category = "Frost Nova",
-        meta = (ClampMin = "0.0")
-    )
-    float NovaDamage = 15.0f;
-
-    UPROPERTY(
-        EditDefaultsOnly,
-        BlueprintReadOnly,
-        Category = "Frost Nova",
         meta = (ClampMin = "0.0", Units = "s")
     )
     float FreezeDuration = 3.0f;
@@ -99,7 +91,6 @@ private:
         UAbilitySystemComponent* SourceASC,
         UAbilitySystemComponent* TargetASC,
         TSubclassOf<UGameplayEffect> EffectClass,
-        float DurationOverride,
-        bool bSetDamageMagnitude
+        float DurationOverride
     );
 };

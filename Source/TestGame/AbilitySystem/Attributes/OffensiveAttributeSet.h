@@ -69,6 +69,16 @@ public:
 
     PLAY_ATTRIBUTE_ACCESSORS(UOffensiveAttributeSet, SpellPower);
 
+
+    UPROPERTY(
+        BlueprintReadOnly,
+        ReplicatedUsing = OnRep_WeaponDamage,
+        Category = "Attributes|Offensive"
+    )
+    FGameplayAttributeData WeaponDamage;
+
+    PLAY_ATTRIBUTE_ACCESSORS(UOffensiveAttributeSet, WeaponDamage);
+
     UPROPERTY(
         BlueprintReadOnly,
         ReplicatedUsing = OnRep_PhysicalDamage,
@@ -116,6 +126,11 @@ protected:
     UFUNCTION()
     void OnRep_SpellPower(
         const FGameplayAttributeData& OldSpellPower
+    );
+
+    UFUNCTION()
+    void OnRep_WeaponDamage(
+        const FGameplayAttributeData& OldWeaponDamage
     );
 
     UFUNCTION()

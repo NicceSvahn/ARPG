@@ -1,10 +1,12 @@
 #include "GA_GenericMelee.h"
 
 #include "../../../Characters/GenericCharacter.h"
+#include "../../Damage/GE_Damage.h"
 
 UGA_GenericMelee::UGA_GenericMelee()
 {
     bRequiresTargetData = true;
+    DamageEffect = UGE_Damage::StaticClass();
 }
 
 AActor* UGA_GenericMelee::ExtractTargetActor(
@@ -133,6 +135,6 @@ void UGA_GenericMelee::OnMeleeHit(
     ApplyDamageToTarget(
         TargetActor,
         DamageEffect,
-        MeleeDamage
+        DamageData
     );
 }

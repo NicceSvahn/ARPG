@@ -13,51 +13,63 @@ bool UHealthAttributeSet::PreGameplayEffectExecute(
             FName(TEXT("State.Dead"))
         );
 
-    if (Data.EvaluatedData.Attribute ==
-        GetHealthAttribute() &&
+    const bool bIsHealthChange =
+        Data.EvaluatedData.Attribute == GetHealthAttribute();
+
+    const bool bIsIncomingDamage =
+        Data.EvaluatedData.Attribute == GetIncomingDamageAttribute();
+
+    if ((bIsHealthChange || bIsIncomingDamage) &&
         ASC &&
         ASC->HasMatchingGameplayTag(DeadTag))
     {
         return false;
     }
 
-    return Super::PreGameplayEffectExecute(
-        Data
-    );
+    return Super::PreGameplayEffectExecute(Data);
 }
 
 void UHealthAttributeSet::PostGameplayEffectExecute(
     const FGameplayEffectModCallbackData& Data)
 {
-
-    if (Data.EvaluatedData.Attribute == GetHealthAttribute())
+    if (Data.EvaluatedData.Attribute == GetIncomingDamageAttribute())
     {
-        const AGenericCharacter* Character =
-            Cast<AGenericCharacter>(GetOwningActor());
+        const float Damage = FMath::Max(GetIncomingDamage(), 0.0f);
+        SetIncomingDamage(0.0f);
 
-        float MaximumHealth =
-            TNumericLimits<float>::Max();
-
-        if (Character)
+        if (Damage > 0.0f)
         {
-            MaximumHealth =
-                Character->GetMaxHealth();
-        }
-
-        const float CurrentHealth =
-            GetHealth();
-
-        //This forces the value to be between 0 and max health
-        const float ClampedHealth =
-            FMath::Clamp(
-                CurrentHealth,
+            const float OldHealth = GetHealth();
+            const float NewHealth = FMath::Clamp(
+                OldHealth - Damage,
                 0.0f,
-                MaximumHealth);
+                GetMaxHealth()
+            );
 
+            SetHealth(NewHealth);
+
+            // Your GenericCharacter listens to UGenericAttributeSet::OnAttributeChanged
+            // rather than the ASC's native attribute delegate. Because Health is changed
+            // here as a consequence of IncomingDamage, broadcast the Health change
+            // explicitly so death, hit reactions, damage numbers, etc. keep working.
+            OnAttributeChanged.Broadcast(
+                GetHealthAttribute(),
+                NewHealth - OldHealth,
+                NewHealth
+            );
+        }
+    }
+    else if (Data.EvaluatedData.Attribute == GetHealthAttribute())
+    {
+        const float ClampedHealth = FMath::Clamp(
+            GetHealth(),
+            0.0f,
+            GetMaxHealth()
+        );
 
         SetHealth(ClampedHealth);
-        
     }
+
     Super::PostGameplayEffectExecute(Data);
 }
 
