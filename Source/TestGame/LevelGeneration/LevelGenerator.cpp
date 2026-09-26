@@ -1,7 +1,11 @@
 #include "LevelGenerator.h"
 
 #include "Engine/LevelStreamingDynamic.h"
+#include "Engine/LevelStreaming.h"
 #include "WFC/WFCLevelSolver.h"
+#include "NavMesh/NavMeshBoundsVolume.h"
+#include "NavigationSystem.h"
+#include "Components/BrushComponent.h"
 
 ALevelGenerator::ALevelGenerator()
 {
@@ -192,6 +196,9 @@ void ALevelGenerator::SpawnGeneratedChunks()
 
     int32 SpawnedCount = 0;
 
+    bFinishedSchedulingChunks = false;
+    bMapReadyBroadcast = false;
+
     for (const FGeneratedChunk& Chunk : GeneratedChunks)
     {
         if (!IsValid(Chunk.Definition))
@@ -253,9 +260,32 @@ void ALevelGenerator::SpawnGeneratedChunks()
             continue;
         }
 
+        FGeneratedChunkInstance& Instance =
+            GeneratedChunkInstances.AddDefaulted_GetRef();
+
+        Instance.StreamingLevel = StreamingLevel;
+        Instance.Definition = Chunk.Definition;
+        Instance.GridCoordinate = Chunk.GridCoordinate;
+
+        StreamingLevel->OnLevelShown.AddDynamic(
+            this,
+            &ALevelGenerator::HandleChunkLevelShown
+        );
+
         SpawnedChunkLevels.Add(StreamingLevel);
         ++SpawnedCount;
+
+        // Also handles an instance that became visible before binding.
+        HandleChunkLevelShown();
     }
+
+    if (SpawnedCount > 0)
+    {
+        UpdateNavigationBounds();
+    }
+
+    bFinishedSchedulingChunks = true;
+    TryBroadcastMapReady();
 
     UE_LOG(
         LogTemp,
@@ -270,6 +300,22 @@ void ALevelGenerator::SpawnGeneratedChunks()
 
 void ALevelGenerator::ClearGeneratedChunks()
 {
+    OnGeneratedChunksClearing.Broadcast();
+
+    for (FGeneratedChunkInstance& Instance :
+        GeneratedChunkInstances)
+    {
+        if (IsValid(Instance.StreamingLevel))
+        {
+            Instance.StreamingLevel->OnLevelShown.RemoveDynamic(
+                this,
+                &ALevelGenerator::HandleChunkLevelShown
+            );
+        }
+    }
+
+    GeneratedChunkInstances.Reset();
+
     for (ULevelStreamingDynamic* StreamingLevel : SpawnedChunkLevels)
     {
         if (!IsValid(StreamingLevel))
@@ -286,6 +332,9 @@ void ALevelGenerator::ClearGeneratedChunks()
 
     SpawnedChunkLevels.Reset();
     GeneratedChunks.Reset();
+
+    bFinishedSchedulingChunks = false;
+    bMapReadyBroadcast = false;
 
     UE_LOG(
         LogTemp,
@@ -448,4 +497,149 @@ bool ALevelGenerator::ValidateGeneratedChunks() const
     }
 
     return true;
+}
+
+void ALevelGenerator::HandleChunkLevelShown()
+{
+    for (FGeneratedChunkInstance& Instance :
+        GeneratedChunkInstances)
+    {
+        if (Instance.bReadyBroadcast ||
+            !IsValid(Instance.StreamingLevel) ||
+            !IsValid(Instance.Definition) ||
+            !Instance.StreamingLevel->IsLevelVisible() ||
+            !Instance.StreamingLevel->GetLoadedLevel())
+        {
+            continue;
+        }
+
+        // Set this before broadcasting so listeners cannot cause
+        // this instance to be announced twice.
+        Instance.bReadyBroadcast = true;
+
+        OnGeneratedChunkReady.Broadcast(
+            Instance.StreamingLevel,
+            Instance.Definition,
+            Instance.GridCoordinate
+        );
+    }
+
+    TryBroadcastMapReady();
+}
+
+void ALevelGenerator::UpdateNavigationBounds()
+{
+    if (!GetWorld() ||
+        !GetWorld()->IsGameWorld() ||
+        !HasAuthority() ||
+        !IsValid(NavigationBoundsVolume))
+    {
+        return;
+    }
+
+    UBrushComponent* Brush =
+        NavigationBoundsVolume->GetBrushComponent();
+
+    if (!Brush)
+    {
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT("[WFC NAV] Navigation volume has no brush.")
+        );
+        return;
+    }
+
+    /*
+     * Read the brush's size in its local, unscaled space.
+     * The volume should have zero rotation.
+     */
+    const FVector LocalBrushSize =
+        Brush->CalcBounds(FTransform::Identity).BoxExtent * 2.0;
+
+    if (LocalBrushSize.X <= 0.0 ||
+        LocalBrushSize.Y <= 0.0 ||
+        LocalBrushSize.Z <= 0.0)
+    {
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT("[WFC NAV] Navigation volume brush has invalid size.")
+        );
+        return;
+    }
+
+    /*
+     * GridToWorldLocation() currently places tile origins at:
+     * (0,0), (ChunkSize,0), (0,ChunkSize), ...
+     *
+     * This assumes a tile extends roughly half a ChunkSize
+     * in each direction around its origin.
+     */
+    const float NavWidth =
+        GridWidth * ChunkSize + 2.0f * NavigationMargin;
+
+    const float NavDepth =
+        GridHeight * ChunkSize + 2.0f * NavigationMargin;
+
+    const FVector NewCenter(
+        (GridWidth - 1) * ChunkSize * 0.5f,
+        (GridHeight - 1) * ChunkSize * 0.5f,
+        NavigationCenterZ
+    );
+
+    const FVector NewScale(
+        NavWidth / LocalBrushSize.X,
+        NavDepth / LocalBrushSize.Y,
+        NavigationHeight / LocalBrushSize.Z
+    );
+
+    NavigationBoundsVolume->SetActorLocation(NewCenter);
+    NavigationBoundsVolume->SetActorScale3D(NewScale);
+
+    UNavigationSystemV1* NavSystem =
+        FNavigationSystem::GetCurrent<UNavigationSystemV1>(
+            GetWorld()
+        );
+
+    if (NavSystem)
+    {
+        NavSystem->OnNavigationBoundsUpdated(
+            NavigationBoundsVolume
+        );
+    }
+
+    UE_LOG(
+        LogTemp,
+        Log,
+        TEXT(
+            "[WFC NAV] Bounds center=%s size=(%.0f, %.0f, %.0f)"
+        ),
+        *NewCenter.ToString(),
+        NavWidth,
+        NavDepth,
+        NavigationHeight
+    );
+}
+
+void ALevelGenerator::TryBroadcastMapReady()
+{
+    if (!bFinishedSchedulingChunks ||
+        bMapReadyBroadcast ||
+        GeneratedChunkInstances.IsEmpty())
+    {
+        return;
+    }
+
+    for (const FGeneratedChunkInstance& Instance :
+        GeneratedChunkInstances)
+    {
+        if (!Instance.bReadyBroadcast)
+        {
+            return;
+        }
+    }
+
+    bMapReadyBroadcast = true;
+    OnGeneratedMapReady.Broadcast();
 }
