@@ -47,6 +47,18 @@ public:
         MaxHealth
     );
 
+    UPROPERTY(
+        BlueprintReadOnly,
+        ReplicatedUsing = OnRep_LifeRegeneration,
+        Category = "Attributes"
+    )
+    FGameplayAttributeData LifeRegeneration;
+
+    PLAY_ATTRIBUTE_ACCESSORS(
+        UHealthAttributeSet,
+        LifeRegeneration
+    );
+
 protected:
     UFUNCTION()
     void OnRep_Health(
@@ -56,5 +68,10 @@ protected:
     UFUNCTION()
     void OnRep_MaxHealth(
         const FGameplayAttributeData& OldMaxHealth
+    );
+
+    UFUNCTION()
+    void OnRep_LifeRegeneration(
+        const FGameplayAttributeData& OldLifeRegeneration
     );
 };

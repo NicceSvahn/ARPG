@@ -81,6 +81,16 @@ void UHealthAttributeSet::OnRep_MaxHealth(
     );
 }
 
+void UHealthAttributeSet::OnRep_LifeRegeneration(
+    const FGameplayAttributeData& OldLifeRegeneration)
+{
+    GAMEPLAYATTRIBUTE_REPNOTIFY(
+        UHealthAttributeSet,
+        LifeRegeneration,
+        OldLifeRegeneration
+    );
+}
+
 void UHealthAttributeSet::GetLifetimeReplicatedProps(
     TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
@@ -98,6 +108,13 @@ void UHealthAttributeSet::GetLifetimeReplicatedProps(
     DOREPLIFETIME_CONDITION_NOTIFY(
         UHealthAttributeSet,
         MaxHealth,
+        COND_None,
+        REPNOTIFY_Always
+    );
+
+    DOREPLIFETIME_CONDITION_NOTIFY(
+        UHealthAttributeSet,
+        LifeRegeneration,
         COND_None,
         REPNOTIFY_Always
     );
