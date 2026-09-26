@@ -309,6 +309,11 @@ void AEncounterManager::SpawnInChunk(
 
         if (IsValid(Enemy))
         {
+
+            #if WITH_EDITOR
+                Enemy->SetFolderPath(FName(TEXT("Enemies")));
+            #endif
+
             SpawnedEnemies.Add(Enemy);
             ++SpawnedCount;
         }
