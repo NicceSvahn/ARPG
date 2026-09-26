@@ -102,6 +102,11 @@ void AEnemyCharacter::BeginPlay()
                 this,
                 &AEnemyCharacter::HandleMaxHealthChanged
             );
+
+        if (bIsElite)
+        {
+            AGenericCharacter::ApplyAttributeEffect(EliteModifierEffect);
+        }
     }
 
     if (HealthAttributeSet)

@@ -282,6 +282,7 @@ void UExecCalc_Damage::Execute_Implementation(
         return;
     }
 
+    /*
     UE_LOG(
         LogTemp,
         Warning,
@@ -300,6 +301,7 @@ void UExecCalc_Damage::Execute_Implementation(
         MitigationPercent * 100.0f,
         DamageAfterMitigation
     );
+    */
 
     OutExecutionOutput.AddOutputModifier(
         FGameplayModifierEvaluatedData(
