@@ -139,7 +139,7 @@ void AEncounterManager::SpawnInChunk(
     UNavigationSystemV1* NavSystem
 )
 {
-    if (!EnemyClass || !NavSystem || !GetWorld())
+    if (EnemyTypes.IsEmpty() || !NavSystem || !GetWorld())
     {
         return;
     }
@@ -166,19 +166,6 @@ void AEncounterManager::SpawnInChunk(
         Chunk.GridCoordinate.Y * ChunkSize,
         0.0f
     );
-
-    const AEnemyCharacter* EnemyDefaults =
-        EnemyClass->GetDefaultObject<AEnemyCharacter>();
-
-    const UCapsuleComponent* Capsule =
-        EnemyDefaults
-        ? EnemyDefaults->GetCapsuleComponent()
-        : nullptr;
-
-    const float CapsuleHalfHeight =
-        Capsule
-        ? Capsule->GetScaledCapsuleHalfHeight()
-        : 100.0f;
 
     const int32 MinCount =
         FMath::Max(0, MinEnemiesPerCombatChunk);
@@ -268,6 +255,27 @@ void AEncounterManager::SpawnInChunk(
             continue;
         }
 
+        TSubclassOf<AEnemyCharacter> SelectedClass =
+            ChooseEnemyClass();
+
+        if (!SelectedClass)
+        {
+            break;
+        }
+
+        const AEnemyCharacter* EnemyDefaults =
+            SelectedClass->GetDefaultObject<AEnemyCharacter>();
+
+        const UCapsuleComponent* Capsule =
+            EnemyDefaults
+            ? EnemyDefaults->GetCapsuleComponent()
+            : nullptr;
+
+        const float CapsuleHalfHeight =
+            Capsule
+            ? Capsule->GetScaledCapsuleHalfHeight()
+            : 100.0f;
+
         const FVector SpawnPosition =
             NavPosition +
             FVector(
@@ -293,7 +301,7 @@ void AEncounterManager::SpawnInChunk(
 
         AEnemyCharacter* Enemy =
             GetWorld()->SpawnActor<AEnemyCharacter>(
-                EnemyClass,
+                SelectedClass,
                 SpawnPosition,
                 SpawnRotation,
                 Params
@@ -344,4 +352,55 @@ void AEncounterManager::HandleChunksClearing()
     SpawnedEnemies.Reset();
     NavigationRetryCount = 0;
     bMapPopulated = false;
+}
+
+TSubclassOf<AEnemyCharacter>
+AEncounterManager::ChooseEnemyClass()
+{
+    float TotalWeight = 0.0f;
+
+    for (const FRandomEnemyEntry& Entry : EnemyTypes)
+    {
+        if (Entry.EnemyClass && Entry.Weight > 0.0f)
+        {
+            TotalWeight += Entry.Weight;
+        }
+    }
+
+    if (TotalWeight <= 0.0f)
+    {
+        return nullptr;
+    }
+
+    float Roll =
+        RandomStream.FRand() * TotalWeight;
+
+    for (const FRandomEnemyEntry& Entry : EnemyTypes)
+    {
+        if (!Entry.EnemyClass || Entry.Weight <= 0.0f)
+        {
+            continue;
+        }
+
+        Roll -= Entry.Weight;
+
+        if (Roll <= 0.0f)
+        {
+            return Entry.EnemyClass;
+        }
+    }
+
+    // Handles a possible floating-point rounding edge case.
+    for (int32 Index = EnemyTypes.Num() - 1;
+        Index >= 0;
+        --Index)
+    {
+        if (EnemyTypes[Index].EnemyClass &&
+            EnemyTypes[Index].Weight > 0.0f)
+        {
+            return EnemyTypes[Index].EnemyClass;
+        }
+    }
+
+    return nullptr;
 }

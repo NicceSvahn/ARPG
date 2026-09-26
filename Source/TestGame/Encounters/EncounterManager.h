@@ -10,6 +10,22 @@ class ALevelGenerator;
 class UNavigationSystemV1;
 struct FGeneratedChunkInstance;
 
+USTRUCT(BlueprintType)
+struct FRandomEnemyEntry
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    TSubclassOf<AEnemyCharacter> EnemyClass;
+
+    UPROPERTY(
+        EditAnywhere,
+        BlueprintReadOnly,
+        meta = (ClampMin = "0.0")
+    )
+    float Weight = 1.0f;
+};
+
 UCLASS()
 class TESTGAME_API AEncounterManager : public AActor
 {
@@ -39,7 +55,7 @@ private:
     TObjectPtr<ALevelGenerator> LevelGenerator = nullptr;
 
     UPROPERTY(EditAnywhere, Category = "Encounters")
-    TSubclassOf<AEnemyCharacter> EnemyClass;
+    TArray<FRandomEnemyEntry> EnemyTypes;
 
     UPROPERTY(
         EditAnywhere,
@@ -80,4 +96,6 @@ private:
     bool bMapPopulated = false;
 
     TArray<TWeakObjectPtr<AEnemyCharacter>> SpawnedEnemies;
+
+    TSubclassOf<AEnemyCharacter> ChooseEnemyClass();
 };
