@@ -303,6 +303,15 @@ void UExecCalc_Damage::Execute_Implementation(
     );
     */
 
+    UE_LOG(
+        LogTemp,
+        Warning,
+        TEXT("DamageCalc | PhysBonus=%.2f | MagicBonus=%.2f | Result=%.2f"),
+        PhysicalDamageBonus,
+        MagicDamageBonus,
+        DamageAfterMitigation
+    );
+
     OutExecutionOutput.AddOutputModifier(
         FGameplayModifierEvaluatedData(
             UHealthAttributeSet::GetIncomingDamageAttribute(),
