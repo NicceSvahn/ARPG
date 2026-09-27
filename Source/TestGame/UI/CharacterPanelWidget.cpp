@@ -2,6 +2,8 @@
 
 #include "AbilitySystemComponent.h"
 #include "Components/TextBlock.h"
+#include "Components/Button.h"
+#include "Components/WidgetSwitcher.h"
 
 #include "../AbilitySystem/Attributes/PrimaryAttributeSet.h"
 #include "../AbilitySystem/Attributes/OffensiveAttributeSet.h"
@@ -592,5 +594,84 @@ void UCharacterPanelWidget::RefreshAllStats()
                 )
             )
         );
+    }
+}
+
+void UCharacterPanelWidget::NativeConstruct()
+{
+    Super::NativeConstruct();
+
+    if (DetailsButton)
+    {
+        DetailsButton->OnClicked.AddUniqueDynamic(
+            this,
+            &UCharacterPanelWidget::HandleDetailsClicked
+        );
+    }
+
+    if (CharacterPageSwitcher)
+    {
+        CharacterPageSwitcher->SetActiveWidgetIndex(0);
+    }
+
+    if (DetailsButtonText)
+    {
+        DetailsButtonText->SetText(
+            NSLOCTEXT(
+                "CharacterPanel",
+                "ShowDetails",
+                "Details"
+            )
+        );
+    }
+}
+
+void UCharacterPanelWidget::NativeDestruct()
+{
+    if (DetailsButton)
+    {
+        DetailsButton->OnClicked.RemoveDynamic(
+            this,
+            &UCharacterPanelWidget::HandleDetailsClicked
+        );
+    }
+
+    Super::NativeDestruct();
+}
+
+void UCharacterPanelWidget::HandleDetailsClicked()
+{
+    if (!CharacterPageSwitcher)
+    {
+        return;
+    }
+
+    const bool bShowDetails =
+        CharacterPageSwitcher->GetActiveWidgetIndex() != 1;
+
+    CharacterPageSwitcher->SetActiveWidgetIndex(
+        bShowDetails ? 1 : 0
+    );
+
+    if (DetailsButtonText)
+    {
+        DetailsButtonText->SetText(
+            bShowDetails
+            ? NSLOCTEXT(
+                "CharacterPanel",
+                "ShowEquipment",
+                "Equipment"
+            )
+            : NSLOCTEXT(
+                "CharacterPanel",
+                "ShowDetails",
+                "Details"
+            )
+        );
+    }
+
+    if (bShowDetails)
+    {
+        RefreshAllStats();
     }
 }
