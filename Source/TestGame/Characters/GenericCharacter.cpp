@@ -61,6 +61,7 @@ AGenericCharacter::AGenericCharacter()
 			TEXT("MovementSpeedAttributeSet")
 		);
 }
+
 void AGenericCharacter::BeginPlay()
 {
 	Super::BeginPlay();
