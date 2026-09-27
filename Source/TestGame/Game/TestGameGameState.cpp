@@ -22,6 +22,11 @@ void ATestGameGameState::GetLifetimeReplicatedProps(
         ATestGameGameState,
         CurrentEncounterIndex
     );
+
+    DOREPLIFETIME(
+        ATestGameGameState,
+        EnemyKillProgress
+    );
 }
 
 void ATestGameGameState::SetLevelState(
@@ -86,4 +91,57 @@ OnRep_CurrentEncounterIndex()
     OnEncounterIndexChanged.Broadcast(
         CurrentEncounterIndex
     );
+}
+
+void ATestGameGameState::SetEnemyKillProgress(
+    int32 Total,
+    int32 Dead
+)
+{
+    if (!HasAuthority())
+    {
+        return;
+    }
+
+    EnemyKillProgress.Total =
+        FMath::Max(0, Total);
+
+    EnemyKillProgress.Dead =
+        FMath::Clamp(
+            Dead,
+            0,
+            EnemyKillProgress.Total
+        );
+
+    OnEnemyKillProgressChanged.Broadcast();
+}
+
+int32 ATestGameGameState::GetRequiredEnemyKills() const
+{
+    return FMath::CeilToInt(
+        EnemyKillProgress.Total * 0.8f
+    );
+}
+
+float ATestGameGameState::GetEnemyProgressToGoal() const
+{
+    const int32 Required =
+        GetRequiredEnemyKills();
+
+    if (Required <= 0)
+    {
+        return 0.0f;
+    }
+
+    return FMath::Clamp(
+        static_cast<float>(EnemyKillProgress.Dead) /
+        Required,
+        0.0f,
+        1.0f
+    );
+}
+
+void ATestGameGameState::OnRep_EnemyKillProgress()
+{
+    OnEnemyKillProgressChanged.Broadcast();
 }

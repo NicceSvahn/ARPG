@@ -9,6 +9,12 @@ class AEnemyCharacter;
 class ALevelGenerator;
 class UNavigationSystemV1;
 struct FGeneratedChunkInstance;
+class AEnemyCharacter;
+
+DECLARE_MULTICAST_DELEGATE_OneParam(
+    FOnEnemyDied,
+    AEnemyCharacter*
+);
 
 USTRUCT(BlueprintType)
 struct FRandomEnemyEntry
@@ -98,4 +104,9 @@ private:
     TArray<TWeakObjectPtr<AEnemyCharacter>> SpawnedEnemies;
 
     TSubclassOf<AEnemyCharacter> ChooseEnemyClass();
+
+    void HandleEnemyDied(AEnemyCharacter* Enemy);
+
+    int32 TotalSpawnedEnemies = 0;
+    int32 DeadEnemies = 0;
 };

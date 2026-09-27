@@ -460,6 +460,11 @@ void AEnemyCharacter::OnDeathStarted()
 
     Super::OnDeathStarted();
 
+    if (HasAuthority())
+    {
+        OnEnemyDied.Broadcast(this);
+    }
+
     if (AggroSphere)
     {
         AggroSphere->SetCollisionEnabled(

@@ -13,6 +13,12 @@ class UEnemyHealthBarWidget;
 class ADamageNumberActor;
 class APlayerCharacter;
 struct FTimerHandle;
+class AEnemyCharacter;
+
+DECLARE_MULTICAST_DELEGATE_OneParam(
+	FOnEnemyDied,
+	AEnemyCharacter*
+);
 
 UCLASS()
 class TESTGAME_API AEnemyCharacter : public AGenericCharacter
@@ -27,6 +33,8 @@ public:
 	{
 		return PrimaryAttackInputTag;
 	}
+
+	FOnEnemyDied OnEnemyDied;
 
 protected:
 	// Called when the game starts or when spawned

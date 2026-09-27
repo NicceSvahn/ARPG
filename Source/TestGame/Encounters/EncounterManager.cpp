@@ -3,6 +3,7 @@
 #include "../LevelGeneration/LevelGenerator.h"
 #include "../LevelGeneration/LevelChunkDefinition.h"
 #include "../Characters/EnemyCharacter.h"
+#include "../Game/TestGameGameState.h"
 
 #include "Components/CapsuleComponent.h"
 #include "Engine/World.h"
@@ -131,6 +132,15 @@ void AEncounterManager::TryPopulateMap()
         {
             SpawnInChunk(Chunk, NavSystem);
         }
+    }
+
+    if (ATestGameGameState* GameState =
+        GetWorld()->GetGameState<ATestGameGameState>())
+    {
+        GameState->SetEnemyKillProgress(
+            TotalSpawnedEnemies,
+            DeadEnemies
+        );
     }
 }
 
@@ -309,12 +319,17 @@ void AEncounterManager::SpawnInChunk(
 
         if (IsValid(Enemy))
         {
-
             #if WITH_EDITOR
                 Enemy->SetFolderPath(FName(TEXT("Enemies")));
             #endif
 
+            Enemy->OnEnemyDied.AddUObject(
+                this,
+                 &AEncounterManager::HandleEnemyDied
+            );
+
             SpawnedEnemies.Add(Enemy);
+            ++TotalSpawnedEnemies;
             ++SpawnedCount;
         }
     }
@@ -342,6 +357,8 @@ void AEncounterManager::HandleChunksClearing()
         );
     }
 
+
+
     if (HasAuthority())
     {
         for (const TWeakObjectPtr<AEnemyCharacter>& Enemy :
@@ -349,6 +366,7 @@ void AEncounterManager::HandleChunksClearing()
         {
             if (Enemy.IsValid())
             {
+                Enemy->OnEnemyDied.RemoveAll(this);
                 Enemy->Destroy();
             }
         }
@@ -408,4 +426,30 @@ AEncounterManager::ChooseEnemyClass()
     }
 
     return nullptr;
+}
+
+void AEncounterManager::HandleEnemyDied(
+    AEnemyCharacter* Enemy
+)
+{
+    if (!HasAuthority() || !IsValid(Enemy))
+    {
+        return;
+    }
+
+    Enemy->OnEnemyDied.RemoveAll(this);
+
+    DeadEnemies = FMath::Min(
+        DeadEnemies + 1,
+        TotalSpawnedEnemies
+    );
+
+    if (ATestGameGameState* GameState =
+        GetWorld()->GetGameState<ATestGameGameState>())
+    {
+        GameState->SetEnemyKillProgress(
+            TotalSpawnedEnemies,
+            DeadEnemies
+        );
+    }
 }

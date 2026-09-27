@@ -4,6 +4,22 @@
 #include "GameFramework/GameState.h"
 #include "TestGameGameState.generated.h"
 
+USTRUCT(BlueprintType)
+struct FEnemyKillProgress
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadOnly)
+    int32 Total = 0;
+
+    UPROPERTY(BlueprintReadOnly)
+    int32 Dead = 0;
+};
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(
+    FOnEnemyKillProgressChanged
+);
+
 UENUM(BlueprintType)
 enum class ELevelState : uint8
 {
@@ -60,6 +76,24 @@ public:
     UPROPERTY(BlueprintAssignable)
     FOnEncounterIndexChanged OnEncounterIndexChanged;
 
+    //Procedural map killprogress
+    void SetEnemyKillProgress(int32 Total, int32 Dead);
+
+    UFUNCTION(BlueprintPure, Category = "Enemies")
+    float GetEnemyProgressToGoal() const;
+
+    UFUNCTION(BlueprintPure, Category = "Enemies")
+    int32 GetRequiredEnemyKills() const;
+
+    UFUNCTION(BlueprintPure, Category = "Enemies")
+    FEnemyKillProgress GetEnemyKillProgress() const
+    {
+        return EnemyKillProgress;
+    }
+
+    UPROPERTY(BlueprintAssignable, Category = "Enemies")
+    FOnEnemyKillProgressChanged OnEnemyKillProgressChanged;
+
 private:
     UPROPERTY(
         ReplicatedUsing = OnRep_LevelState,
@@ -80,4 +114,11 @@ private:
 
     UFUNCTION()
     void OnRep_CurrentEncounterIndex();
+
+    //Procedural map killprogress
+    UPROPERTY(ReplicatedUsing = OnRep_EnemyKillProgress)
+    FEnemyKillProgress EnemyKillProgress;
+
+    UFUNCTION()
+    void OnRep_EnemyKillProgress();
 };
