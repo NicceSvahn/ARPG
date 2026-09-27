@@ -7,6 +7,7 @@
 
 #include "../AbilitySystem/AbilityInputContext.h"
 #include "../UI/PlayerHudWidget.h"
+#include "../UI/CharacterPanelWidget.h"
 
 #include "TestGamePlayerController.generated.h"
 
@@ -100,6 +101,18 @@ protected:
     UFUNCTION(Server, Reliable)
     void ServerRequestPlayerClass(EPlayerClass NewClass);
 
+    // Toggle Character Panel
+    UPROPERTY(EditDefaultsOnly, Category = "Input")
+    TObjectPtr<UInputAction> IA_ToggleCharacterPanel;
+
+    UPROPERTY(EditDefaultsOnly, Category = "UI")
+    TSubclassOf<UCharacterPanelWidget> CharacterPanelClass;
+
+    UPROPERTY()
+    TObjectPtr<UCharacterPanelWidget> CharacterPanelWidget;
+
+
+
 private:
 
     void OnAbilityInputPressed(FGameplayTag InputTag);
@@ -129,4 +142,9 @@ private:
 
     UPROPERTY(EditDefaultsOnly, Category = "Movement")
     float ClickMoveAcceptanceRadius = 50.0f;
+
+    // Toggle Character Panel
+    void InitializeCharacterPanel();
+
+    void ToggleCharacterPanel();
 };

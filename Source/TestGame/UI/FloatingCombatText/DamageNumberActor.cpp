@@ -26,25 +26,8 @@ void ADamageNumberActor::BeginPlay()
     SetLifeSpan(1.0f);
 }
 
-void ADamageNumberActor::InitializeDamage(
-    float DamageAmount)
-{
-    const FLinearColor DamageColor = FLinearColor::White;
-
-    InitializeCombatText(DamageAmount, DamageColor);
-}
-
-void ADamageNumberActor::InitializeHealing(
-    const float HealingAmount)
-{
-    const FLinearColor HealingColor(0.1f, 1.0f, 0.1f, 1.0f);
-
-    InitializeCombatText(HealingAmount, HealingColor);
-}
-
 void ADamageNumberActor::InitializeCombatText(
-    const float Amount,
-    const FLinearColor& Color)
+    const FCombatTextData& Data)
 {
     if (!WidgetComponent)
     {
@@ -53,20 +36,40 @@ void ADamageNumberActor::InitializeCombatText(
 
     WidgetComponent->InitWidget();
 
-    UUserWidget* UserWidget = WidgetComponent->GetUserWidgetObject();
-
-    if (!UserWidget)
-    {
-        return;
-    }
-
     UFloatingDamageWidget* CombatTextWidget =
-        Cast<UFloatingDamageWidget>(UserWidget);
+        Cast<UFloatingDamageWidget>(
+            WidgetComponent->GetUserWidgetObject()
+        );
 
     if (!CombatTextWidget)
     {
         return;
     }
 
-    CombatTextWidget->SetCombatTextValue(Amount, Color);
+    CombatTextWidget->SetCombatText(Data);
+}
+
+void ADamageNumberActor::InitializeDamage(
+    float DamageAmount,
+    bool bCritical)
+{
+    FCombatTextData Data;
+
+    Data.Amount = DamageAmount;
+    Data.Type = bCritical
+        ? ECombatTextType::Critical
+        : ECombatTextType::Damage;
+
+    InitializeCombatText(Data);
+}
+
+void ADamageNumberActor::InitializeHealing(
+    float HealingAmount)
+{
+    FCombatTextData Data;
+
+    Data.Amount = HealingAmount;
+    Data.Type = ECombatTextType::Healing;
+
+    InitializeCombatText(Data);
 }

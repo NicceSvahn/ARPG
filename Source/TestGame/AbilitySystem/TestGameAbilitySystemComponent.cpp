@@ -316,3 +316,9 @@ HandleOwnerDeath()
         PlayerController->CancelMoveIntoRange();
     }
 }
+
+void UTestGameAbilitySystemComponent::BroadcastDamageResult(
+    const FDamageResult& DamageResult)
+{
+    DamageResultDelegate.Broadcast(DamageResult);
+}

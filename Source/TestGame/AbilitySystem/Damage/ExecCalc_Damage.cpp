@@ -4,6 +4,8 @@
 #include "../Attributes/OffensiveAttributeSet.h"
 #include "../Attributes/DefensiveAttributeSet.h"
 #include "../Attributes/HealthAttributeSet.h"
+#include "../TestGameAbilitySystemComponent.h"
+#include "DamageResult.h"
 
 namespace
 {
@@ -302,6 +304,21 @@ void UExecCalc_Damage::Execute_Implementation(
         DamageAfterMitigation
     );
     */
+
+    // DamageAfterMitigation is set here to not muddle calculation flow
+    if (UTestGameAbilitySystemComponent* TargetASC =
+        Cast<UTestGameAbilitySystemComponent>(
+            ExecutionParams.GetTargetAbilitySystemComponent()
+        ))
+    {
+        FDamageResult DamageResult;
+        DamageResult.DamageAmount = DamageAfterMitigation;
+        DamageResult.bCritical = bCriticalHit;
+
+        TargetASC->BroadcastDamageResult(
+            DamageResult
+        );
+    }
 
     OutExecutionOutput.AddOutputModifier(
         FGameplayModifierEvaluatedData(
