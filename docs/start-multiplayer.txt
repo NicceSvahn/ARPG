@@ -1,0 +1,54 @@
+MULTIPLAYER – STARTA SERVER + Joina
+
+1. Bygg dedicated server
+PowerShell:
+
+& "E:\Unreal Engine\UE_5.8_Installed\Windows\Engine\Build\BatchFiles\RunUAT.bat" `
+    BuildCookRun `
+    -project="E:\Unreal Engine\Repos\TestGame\TestGame.uproject" `
+    -target=TestGameServer `
+    -server `
+    -noclient `
+    -serverplatform=Win64 `
+    -serverconfig=Development `
+    -build `
+    -cook `
+    -map="/Game/Blueprints/Maps/LevelGeneration/L_ProceduralTest" `
+    -stage `
+    -pak `
+    -archive `
+    -archivedirectory="E:\Unreal Engine\Repos\TestGame\ServerBuild" `
+    -utf8output
+
+
+2. Starta servern
+
+& "E:\Unreal Engine\Repos\TestGame\ServerBuild\WindowsServer\TestGameServer.exe" `
+    "/Game/Blueprints/Maps/LevelGeneration/L_ProceduralTest" `
+    -log
+
+
+3. Starta klienten
+
+Kör helst Standalone Game, inte PIE "Play As Client".
+
+
+4. Joina
+
+På serverdatorn:
+
+open 127.0.0.1:7777
+
+Annan dator på samma nätverk:
+
+open <SERVERNS-LAN-IP>:7777
+
+Kompis över internet:
+
+open <DIN-PUBLIKA-IP>:7777
+
+
+5. Port
+
+Dedicated server använder normalt UDP 7777.
+Se till att Windows Firewall/router tillåter den.
