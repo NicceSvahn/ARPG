@@ -5,7 +5,7 @@
 #include "TestGameGameState.generated.h"
 
 USTRUCT(BlueprintType)
-struct FEnemyKillProgress
+struct FEnemyKillProgressBar
 {
     GENERATED_BODY()
 
@@ -86,7 +86,7 @@ public:
     int32 GetRequiredEnemyKills() const;
 
     UFUNCTION(BlueprintPure, Category = "Enemies")
-    FEnemyKillProgress GetEnemyKillProgress() const
+    FEnemyKillProgressBar GetEnemyKillProgress() const
     {
         return EnemyKillProgress;
     }
@@ -117,7 +117,7 @@ private:
 
     //Procedural map killprogress
     UPROPERTY(ReplicatedUsing = OnRep_EnemyKillProgress)
-    FEnemyKillProgress EnemyKillProgress;
+    FEnemyKillProgressBar EnemyKillProgress;
 
     UFUNCTION()
     void OnRep_EnemyKillProgress();
