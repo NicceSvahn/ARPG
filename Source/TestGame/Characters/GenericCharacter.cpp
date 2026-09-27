@@ -136,8 +136,6 @@ void AGenericCharacter::BeginPlay()
 				&AGenericCharacter::HandleMovementSpeedChanged
 			);
 
-		MovementSpeedAttributeSet->InitMovementSpeed(InitialMovementSpeed);
-
 		GetCharacterMovement()->MaxWalkSpeed = MovementSpeedAttributeSet->GetMovementSpeed();
 	}
 

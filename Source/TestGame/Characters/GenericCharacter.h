@@ -188,7 +188,6 @@ protected:
 	)
 	float InitialMovementSpeed = 600.0f;
 
-
 	// Stats
 	UPROPERTY(EditDefaultsOnly, Category = "Abilities|Attributes")
 	TSubclassOf<UGameplayEffect> PrimaryStatDerivedEffect;
