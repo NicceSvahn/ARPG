@@ -11,4 +11,6 @@ struct TESTGAME_API FDamageResult
     float DamageAmount = 0.0f;
 
     bool bCritical = false;
+
+    TWeakObjectPtr<AActor> AggroInstigator;
 };

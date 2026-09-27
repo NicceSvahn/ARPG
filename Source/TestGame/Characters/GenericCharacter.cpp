@@ -96,19 +96,6 @@ void AGenericCharacter::BeginPlay()
 			&AGenericCharacter::HandleAttributeChanged
 		);
 
-		if (HasAuthority())
-		{
-			AbilitySystemComponent->SetNumericAttributeBase(
-				UHealthAttributeSet::GetMaxHealthAttribute(),
-				InitialHealth
-			);
-
-			AbilitySystemComponent->SetNumericAttributeBase(
-				UHealthAttributeSet::GetHealthAttribute(),
-				InitialHealth
-			);
-		}
-
 		PreviousHealth =
 			HealthAttributeSet->GetHealth();
 
@@ -439,6 +426,14 @@ void AGenericCharacter::InitializeAbilitySystem()
 
 	ApplyAttributeEffect(BaseStatsEffect);
 	ApplyAttributeEffect(PrimaryStatDerivedEffect);
+
+	if (HasAuthority() && HealthAttributeSet)
+	{
+		AbilitySystemComponent->SetNumericAttributeBase(
+			UHealthAttributeSet::GetHealthAttribute(),
+			HealthAttributeSet->GetMaxHealth()
+		);
+	}
 
 	if (HasAuthority())
 	{

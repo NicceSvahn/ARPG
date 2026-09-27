@@ -311,9 +311,15 @@ void UExecCalc_Damage::Execute_Implementation(
             ExecutionParams.GetTargetAbilitySystemComponent()
         ))
     {
+        UAbilitySystemComponent* SourceASC =
+            ExecutionParams.GetSourceAbilitySystemComponent();
+
         FDamageResult DamageResult;
         DamageResult.DamageAmount = DamageAfterMitigation;
         DamageResult.bCritical = bCriticalHit;
+
+        DamageResult.AggroInstigator =
+            SourceASC ? SourceASC->GetAvatarActor() : nullptr;
 
         TargetASC->BroadcastDamageResult(
             DamageResult

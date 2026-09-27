@@ -160,12 +160,6 @@ private:
 
     void CancelAggroDropTimer();
 
-    void HandleHealthChangedForAggro(
-        const FOnAttributeChangeData& Data
-    );
-
-    FDelegateHandle AggroHealthChangedHandle;
-
 
     // HEALTH BAR
     void InitializeHealthBar();
