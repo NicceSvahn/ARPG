@@ -19,6 +19,12 @@ struct FTimerHandle;
 struct FDamageResult;
 struct FOnAttributeChangeData;
 struct FHitResult;
+class AEnemyCharacter;
+
+DECLARE_MULTICAST_DELEGATE_OneParam(
+	FOnEnemyDied,
+	AEnemyCharacter*
+);
 
 UCLASS()
 class TESTGAME_API AEnemyCharacter : public AGenericCharacter
@@ -32,6 +38,8 @@ public:
     {
         return PrimaryAttackInputTag;
     }
+
+	FOnEnemyDied OnEnemyDied;
 
 protected:
     virtual void BeginPlay() override;
