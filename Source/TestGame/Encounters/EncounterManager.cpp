@@ -320,7 +320,14 @@ void AEncounterManager::SpawnInChunk(
         if (IsValid(Enemy))
         {
             #if WITH_EDITOR
-                Enemy->SetFolderPath(FName(TEXT("Enemies")));
+                const FName EnemyFolder(TEXT("Enemies"));
+
+                Enemy->SetFolderPath(EnemyFolder);
+
+                if (AController* EnemyController = Enemy->GetController())
+                {
+                    EnemyController->SetFolderPath(EnemyFolder);
+                }
             #endif
 
             Enemy->OnEnemyDied.AddUObject(
@@ -333,19 +340,6 @@ void AEncounterManager::SpawnInChunk(
             ++SpawnedCount;
         }
     }
-
-    UE_LOG(
-        LogTemp,
-        Log,
-        TEXT(
-            "[ENCOUNTER] Combat chunk (%d,%d): "
-            "spawned %d/%d enemies."
-        ),
-        Chunk.GridCoordinate.X,
-        Chunk.GridCoordinate.Y,
-        SpawnedCount,
-        DesiredCount
-    );
 }
 
 void AEncounterManager::HandleChunksClearing()
