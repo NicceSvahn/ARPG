@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "AbilitySystemComponent.h"
 #include "GameplayTagContainer.h"
+#include "Damage/DamageResult.h"
 
 #include "AbilityInputContext.h"
 
@@ -11,6 +12,7 @@
 class UGameplayAbility;
 
 DECLARE_MULTICAST_DELEGATE(FOnAbilityBarChanged);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnDamageResult, const FDamageResult&);
 
 UCLASS()
 class TESTGAME_API UTestGameAbilitySystemComponent : public UAbilitySystemComponent
@@ -46,6 +48,15 @@ public:
         const FGameplayTag& CooldownTag
     ) const;
 
+    // Damage Result for UI widget
+    FOnDamageResult& OnDamageResult()
+    {
+        return DamageResultDelegate;
+    }
+
+    void BroadcastDamageResult(
+        const FDamageResult& DamageResult
+    );
 
 private:
     bool IsOwnerDead() const;
@@ -79,6 +90,9 @@ private:
 
     FGameplayTag PendingAbilityTag;
     FAbilityInputContext PendingAbilityContext;
+
+    // Damage Result for UI widget
+    FOnDamageResult DamageResultDelegate;
 
 protected:
 

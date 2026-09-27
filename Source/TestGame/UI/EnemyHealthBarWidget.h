@@ -1,22 +1,16 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
+#include "HealthBarWidget.h"
 #include "EnemyHealthBarWidget.generated.h"
 
-class UProgressBar;
-class UTextBlock;
-
+/**
+ * World-space enemy health bar.
+ * All GAS health observation lives in UHealthBarWidget; this class exists so
+ * enemy-specific Blueprint styling can keep its own native parent class.
+ */
 UCLASS()
-class TESTGAME_API UEnemyHealthBarWidget : public UUserWidget
+class TESTGAME_API UEnemyHealthBarWidget : public UHealthBarWidget
 {
     GENERATED_BODY()
-
-public:
-    UFUNCTION(BlueprintCallable, Category = "Health")
-    void SetHealth(float CurrentHealth, float MaxHealth);
-
-protected:
-    UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "Health")
-    TObjectPtr<UProgressBar> HealthBar;
 };

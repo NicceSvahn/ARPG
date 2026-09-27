@@ -13,6 +13,7 @@
 #include "../Characters/GenericCharacter.h"
 #include "../UI/PlayerHudWidget.h"
 #include "../UI/CombatDebugWidget.h"
+#include "../UI/CharacterPanelWidget.h"
 #include "../Camera/CameraOccludableComponent.h"
 #include "../Characters/PlayerClass.h"
 #include "../Game/TestGamePlayerState.h"
@@ -58,6 +59,7 @@ void ATestGamePlayerController::BeginPlay()
     }
 
     TryInitializeHud();
+    InitializeCharacterPanel();
 }
 
 void ATestGamePlayerController::OnPossess(
@@ -66,6 +68,7 @@ void ATestGamePlayerController::OnPossess(
     Super::OnPossess(InPawn);
 
     TryInitializeHud();
+    InitializeCharacterPanel();
 }
 
 void ATestGamePlayerController::OnRep_Pawn()
@@ -120,6 +123,16 @@ void ATestGamePlayerController::SetupInputComponent()
             ETriggerEvent::Started,
             this,
             &ATestGamePlayerController::ToggleCombatDebug
+        );
+    }
+
+    if (IA_ToggleCharacterPanel)
+    {
+        EnhancedInput->BindAction(
+            IA_ToggleCharacterPanel,
+            ETriggerEvent::Started,
+            this,
+            &ATestGamePlayerController::ToggleCharacterPanel
         );
     }
 }
@@ -590,4 +603,56 @@ void ATestGamePlayerController::ServerRequestPlayerClass_Implementation(
     }
 
     TestPlayerState->SetPlayerClass(NewClass);
+}
+
+void ATestGamePlayerController::InitializeCharacterPanel()
+{
+    if (!IsLocalController() || !CharacterPanelClass)
+    {
+        return;
+    }
+
+    CharacterPanelWidget =
+        CreateWidget<UCharacterPanelWidget>(
+            this,
+            CharacterPanelClass
+        );
+
+    if (!CharacterPanelWidget)
+    {
+        return;
+    }
+
+    APawn* PlayerPawn = GetPawn();
+
+    if (!PlayerPawn)
+    {
+        return;
+    }
+
+    CharacterPanelWidget->InitializeFromActor(PlayerPawn);
+
+    CharacterPanelWidget->AddToViewport();
+
+    CharacterPanelWidget->SetVisibility(
+        ESlateVisibility::Collapsed
+    );
+}
+
+void ATestGamePlayerController::ToggleCharacterPanel()
+{
+    if (!CharacterPanelWidget)
+    {
+        return;
+    }
+
+    const bool bIsVisible =
+        CharacterPanelWidget->GetVisibility()
+        != ESlateVisibility::Collapsed;
+
+    CharacterPanelWidget->SetVisibility(
+        bIsVisible
+        ? ESlateVisibility::Collapsed
+        : ESlateVisibility::Visible
+    );
 }

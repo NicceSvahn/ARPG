@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "CombatTextData.h"
 #include "FloatingDamageWidget.generated.h"
 
 class UTextBlock;
@@ -13,19 +14,18 @@ class TESTGAME_API UFloatingDamageWidget : public UUserWidget
     GENERATED_BODY()
 
 public:
-    void SetDamageValue(float DamageAmount);
-
-    void SetCombatTextValue(
-        float Amount,
-        const FLinearColor& Color
-    );
+    void SetCombatText(const FCombatTextData& Data);
 
 protected:
+    virtual void NativeConstruct() override;
+
     UPROPERTY(meta = (BindWidget))
     TObjectPtr<UTextBlock> DamageText;
 
-    virtual void NativeConstruct() override;
-
     UPROPERTY(Transient, meta = (BindWidgetAnim))
     TObjectPtr<UWidgetAnimation> FloatingDamageAnim;
+
+private:
+    FText BuildDisplayText(const FCombatTextData& Data) const;
+    FLinearColor GetCombatTextColor(ECombatTextType Type) const;
 };
