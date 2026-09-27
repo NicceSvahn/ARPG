@@ -78,12 +78,6 @@ void AEncounterManager::HandleMapReady()
         0.5f,
         true
     );
-
-    UE_LOG(
-        LogTemp,
-        Log,
-        TEXT("[ENCOUNTER] Map visible; waiting for navigation.")
-    );
 }
 
 void AEncounterManager::TryPopulateMap()
@@ -108,15 +102,6 @@ void AEncounterManager::TryPopulateMap()
 
         if (NavigationRetryCount >= 80)
         {
-            UE_LOG(
-                LogTemp,
-                Error,
-                TEXT(
-                    "[ENCOUNTER] Timed out waiting for "
-                    "navigation to finish building."
-                )
-            );
-
             GetWorldTimerManager().ClearTimer(
                 NavigationRetryTimer
             );
@@ -167,11 +152,6 @@ void AEncounterManager::SpawnInChunk(
 
     if (UsableHalfSize <= 0.0f)
     {
-        UE_LOG(
-            LogTemp,
-            Error,
-            TEXT("[ENCOUNTER] SpawnInset is too large.")
-        );
         return;
     }
 
@@ -537,12 +517,6 @@ void AEncounterManager::TrySpawnBossNearPlayer()
         BossMaxSpawnDistance <= BossMinSpawnDistance
         )
     {
-        UE_LOG(
-            LogTemp,
-            Error,
-            TEXT("[BOSS] Assign BossClass and valid spawn distances.")
-        );
-
         GetWorldTimerManager().ClearTimer(BossSpawnRetryTimer);
         return;
     }
@@ -597,22 +571,12 @@ void AEncounterManager::TrySpawnBossNearPlayer()
 
     if (!Capsule)
     {
-        UE_LOG(LogTemp, Error, TEXT("[BOSS] Boss has no capsule."));
         GetWorldTimerManager().ClearTimer(BossSpawnRetryTimer);
         return;
     }
 
     const float Radius = Capsule->GetScaledCapsuleRadius();
     const float HalfHeight = Capsule->GetScaledCapsuleHalfHeight();
-
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT("[BOSS SIZE] Radius=%.1f | HalfHeight=%.1f | CapsuleScale=%s"),
-        Radius,
-        HalfHeight,
-        *Capsule->GetComponentScale().ToString()
-    );
 
     // Request navigation appropriate for the boss's size.
     FNavAgentProperties AgentProperties =
@@ -738,14 +702,6 @@ void AEncounterManager::TrySpawnBossNearPlayer()
         {
             BossController->SetAggroTarget(Player);
         }
-        else
-        {
-            UE_LOG(
-                LogTemp,
-                Error,
-                TEXT("[BOSS] Spawned boss has no EnemyAIController.")
-            );
-        }
 
 #if WITH_EDITOR
         Boss->SetFolderPath(FName(TEXT("Enemies/Boss")));
@@ -757,15 +713,6 @@ void AEncounterManager::TrySpawnBossNearPlayer()
             );
         }
 #endif
-
-        UE_LOG(
-            LogTemp,
-            Log,
-            TEXT("[BOSS] Spawned %s near %s"),
-            *GetNameSafe(Boss),
-            *GetNameSafe(Player)
-        );
-
         // Do not add the boss to SpawnedEnemies,
         // increment TotalSpawnedEnemies,
         // or bind HandleEnemyDied to the boss.

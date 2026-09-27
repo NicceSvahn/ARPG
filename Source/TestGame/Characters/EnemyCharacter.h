@@ -155,11 +155,9 @@ private:
     FTimerHandle AggroDropTimerHandle;
 
     void EvaluateAggroAfterPlayerLeft();
-
     void HandleAggroDropTimerExpired();
-
     void CancelAggroDropTimer();
-
+    void HandleDamageAggro(const FDamageResult& DamageResult);
 
     // HEALTH BAR
     void InitializeHealthBar();
