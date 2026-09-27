@@ -3,6 +3,7 @@
 #include "AbilitySlotWidget.h"
 #include "HealthBarWidget.h"
 #include "ResourceBarWidget.h"
+#include "Buffs/BuffBarWidget.h"
 
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
@@ -44,6 +45,11 @@ void UPlayerHudWidget::OnAbilitySystemReady()
         WBP_PlayerResourceBar->InitializeFromActor(PlayerActor);
     }
 
+    if (WBP_BuffBar)
+    {
+        WBP_BuffBar->InitializeFromActor(PlayerActor);
+    }
+
     AbilityBarChangedHandle =
         ASC->OnAbilityBarChanged.AddUObject(
             this,
@@ -75,6 +81,11 @@ void UPlayerHudWidget::UnbindFromAbilitySystem()
     if (WBP_PlayerResourceBar)
     {
         WBP_PlayerResourceBar->InitializeFromActor(nullptr);
+    }
+
+    if (WBP_BuffBar)
+    {
+        WBP_BuffBar->InitializeFromActor(nullptr);
     }
 
     Super::UnbindFromAbilitySystem();

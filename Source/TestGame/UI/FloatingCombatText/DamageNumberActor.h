@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "CombatTextData.h"
 #include "DamageNumberActor.generated.h"
 
 class UWidgetComponent;
@@ -15,7 +16,9 @@ class TESTGAME_API ADamageNumberActor : public AActor
 public:
     ADamageNumberActor();
 
-    void InitializeDamage(float DamageAmount);
+    void InitializeCombatText(const FCombatTextData& Data);
+
+    void InitializeDamage(float DamageAmount, bool bCritical = false);
     void InitializeHealing(float HealingAmount);
 
 protected:
@@ -25,8 +28,4 @@ protected:
     TObjectPtr<UWidgetComponent> WidgetComponent;
 
 private:
-    void InitializeCombatText(
-        float Amount,
-        const FLinearColor& Color
-    );
 };

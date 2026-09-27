@@ -5,42 +5,62 @@
 #include "../UI/FloatingCombatText/DamageNumberActor.h"
 
 #include "TestGame/AbilitySystem/TestGameAbilitySystemComponent.h"
-#include "Components/SphereComponent.h"
-#include "Components/WidgetComponent.h"
-#include "Kismet/GameplayStatics.h"
-#include "TimerManager.h"
-#include "GameplayEffectExtension.h"
-#include "BehaviorTree/BlackboardComponent.h"
-#include "GameFramework/Controller.h"
 #include "TestGame/AbilitySystem/Attributes/HealthAttributeSet.h"
+#include "TestGame/AbilitySystem/Damage/DamageResult.h"
 #include "TestGame/Characters/PlayerCharacter.h"
 
+#include "Components/SphereComponent.h"
+#include "Components/WidgetComponent.h"
 
-// Sets default values
+#include "TimerManager.h"
+#include "GameplayEffectExtension.h"
+
+#include "BehaviorTree/BlackboardComponent.h"
+
+#include "GameFramework/Controller.h"
+
 AEnemyCharacter::AEnemyCharacter()
 {
- 	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
-	PrimaryActorTick.bCanEverTick = false;
+    PrimaryActorTick.bCanEverTick = false;
 
     bReplicates = true;
     SetReplicateMovement(true);
 
-	AIControllerClass = AEnemyAIController::StaticClass();
-	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
+    AIControllerClass =
+        AEnemyAIController::StaticClass();
+
+    AutoPossessAI =
+        EAutoPossessAI::PlacedInWorldOrSpawned;
 
     AggroSphere =
         CreateDefaultSubobject<USphereComponent>(
             TEXT("AggroSphere")
         );
 
-    AggroSphere->SetupAttachment(RootComponent);
+    AggroSphere->SetupAttachment(
+        RootComponent
+    );
 
-    AggroSphere->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-    AggroSphere->SetCollisionObjectType(ECC_WorldDynamic);
-    AggroSphere->SetCollisionResponseToAllChannels(ECR_Ignore);
-    AggroSphere->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+    AggroSphere->SetCollisionEnabled(
+        ECollisionEnabled::QueryOnly
+    );
 
-    AggroSphere->SetGenerateOverlapEvents(true);
+    AggroSphere->SetCollisionObjectType(
+        ECC_WorldDynamic
+    );
+
+    AggroSphere->SetCollisionResponseToAllChannels(
+        ECR_Ignore
+    );
+
+    AggroSphere->SetCollisionResponseToChannel(
+        ECC_Pawn,
+        ECR_Overlap
+    );
+
+    AggroSphere->SetGenerateOverlapEvents(
+        true
+    );
 
     AggroSphere->OnComponentBeginOverlap.AddDynamic(
         this,
@@ -52,33 +72,55 @@ AEnemyCharacter::AEnemyCharacter()
         &AEnemyCharacter::HandleAggroEndOverlap
     );
 
-	EnemyHealthWidget = CreateDefaultSubobject<UWidgetComponent>(TEXT("EnemyHealthWidget"));
+    EnemyHealthWidget =
+        CreateDefaultSubobject<UWidgetComponent>(
+            TEXT("EnemyHealthWidget")
+        );
 
-	EnemyHealthWidget->SetupAttachment(RootComponent);
-	EnemyHealthWidget->SetWidgetSpace(EWidgetSpace::Screen);
-	EnemyHealthWidget->SetDrawAtDesiredSize(true);
+    EnemyHealthWidget->SetupAttachment(
+        RootComponent
+    );
 
-    EnemyHealthWidget->SetRelativeLocation(FVector(0.0f, 0.0f, 120.0f));
+    EnemyHealthWidget->SetWidgetSpace(
+        EWidgetSpace::Screen
+    );
 
+    EnemyHealthWidget->SetDrawAtDesiredSize(
+        true
+    );
 
+    EnemyHealthWidget->SetRelativeLocation(
+        FVector(
+            0.0f,
+            0.0f,
+            120.0f
+        )
+    );
 }
 
-// Called when the game starts or when spawned
 void AEnemyCharacter::BeginPlay()
 {
     Super::BeginPlay();
 
     if (AggroSphere)
     {
-        AggroSphere->SetSphereRadius(AggroRange, true);
+        AggroSphere->SetSphereRadius(
+            AggroRange,
+            true
+        );
     }
 
-    OnDamageReceived.AddUObject(
-        this,
-        &AEnemyCharacter::HandleDamageReceived
-    );
+    if (HasAuthority() && AbilitySystemComponent)
+    {
+        DamageResultHandle =
+            AbilitySystemComponent
+            ->OnDamageResult()
+            .AddUObject(
+                this,
+                &AEnemyCharacter::HandleDamageResult
+            );
+    }
 
-    // Gameplay-only health observation. The health bar owns its own UI bindings.
     if (HasAuthority() && AbilitySystemComponent)
     {
         AggroHealthChangedHandle =
@@ -88,12 +130,15 @@ void AEnemyCharacter::BeginPlay()
             )
             .AddUObject(
                 this,
-                &AEnemyCharacter::HandleHealthChangedForAggro
+                &AEnemyCharacter::
+                HandleHealthChangedForAggro
             );
 
         if (bIsElite)
         {
-            ApplyAttributeEffect(EliteModifierEffect);
+            ApplyAttributeEffect(
+                EliteModifierEffect
+            );
         }
     }
 
@@ -111,25 +156,51 @@ void AEnemyCharacter::BeginPlay()
     }
 }
 
-void AEnemyCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
+void AEnemyCharacter::EndPlay(
+    const EEndPlayReason::Type EndPlayReason)
 {
-    GetWorldTimerManager().ClearTimer(AggroSearchTimer);
-    GetWorldTimerManager().ClearTimer(AggroDropTimerHandle);
+    GetWorldTimerManager().ClearTimer(
+        AggroSearchTimer
+    );
 
-    OnDamageReceived.RemoveAll(this);
+    GetWorldTimerManager().ClearTimer(
+        AggroDropTimerHandle
+    );
 
-    if (AbilitySystemComponent && AggroHealthChangedHandle.IsValid())
+    if (
+        AbilitySystemComponent &&
+        AggroHealthChangedHandle.IsValid()
+        )
     {
         AbilitySystemComponent
             ->GetGameplayAttributeValueChangeDelegate(
                 UHealthAttributeSet::GetHealthAttribute()
             )
-            .Remove(AggroHealthChangedHandle);
+            .Remove(
+                AggroHealthChangedHandle
+            );
 
         AggroHealthChangedHandle.Reset();
     }
 
-    Super::EndPlay(EndPlayReason);
+    if (
+        AbilitySystemComponent &&
+        DamageResultHandle.IsValid()
+        )
+    {
+        AbilitySystemComponent
+            ->OnDamageResult()
+            .Remove(
+                DamageResultHandle
+            );
+
+        DamageResultHandle.Reset();
+    }
+
+
+    Super::EndPlay(
+        EndPlayReason
+    );
 }
 
 void AEnemyCharacter::InitializeHealthBar()
@@ -143,7 +214,8 @@ void AEnemyCharacter::InitializeHealthBar()
 
     UEnemyHealthBarWidget* HealthWidget =
         Cast<UEnemyHealthBarWidget>(
-            EnemyHealthWidget->GetUserWidgetObject()
+            EnemyHealthWidget
+            ->GetUserWidgetObject()
         );
 
     if (!HealthWidget)
@@ -151,7 +223,9 @@ void AEnemyCharacter::InitializeHealthBar()
         return;
     }
 
-    HealthWidget->InitializeFromActor(this);
+    HealthWidget->InitializeFromActor(
+        this
+    );
 }
 
 void AEnemyCharacter::InitializeAggroTarget()
@@ -168,20 +242,37 @@ void AEnemyCharacter::InitializeAggroTarget()
 
     AggroSphere->UpdateOverlaps();
 
-    if (AEnemyAIController* EnemyController =
-        Cast<AEnemyAIController>(GetController()))
+    // If we already have a valid living target, keep that target
+    if (
+        AEnemyAIController* EnemyController =
+        Cast<AEnemyAIController>(
+            GetController()
+        )
+        )
     {
-        if (UBlackboardComponent* Blackboard =
-            EnemyController->GetBlackboardComponent())
+        if (
+            UBlackboardComponent* Blackboard =
+            EnemyController
+            ->GetBlackboardComponent()
+            )
         {
-            APlayerCharacter* CurrentTarget = Cast<APlayerCharacter>(
-                Blackboard->GetValueAsObject(TEXT("TargetActor")));
-            if (IsValid(CurrentTarget) && !CurrentTarget->bIsDead)
+            APlayerCharacter* CurrentTarget =
+                Cast<APlayerCharacter>(
+                    Blackboard->GetValueAsObject(
+                        TEXT("TargetActor")
+                    )
+                );
+
+            if (
+                IsValid(CurrentTarget) &&
+                !CurrentTarget->bIsDead
+                )
             {
                 return;
             }
         }
     }
+
 
     APlayerCharacter* PlayerCharacter =
         FindClosestPlayer();
@@ -230,6 +321,7 @@ void AEnemyCharacter::HandleAggroBeginOverlap(
     }
 
     CancelAggroDropTimer();
+
     InitializeAggroTarget();
 }
 
@@ -291,8 +383,12 @@ EvaluateAggroAfterPlayerLeft()
         return;
     }
 
-    if (GetWorldTimerManager().IsTimerActive(
-        AggroDropTimerHandle))
+
+    if (
+        GetWorldTimerManager().IsTimerActive(
+            AggroDropTimerHandle
+        )
+        )
     {
         return;
     }
@@ -335,6 +431,7 @@ HandleAggroDropTimerExpired()
         return;
     }
 
+
     AEnemyAIController* EnemyController =
         Cast<AEnemyAIController>(
             GetController()
@@ -350,8 +447,11 @@ HandleAggroDropTimerExpired()
 
 void AEnemyCharacter::CancelAggroDropTimer()
 {
-    if (!GetWorldTimerManager().IsTimerActive(
-        AggroDropTimerHandle))
+    if (
+        !GetWorldTimerManager().IsTimerActive(
+            AggroDropTimerHandle
+        )
+        )
     {
         return;
     }
@@ -376,10 +476,14 @@ AEnemyCharacter::FindClosestPlayer() const
         APlayerCharacter::StaticClass()
     );
 
+
     const FGameplayTag DeadStateTag =
         FGameplayTag::RequestGameplayTag(
-            FName(TEXT("State.Dead"))
+            FName(
+                TEXT("State.Dead")
+            )
         );
+
 
     APlayerCharacter* ClosestPlayer =
         nullptr;
@@ -390,8 +494,11 @@ AEnemyCharacter::FindClosestPlayer() const
     const FVector EnemyLocation =
         GetActorLocation();
 
-    for (AActor* OverlappingActor :
-        OverlappingActors)
+
+    for (
+        AActor* OverlappingActor :
+        OverlappingActors
+        )
     {
         APlayerCharacter* PlayerCharacter =
             Cast<APlayerCharacter>(
@@ -403,6 +510,7 @@ AEnemyCharacter::FindClosestPlayer() const
             continue;
         }
 
+
         UTestGameAbilitySystemComponent*
             PlayerAbilitySystem =
             PlayerCharacter
@@ -412,6 +520,7 @@ AEnemyCharacter::FindClosestPlayer() const
         {
             continue;
         }
+
 
         const bool bPlayerIsDead =
             PlayerAbilitySystem
@@ -424,6 +533,7 @@ AEnemyCharacter::FindClosestPlayer() const
             continue;
         }
 
+
         const float DistanceSquared =
             FVector::DistSquared(
                 EnemyLocation,
@@ -431,8 +541,10 @@ AEnemyCharacter::FindClosestPlayer() const
                 ->GetActorLocation()
             );
 
-        if (DistanceSquared <
-            ClosestDistanceSquared)
+        if (
+            DistanceSquared <
+            ClosestDistanceSquared
+            )
         {
             ClosestDistanceSquared =
                 DistanceSquared;
@@ -442,44 +554,41 @@ AEnemyCharacter::FindClosestPlayer() const
         }
     }
 
+
     return ClosestPlayer;
-}
-
-
-void AEnemyCharacter::HandleDamageReceived(
-    float DamageAmount)
-{
-    if (!HasAuthority())
-    {
-        return;
-    }
-
-    MulticastShowDamageNumber(
-        DamageAmount
-    );
 }
 
 void AEnemyCharacter::OnDeathStarted()
 {
-    GetWorldTimerManager().ClearTimer(AggroDropTimerHandle);
+    GetWorldTimerManager().ClearTimer(
+        AggroDropTimerHandle
+    );
 
     Super::OnDeathStarted();
+
 
     if (AggroSphere)
     {
         AggroSphere->SetCollisionEnabled(
-            ECollisionEnabled::NoCollision);
+            ECollisionEnabled::NoCollision
+        );
     }
+
 
     if (EnemyHealthWidget)
     {
-        EnemyHealthWidget->SetVisibility(false);
+        EnemyHealthWidget->SetVisibility(
+            false
+        );
     }
 
-    if (AEnemyAIController*
-        EnemyController =
+
+    if (
+        AEnemyAIController* EnemyController =
         Cast<AEnemyAIController>(
-            GetController()))
+            GetController()
+        )
+        )
     {
         EnemyController
             ->HandleControlledPawnDeath();
@@ -489,71 +598,146 @@ void AEnemyCharacter::OnDeathStarted()
 void AEnemyCharacter::HandleHealthChangedForAggro(
     const FOnAttributeChangeData& Data)
 {
-    // Updates aggro target when damage is taken.
-    if (HasAuthority() && !bIsDead && Data.NewValue < Data.OldValue &&
-        Data.GEModData)
+    if (
+        HasAuthority() &&
+        !bIsDead &&
+        Data.NewValue < Data.OldValue &&
+        Data.GEModData
+        )
     {
-        const FGameplayEffectContextHandle& Context = Data.GEModData->EffectSpec.GetContext();
-        AActor* DamageInstigator = Context.GetOriginalInstigator();
-        APlayerCharacter* Attacker = Cast<APlayerCharacter>(DamageInstigator);
+        const FGameplayEffectContextHandle& Context =
+            Data.GEModData
+            ->EffectSpec
+            .GetContext();
+
+
+        AActor* DamageInstigator =
+            Context.GetOriginalInstigator();
+
+        APlayerCharacter* Attacker =
+            Cast<APlayerCharacter>(
+                DamageInstigator
+            );
+
 
         if (!Attacker)
         {
-            if (const AController* AttackingController = Cast<AController>(DamageInstigator))
+            if (
+                const AController*
+                AttackingController =
+                Cast<AController>(
+                    DamageInstigator
+                )
+                )
             {
-                Attacker = Cast<APlayerCharacter>(AttackingController->GetPawn());
+                Attacker =
+                    Cast<APlayerCharacter>(
+                        AttackingController
+                        ->GetPawn()
+                    );
             }
         }
+
+
         if (!Attacker)
         {
-            Attacker = Cast<APlayerCharacter>(Context.GetEffectCauser());
+            Attacker =
+                Cast<APlayerCharacter>(
+                    Context.GetEffectCauser()
+                );
         }
-        if (IsValid(Attacker) && !Attacker->bIsDead)
+
+
+        if (
+            IsValid(Attacker) &&
+            !Attacker->bIsDead
+            )
         {
             CancelAggroDropTimer();
 
-            if (AEnemyAIController* EnemyController =
-                Cast<AEnemyAIController>(GetController()))
-            {
-                EnemyController->SetAggroTarget(Attacker);
 
-                if (!AggroSphere || !AggroSphere->IsOverlappingActor(Attacker))
+            if (
+                AEnemyAIController*
+                EnemyController =
+                Cast<AEnemyAIController>(
+                    GetController()
+                )
+                )
+            {
+                EnemyController->SetAggroTarget(
+                    Attacker
+                );
+
+
+                if (
+                    !AggroSphere ||
+                    !AggroSphere
+                    ->IsOverlappingActor(
+                        Attacker
+                    )
+                    )
                 {
                     GetWorldTimerManager().SetTimer(
                         AggroDropTimerHandle,
                         this,
-                        &AEnemyCharacter::HandleAggroDropTimerExpired,
+                        &AEnemyCharacter::
+                        HandleAggroDropTimerExpired,
                         AggroDropDelay,
-                        false);
+                        false
+                    );
                 }
             }
         }
     }
 }
 
+void AEnemyCharacter::HandleDamageResult(
+    const FDamageResult& DamageResult)
+{
+    if (!HasAuthority())
+    {
+        return;
+    }
 
-void AEnemyCharacter::MulticastShowDamageNumber_Implementation(
-    float DamageAmount)
+    if (DamageResult.DamageAmount <= 0.0f)
+    {
+        return;
+    }
+
+    MulticastShowDamageNumber(
+        DamageResult.DamageAmount,
+        DamageResult.bCritical
+    );
+}
+
+void AEnemyCharacter::
+MulticastShowDamageNumber_Implementation(
+    float DamageAmount,
+    bool bCritical)
 {
     SpawnDamageNumber(
-        DamageAmount
+        DamageAmount,
+        bCritical
     );
 }
 
 void AEnemyCharacter::SpawnDamageNumber(
-    float DamageAmount)
+    float DamageAmount,
+    bool bCritical)
 {
     if (!DamageNumberActorClass)
     {
         return;
     }
 
-    UWorld* World = GetWorld();
+    UWorld* World =
+        GetWorld();
 
     if (!World)
     {
         return;
     }
+
 
     const FVector SpawnLocation =
         GetActorLocation() +
@@ -562,6 +746,7 @@ void AEnemyCharacter::SpawnDamageNumber(
             0.0f,
             120.0f
         );
+
 
     ADamageNumberActor* DamageNumber =
         World->SpawnActor<ADamageNumberActor>(
@@ -575,7 +760,9 @@ void AEnemyCharacter::SpawnDamageNumber(
         return;
     }
 
+
     DamageNumber->InitializeDamage(
-        DamageAmount
+        DamageAmount,
+        bCritical
     );
 }

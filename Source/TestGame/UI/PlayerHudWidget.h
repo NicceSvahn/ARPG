@@ -10,6 +10,7 @@ class UHealthBarWidget;
 class UHorizontalBox;
 class UResourceBarWidget;
 class UTestGameAbilitySystemComponent;
+class UBuffBarWidget;
 
 /**
  * Root player HUD. It coordinates child widgets but does not own health or
@@ -30,17 +31,20 @@ protected:
     virtual void OnAbilitySystemReady() override;
     virtual void UnbindFromAbilitySystem() override;
 
-    UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
-    TObjectPtr<UHealthBarWidget> WBP_PlayerHealthBar;
-
-    UPROPERTY(meta = (BindWidget))
-    TObjectPtr<UHorizontalBox> HP_AbilityBar;
-
     UPROPERTY(EditDefaultsOnly, Category = "Ability Bar")
     TSubclassOf<UAbilitySlotWidget> AbilitySlotWidgetClass;
 
     UPROPERTY(meta = (BindWidget))
+    TObjectPtr<UHorizontalBox> HP_AbilityBar;
+
+    UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
+    TObjectPtr<UHealthBarWidget> WBP_PlayerHealthBar;
+
+    UPROPERTY(meta = (BindWidget))
     TObjectPtr<UResourceBarWidget> WBP_PlayerResourceBar;
+
+    UPROPERTY(meta = (BindWidgetOptional))
+    TObjectPtr<UBuffBarWidget> WBP_BuffBar;
 
 private:
     void BuildAbilitySlots();
