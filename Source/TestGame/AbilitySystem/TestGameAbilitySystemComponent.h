@@ -48,6 +48,15 @@ public:
         const FGameplayTag& CooldownTag
     ) const;
 
+    // Handling events of channeled abilities
+    void AbilityInputTagReleased(
+        const FGameplayTag& InputTag
+    );
+
+    void AbilityInputTagPressed(
+        const FGameplayTag& InputTag
+    );
+
     // Damage Result for UI widget
     FOnDamageResult& OnDamageResult()
     {
@@ -95,5 +104,11 @@ private:
     FOnDamageResult DamageResultDelegate;
 
 protected:
+    virtual void AbilitySpecInputPressed(
+        FGameplayAbilitySpec& Spec
+    ) override;
 
+    virtual void AbilitySpecInputReleased(
+        FGameplayAbilitySpec& Spec
+    ) override;
 };

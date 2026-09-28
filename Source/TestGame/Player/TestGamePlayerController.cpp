@@ -11,17 +11,18 @@
 #include "../AbilitySystem/AbilityInputContext.h"
 #include "../AbilitySystem/TestGameAbilitySystemComponent.h"
 #include "../Characters/GenericCharacter.h"
-#include "../UI/PlayerHudWidget.h"
 #include "../UI/CombatDebugWidget.h"
 #include "../UI/CharacterPanelWidget.h"
 #include "../Camera/CameraOccludableComponent.h"
 #include "../Characters/PlayerClass.h"
 #include "../Game/TestGamePlayerState.h"
 
+
 ATestGamePlayerController::ATestGamePlayerController()
 {
     PrimaryActorTick.bCanEverTick = true;
 }
+
 
 void ATestGamePlayerController::BeginPlay()
 {
@@ -40,7 +41,10 @@ void ATestGamePlayerController::BeginPlay()
         {
             if (DefaultMappingContext)
             {
-                Subsystem->AddMappingContext(DefaultMappingContext, priority);
+                Subsystem->AddMappingContext(
+                    DefaultMappingContext,
+                    priority
+                );
             }
         }
     }
@@ -48,9 +52,10 @@ void ATestGamePlayerController::BeginPlay()
     if (IsLocalController() && PlayerHudWidgetClass)
     {
         PlayerHudWidget =
-                CreateWidget<UPlayerHudWidget>(
+            CreateWidget<UPlayerHudWidget>(
                 this,
-                PlayerHudWidgetClass);
+                PlayerHudWidgetClass
+            );
 
         if (PlayerHudWidget)
         {
@@ -62,6 +67,7 @@ void ATestGamePlayerController::BeginPlay()
     InitializeCharacterPanel();
 }
 
+
 void ATestGamePlayerController::OnPossess(
     APawn* InPawn)
 {
@@ -71,6 +77,7 @@ void ATestGamePlayerController::OnPossess(
     InitializeCharacterPanel();
 }
 
+
 void ATestGamePlayerController::OnRep_Pawn()
 {
     Super::OnRep_Pawn();
@@ -78,11 +85,15 @@ void ATestGamePlayerController::OnRep_Pawn()
     TryInitializeHud();
 }
 
+
 void ATestGamePlayerController::SetupInputComponent()
 {
     Super::SetupInputComponent();
 
-    UEnhancedInputComponent* EnhancedInput = Cast<UEnhancedInputComponent>(InputComponent);
+    UEnhancedInputComponent* EnhancedInput =
+        Cast<UEnhancedInputComponent>(
+            InputComponent
+        );
 
     if (!EnhancedInput)
     {
@@ -99,10 +110,13 @@ void ATestGamePlayerController::SetupInputComponent()
         );
     }
 
-    // Ability activation
-    for (const FAbilityInputBinding& Binding : AbilityInputBindings)
+    for (const FAbilityInputBinding& Binding :
+        AbilityInputBindings)
     {
-        if (!Binding.InputAction || !Binding.InputTag.IsValid())
+        if (
+            !Binding.InputAction ||
+            !Binding.InputTag.IsValid()
+            )
         {
             continue;
         }
@@ -111,7 +125,26 @@ void ATestGamePlayerController::SetupInputComponent()
             Binding.InputAction,
             ETriggerEvent::Started,
             this,
-            &ATestGamePlayerController::OnAbilityInputPressed,
+            &ATestGamePlayerController::
+            OnAbilityInputPressed,
+            Binding.InputTag
+        );
+
+        EnhancedInput->BindAction(
+            Binding.InputAction,
+            ETriggerEvent::Completed,
+            this,
+            &ATestGamePlayerController::
+            OnAbilityInputReleased,
+            Binding.InputTag
+        );
+
+        EnhancedInput->BindAction(
+            Binding.InputAction,
+            ETriggerEvent::Canceled,
+            this,
+            &ATestGamePlayerController::
+            OnAbilityInputReleased,
             Binding.InputTag
         );
     }
@@ -122,7 +155,8 @@ void ATestGamePlayerController::SetupInputComponent()
             ToggleCombatDebugAction,
             ETriggerEvent::Started,
             this,
-            &ATestGamePlayerController::ToggleCombatDebug
+            &ATestGamePlayerController::
+            ToggleCombatDebug
         );
     }
 
@@ -132,10 +166,12 @@ void ATestGamePlayerController::SetupInputComponent()
             IA_ToggleCharacterPanel,
             ETriggerEvent::Started,
             this,
-            &ATestGamePlayerController::ToggleCharacterPanel
+            &ATestGamePlayerController::
+            ToggleCharacterPanel
         );
     }
 }
+
 
 void ATestGamePlayerController::MoveIntoRange(
     AActor* Target,
@@ -161,7 +197,9 @@ void ATestGamePlayerController::MoveIntoRange(
     bIsMovingToTarget = true;
 }
 
-void ATestGamePlayerController::Tick(float DeltaTime)
+
+void ATestGamePlayerController::Tick(
+    float DeltaTime)
 {
     Super::Tick(DeltaTime);
 
@@ -169,8 +207,10 @@ void ATestGamePlayerController::Tick(float DeltaTime)
 
     UpdateClickMove();
 
-    if (!bIsMovingToTarget ||
-        !IsLocalController())
+    if (
+        !bIsMovingToTarget ||
+        !IsLocalController()
+        )
     {
         return;
     }
@@ -181,8 +221,10 @@ void ATestGamePlayerController::Tick(float DeltaTime)
     AActor* Target =
         MovementTarget.Get();
 
-    if (!ControlledCharacter ||
-        !Target)
+    if (
+        !ControlledCharacter ||
+        !Target
+        )
     {
         FinishMoveIntoRange(false);
         return;
@@ -212,6 +254,7 @@ void ATestGamePlayerController::Tick(float DeltaTime)
     );
 }
 
+
 void ATestGamePlayerController::FinishMoveIntoRange(
     bool bSuccess)
 {
@@ -235,6 +278,7 @@ void ATestGamePlayerController::FinishMoveIntoRange(
     );
 }
 
+
 void ATestGamePlayerController::CancelMoveIntoRange()
 {
     if (!bIsMovingToTarget)
@@ -245,17 +289,22 @@ void ATestGamePlayerController::CancelMoveIntoRange()
     FinishMoveIntoRange(false);
 }
 
-void ATestGamePlayerController::OnAbilityInputPressed(FGameplayTag InputTag)
+void ATestGamePlayerController::OnAbilityInputPressed(
+    FGameplayTag InputTag)
 {
-
-    AGenericCharacter* ControlledCharacter = Cast<AGenericCharacter>(GetPawn());
+    AGenericCharacter* ControlledCharacter =
+        Cast<AGenericCharacter>(
+            GetPawn()
+        );
 
     if (!ControlledCharacter)
     {
         return;
     }
 
-    UTestGameAbilitySystemComponent* ASC = ControlledCharacter->GetAbilitySystemComponent();
+    UTestGameAbilitySystemComponent* ASC =
+        ControlledCharacter->
+        GetAbilitySystemComponent();
 
     if (!ASC)
     {
@@ -265,15 +314,90 @@ void ATestGamePlayerController::OnAbilityInputPressed(FGameplayTag InputTag)
     FAbilityInputContext Context;
     FHitResult HitResult;
 
-    if (GetHitResultUnderCursor(ECC_Visibility, false, HitResult))
+    if (GetHitResultUnderCursor(
+        ECC_Visibility,
+        false,
+        HitResult))
     {
-        Context.HitResult = HitResult;
-        Context.TargetActor = HitResult.GetActor();
-        Context.HitLocation = HitResult.ImpactPoint;
+        Context.HitResult =
+            HitResult;
+
+        Context.TargetActor =
+            HitResult.GetActor();
+
+        Context.HitLocation =
+            HitResult.ImpactPoint;
     }
 
-    ASC->RequestAbility(InputTag, Context);
+    ASC->AbilityInputTagPressed(
+        InputTag
+    );
+
+    ASC->RequestAbility(
+        InputTag,
+        Context
+    );
 }
+
+void ATestGamePlayerController::OnAbilityInputReleased(
+    FGameplayTag InputTag)
+{
+    UE_LOG(
+        LogTemp,
+        Warning,
+        TEXT(
+            "[ABILITY INPUT] RELEASE controller: %s"
+        ),
+        *InputTag.ToString()
+    );
+
+    AGenericCharacter* ControlledCharacter =
+        Cast<AGenericCharacter>(GetPawn());
+
+    if (!ControlledCharacter)
+    {
+        return;
+    }
+
+    UTestGameAbilitySystemComponent* ASC =
+        ControlledCharacter->GetAbilitySystemComponent();
+
+    if (!ASC)
+    {
+        return;
+    }
+
+    ASC->AbilityInputTagReleased(
+        InputTag
+    );
+}
+
+/*void ATestGamePlayerController::OnAbilityInputReleased(
+    FGameplayTag InputTag)
+{
+    AGenericCharacter* ControlledCharacter =
+        Cast<AGenericCharacter>(
+            GetPawn()
+        );
+
+    if (!ControlledCharacter)
+    {
+        return;
+    }
+
+    UTestGameAbilitySystemComponent* ASC =
+        ControlledCharacter->
+        GetAbilitySystemComponent();
+
+    if (!ASC)
+    {
+        return;
+    }
+
+    ASC->AbilityInputTagReleased(
+        InputTag
+    );
+}*/
 
 void ATestGamePlayerController::TryInitializeHud()
 {
@@ -283,7 +407,9 @@ void ATestGamePlayerController::TryInitializeHud()
     }
 
     AGenericCharacter* PlayerCharacter =
-        Cast<AGenericCharacter>(GetPawn());
+        Cast<AGenericCharacter>(
+            GetPawn()
+        );
 
     if (!PlayerCharacter)
     {
@@ -291,7 +417,8 @@ void ATestGamePlayerController::TryInitializeHud()
     }
 
     UTestGameAbilitySystemComponent* ASC =
-        PlayerCharacter->GetAbilitySystemComponent();
+        PlayerCharacter->
+        GetAbilitySystemComponent();
 
     if (!ASC)
     {
@@ -319,7 +446,9 @@ void ATestGamePlayerController::TryInitializeHud()
         PlayerHudWidget->AddToViewport();
     }
 
-    PlayerHudWidget->InitializeHud(PlayerCharacter);
+    PlayerHudWidget->InitializeHud(
+        PlayerCharacter
+    );
 }
 
 void ATestGamePlayerController::ToggleCombatDebug()
@@ -337,7 +466,9 @@ void ATestGamePlayerController::ToggleCombatDebug()
         }
 
         AGenericCharacter* PlayerCharacter =
-            Cast<AGenericCharacter>(GetPawn());
+            Cast<AGenericCharacter>(
+                GetPawn()
+            );
 
         if (!PlayerCharacter)
         {
@@ -355,9 +486,10 @@ void ATestGamePlayerController::ToggleCombatDebug()
             return;
         }
 
-        CombatDebugWidget->InitializeDebugWidget(
-            PlayerCharacter
-        );
+        CombatDebugWidget->
+            InitializeDebugWidget(
+                PlayerCharacter
+            );
 
         CombatDebugWidget->AddToViewport();
 
@@ -365,7 +497,8 @@ void ATestGamePlayerController::ToggleCombatDebug()
         return;
     }
 
-    bCombatDebugVisible = !bCombatDebugVisible;
+    bCombatDebugVisible =
+        !bCombatDebugVisible;
 
     CombatDebugWidget->SetVisibility(
         bCombatDebugVisible
@@ -374,8 +507,10 @@ void ATestGamePlayerController::ToggleCombatDebug()
     );
 }
 
+
 AGenericCharacter*
-ATestGamePlayerController::GetCharacterUnderCursor() const
+ATestGamePlayerController::
+GetCharacterUnderCursor() const
 {
     FHitResult HitResult;
 
@@ -396,7 +531,9 @@ void ATestGamePlayerController::
 UpdateCameraOcclusion()
 {
     AGenericCharacter* ControlledCharacter =
-        Cast<AGenericCharacter>(GetPawn());
+        Cast<AGenericCharacter>(
+            GetPawn()
+        );
 
     if (!ControlledCharacter)
     {
@@ -412,9 +549,11 @@ UpdateCameraOcclusion()
     );
 
     const FVector PlayerLocation =
-        ControlledCharacter->GetActorLocation();
+        ControlledCharacter->
+        GetActorLocation();
 
     FCollisionQueryParams QueryParams;
+
     QueryParams.AddIgnoredActor(
         ControlledCharacter
     );
@@ -422,7 +561,9 @@ UpdateCameraOcclusion()
     TArray<FHitResult> Hits;
 
     const FCollisionShape Sphere =
-        FCollisionShape::MakeSphere(50.0f);
+        FCollisionShape::MakeSphere(
+            50.0f
+        );
 
     GetWorld()->SweepMultiByChannel(
         Hits,
@@ -435,12 +576,15 @@ UpdateCameraOcclusion()
     );
 
     TSet<
-        TWeakObjectPtr<UCameraOccludableComponent>>
-        CurrentlyOccluded;
+        TWeakObjectPtr<
+        UCameraOccludableComponent
+        >
+    > CurrentlyOccluded;
 
     for (const FHitResult& Hit : Hits)
     {
-        AActor* HitActor = Hit.GetActor();
+        AActor* HitActor =
+            Hit.GetActor();
 
         if (!HitActor)
         {
@@ -449,8 +593,10 @@ UpdateCameraOcclusion()
 
         UCameraOccludableComponent*
             OccludableComponent =
-            HitActor->FindComponentByClass<
-            UCameraOccludableComponent>();
+            HitActor->
+            FindComponentByClass<
+            UCameraOccludableComponent
+            >();
 
         if (!OccludableComponent)
         {
@@ -461,15 +607,14 @@ UpdateCameraOcclusion()
             OccludableComponent
         );
 
-        OccludableComponent->SetOccluded(
-            true
-        );
+        OccludableComponent->
+            SetOccluded(true);
     }
 
     for (
         const TWeakObjectPtr<
-        UCameraOccludableComponent>&
-        PreviousComponent
+        UCameraOccludableComponent
+        >& PreviousComponent
         : OccludedComponents)
     {
         if (!PreviousComponent.IsValid())
@@ -480,8 +625,8 @@ UpdateCameraOcclusion()
         if (!CurrentlyOccluded.Contains(
             PreviousComponent))
         {
-            PreviousComponent
-                ->SetOccluded(false);
+            PreviousComponent->
+                SetOccluded(false);
         }
     }
 
@@ -493,13 +638,17 @@ void ATestGamePlayerController::OnClickMove()
 {
     FHitResult HitResult;
 
-    const bool bHit = GetHitResultUnderCursor(
-        ECC_MovementGround,
-        false,
-        HitResult
-    );
+    const bool bHit =
+        GetHitResultUnderCursor(
+            ECC_MovementGround,
+            false,
+            HitResult
+        );
 
-    if (!bHit || !HitResult.bBlockingHit)
+    if (
+        !bHit ||
+        !HitResult.bBlockingHit
+        )
     {
         return;
     }
@@ -511,6 +660,7 @@ void ATestGamePlayerController::OnClickMove()
     );
 }
 
+
 void ATestGamePlayerController::StartClickMove(
     const FVector& Destination)
 {
@@ -519,18 +669,25 @@ void ATestGamePlayerController::StartClickMove(
         return;
     }
 
-    ClickMoveDestination = Destination;
+    ClickMoveDestination =
+        Destination;
+
     bIsClickMoving = true;
 }
 
+
 void ATestGamePlayerController::UpdateClickMove()
 {
-    if (!bIsClickMoving || !IsLocalController())
+    if (
+        !bIsClickMoving ||
+        !IsLocalController()
+        )
     {
         return;
     }
 
-    ACharacter* ControlledCharacter = GetCharacter();
+    ACharacter* ControlledCharacter =
+        GetCharacter();
 
     if (!ControlledCharacter)
     {
@@ -540,7 +697,8 @@ void ATestGamePlayerController::UpdateClickMove()
 
     FVector ToDestination =
         ClickMoveDestination -
-        ControlledCharacter->GetActorLocation();
+        ControlledCharacter->
+        GetActorLocation();
 
     ToDestination.Z = 0.0f;
 
@@ -562,52 +720,71 @@ void ATestGamePlayerController::UpdateClickMove()
     );
 }
 
+
 void ATestGamePlayerController::StopClickMove()
 {
     bIsClickMoving = false;
-    ClickMoveDestination = FVector::ZeroVector;
+
+    ClickMoveDestination =
+        FVector::ZeroVector;
 }
 
 void ATestGamePlayerController::RequestPlayerClass(
-    EPlayerClass NewClass
-)
+    EPlayerClass NewClass)
 {
     if (HasAuthority())
     {
         ATestGamePlayerState* TestPlayerState =
-            GetPlayerState<ATestGamePlayerState>();
+            GetPlayerState<
+            ATestGamePlayerState
+            >();
 
         if (!IsValid(TestPlayerState))
         {
             return;
         }
 
-        TestPlayerState->SetPlayerClass(NewClass);
+        TestPlayerState->
+            SetPlayerClass(
+                NewClass
+            );
+
         return;
     }
 
-    ServerRequestPlayerClass(NewClass);
+    ServerRequestPlayerClass(
+        NewClass
+    );
 }
 
-void ATestGamePlayerController::ServerRequestPlayerClass_Implementation(
-    EPlayerClass NewClass
-)
+
+void ATestGamePlayerController::
+ServerRequestPlayerClass_Implementation(
+    EPlayerClass NewClass)
 {
     ATestGamePlayerState* TestPlayerState =
-        GetPlayerState<ATestGamePlayerState>();
+        GetPlayerState<
+        ATestGamePlayerState
+        >();
 
     if (!IsValid(TestPlayerState))
     {
-
         return;
     }
 
-    TestPlayerState->SetPlayerClass(NewClass);
+    TestPlayerState->
+        SetPlayerClass(
+            NewClass
+        );
 }
 
-void ATestGamePlayerController::InitializeCharacterPanel()
+void ATestGamePlayerController::
+InitializeCharacterPanel()
 {
-    if (!IsLocalController() || !CharacterPanelClass)
+    if (
+        !IsLocalController() ||
+        !CharacterPanelClass
+        )
     {
         return;
     }
@@ -623,23 +800,31 @@ void ATestGamePlayerController::InitializeCharacterPanel()
         return;
     }
 
-    APawn* PlayerPawn = GetPawn();
+    APawn* PlayerPawn =
+        GetPawn();
 
     if (!PlayerPawn)
     {
         return;
     }
 
-    CharacterPanelWidget->InitializeFromActor(PlayerPawn);
+    CharacterPanelWidget->
+        InitializeFromActor(
+            PlayerPawn
+        );
 
-    CharacterPanelWidget->AddToViewport();
+    CharacterPanelWidget->
+        AddToViewport();
 
-    CharacterPanelWidget->SetVisibility(
-        ESlateVisibility::Collapsed
-    );
+    CharacterPanelWidget->
+        SetVisibility(
+            ESlateVisibility::Collapsed
+        );
 }
 
-void ATestGamePlayerController::ToggleCharacterPanel()
+
+void ATestGamePlayerController::
+ToggleCharacterPanel()
 {
     if (!CharacterPanelWidget)
     {
@@ -647,12 +832,14 @@ void ATestGamePlayerController::ToggleCharacterPanel()
     }
 
     const bool bIsVisible =
-        CharacterPanelWidget->GetVisibility()
+        CharacterPanelWidget->
+        GetVisibility()
         != ESlateVisibility::Collapsed;
 
-    CharacterPanelWidget->SetVisibility(
-        bIsVisible
-        ? ESlateVisibility::Collapsed
-        : ESlateVisibility::Visible
-    );
+    CharacterPanelWidget->
+        SetVisibility(
+            bIsVisible
+            ? ESlateVisibility::Collapsed
+            : ESlateVisibility::Visible
+        );
 }
