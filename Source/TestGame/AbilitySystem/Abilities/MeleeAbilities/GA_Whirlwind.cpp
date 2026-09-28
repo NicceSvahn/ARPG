@@ -67,14 +67,6 @@ void UGA_Whirlwind::ActivateAbility(
 
     if (!WhirlwindMontage)
     {
-        UE_LOG(
-            LogTemp,
-            Error,
-            TEXT(
-                "[WHIRLWIND] No WhirlwindMontage assigned."
-            )
-        );
-
         EndAbility(
             Handle,
             ActorInfo,
@@ -88,14 +80,6 @@ void UGA_Whirlwind::ActivateAbility(
 
     if (!DamageEffect)
     {
-        UE_LOG(
-            LogTemp,
-            Error,
-            TEXT(
-                "[WHIRLWIND] No DamageEffect assigned."
-            )
-        );
-
         EndAbility(
             Handle,
             ActorInfo,
@@ -112,15 +96,6 @@ void UGA_Whirlwind::ActivateAbility(
         !ResourceCostEffect
         )
     {
-        UE_LOG(
-            LogTemp,
-            Error,
-            TEXT(
-                "[WHIRLWIND] ResourceCostPerTick is greater "
-                "than zero, but ResourceCostEffect is not assigned."
-            )
-        );
-
         EndAbility(
             Handle,
             ActorInfo,
@@ -344,14 +319,6 @@ void UGA_Whirlwind::PerformGameplayTick()
 
     if (!ApplyTickCost())
     {
-        UE_LOG(
-            LogTemp,
-            Error,
-            TEXT(
-                "[WHIRLWIND] Failed to apply Resource cost."
-            )
-        );
-
         StopWhirlwind(true);
         return;
     }
@@ -487,15 +454,6 @@ void UGA_Whirlwind::ApplyWhirlwindDamage()
 void UGA_Whirlwind::HandleInputReleased(
     float TimeHeld)
 {
-    UE_LOG(
-        LogTemp,
-        Verbose,
-        TEXT(
-            "[WHIRLWIND] Input released after %.2f seconds."
-        ),
-        TimeHeld
-    );
-
     StopWhirlwind(false);
 }
 
