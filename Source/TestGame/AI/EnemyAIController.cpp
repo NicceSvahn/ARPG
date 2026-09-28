@@ -54,6 +54,17 @@ void AEnemyAIController::SetAggroTarget(AActor* NewTarget)
         TargetActorKey,
         NewTarget
     );
+
+    UE_LOG(
+        LogTemp,
+        Warning,
+        TEXT("[DAMAGE AGGRO] Controller=%s | Requested=%s | Stored=%s"),
+        *GetNameSafe(this),
+        *GetNameSafe(NewTarget),
+        *GetNameSafe(
+            BlackboardComponent->GetValueAsObject(TargetActorKey)
+        )
+    );
 }
 
 void AEnemyAIController::ClearAggroTarget(

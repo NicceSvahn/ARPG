@@ -21,10 +21,9 @@ protected:
 	) override;
 
 private:
-	UPROPERTY(
-		EditAnywhere,
-		Category = "Blackboard"
-	)
+	UPROPERTY(EditAnywhere, Category = "Blackboard")
 	FBlackboardKeySelector TargetActorKey;
 
+	UPROPERTY(EditAnywhere, Category = "Ability")
+	FGameplayTag AbilityInputTagOverride;
 };

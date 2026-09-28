@@ -72,7 +72,9 @@ UBTTask_ActivateCombatAbility::ExecuteTask(
 	}
 
 	const FGameplayTag AbilityInputTag =
-		EnemyCharacter->GetPrimaryAttackInputTag();
+		AbilityInputTagOverride.IsValid()
+		? AbilityInputTagOverride
+		: EnemyCharacter->GetPrimaryAttackInputTag();
 
 	if (!AbilityInputTag.IsValid())
 	{

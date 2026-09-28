@@ -6,15 +6,10 @@
 #include "EncounterManager.generated.h"
 
 class AEnemyCharacter;
+class APlayerCharacter;
 class ALevelGenerator;
 class UNavigationSystemV1;
 struct FGeneratedChunkInstance;
-class AEnemyCharacter;
-
-DECLARE_MULTICAST_DELEGATE_OneParam(
-    FOnEnemyDied,
-    AEnemyCharacter*
-);
 
 USTRUCT(BlueprintType)
 struct FRandomEnemyEntry
@@ -105,8 +100,37 @@ private:
 
     TSubclassOf<AEnemyCharacter> ChooseEnemyClass();
 
+
+    //Enemy kill progressbar
     void HandleEnemyDied(AEnemyCharacter* Enemy);
 
     int32 TotalSpawnedEnemies = 0;
     int32 DeadEnemies = 0;
+
+    //boss
+    void TrySpawnBossNearPlayer();
+
+    UPROPERTY(EditAnywhere, Category = "Encounters|Boss")
+    TSubclassOf<AEnemyCharacter> BossClass;
+
+    UPROPERTY(
+        EditAnywhere,
+        Category = "Encounters|Boss",
+        meta = (ClampMin = "0.0", Units = "cm")
+    )
+    float BossMinSpawnDistance = 800.0f;
+
+    UPROPERTY(
+        EditAnywhere,
+        Category = "Encounters|Boss",
+        meta = (ClampMin = "1.0", Units = "cm")
+    )
+    float BossMaxSpawnDistance = 1200.0f;
+
+    bool bBossSpawned = false;
+
+    FTimerHandle BossSpawnRetryTimer;
+
+    TWeakObjectPtr<AEnemyCharacter> SpawnedBoss;
+    TWeakObjectPtr<APlayerCharacter> BossTargetPlayer;
 };

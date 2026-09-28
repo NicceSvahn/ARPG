@@ -4,11 +4,15 @@
 #include "../LevelGeneration/LevelChunkDefinition.h"
 #include "../Characters/EnemyCharacter.h"
 #include "../Game/TestGameGameState.h"
+#include "../Characters/PlayerCharacter.h"
+#include "../AI/EnemyAIController.h"
 
 #include "Components/CapsuleComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "NavigationSystem.h"
+#include "CollisionQueryParams.h"
+#include "CollisionShape.h"
 
 AEncounterManager::AEncounterManager()
 {
@@ -22,6 +26,7 @@ void AEncounterManager::PostInitializeComponents()
 
     if (!GetWorld() ||
         !GetWorld()->IsGameWorld() ||
+        GetNetMode() == NM_Client ||
         !HasAuthority() ||
         !IsValid(LevelGenerator))
     {
@@ -73,12 +78,6 @@ void AEncounterManager::HandleMapReady()
         0.5f,
         true
     );
-
-    UE_LOG(
-        LogTemp,
-        Log,
-        TEXT("[ENCOUNTER] Map visible; waiting for navigation.")
-    );
 }
 
 void AEncounterManager::TryPopulateMap()
@@ -103,15 +102,6 @@ void AEncounterManager::TryPopulateMap()
 
         if (NavigationRetryCount >= 80)
         {
-            UE_LOG(
-                LogTemp,
-                Error,
-                TEXT(
-                    "[ENCOUNTER] Timed out waiting for "
-                    "navigation to finish building."
-                )
-            );
-
             GetWorldTimerManager().ClearTimer(
                 NavigationRetryTimer
             );
@@ -162,11 +152,6 @@ void AEncounterManager::SpawnInChunk(
 
     if (UsableHalfSize <= 0.0f)
     {
-        UE_LOG(
-            LogTemp,
-            Error,
-            TEXT("[ENCOUNTER] SpawnInset is too large.")
-        );
         return;
     }
 
@@ -342,21 +327,42 @@ void AEncounterManager::SpawnInChunk(
     }
 }
 
+
 void AEncounterManager::HandleChunksClearing()
 {
+    bMapPopulated = false;
+
     if (GetWorld())
     {
-        GetWorldTimerManager().ClearTimer(
-            NavigationRetryTimer
-        );
+        GetWorldTimerManager().ClearTimer(NavigationRetryTimer);
+        GetWorldTimerManager().ClearTimer(BossSpawnRetryTimer);
     }
 
+    const bool bServer =
+        GetWorld() &&
+        GetNetMode() != NM_Client &&
+        HasAuthority();
 
-
-    if (HasAuthority())
+    if (bServer)
     {
-        for (const TWeakObjectPtr<AEnemyCharacter>& Enemy :
-            SpawnedEnemies)
+        if (AEnemyCharacter* Boss = SpawnedBoss.Get())
+        {
+            // Cache the controller because destroying the pawn
+            // may unpossess it.
+            AController* BossController = Boss->GetController();
+
+            Boss->Destroy();
+
+            if (IsValid(BossController))
+            {
+                BossController->Destroy();
+            }
+        }
+
+        for (
+            const TWeakObjectPtr<AEnemyCharacter>& Enemy :
+            SpawnedEnemies
+            )
         {
             if (Enemy.IsValid())
             {
@@ -366,10 +372,25 @@ void AEncounterManager::HandleChunksClearing()
         }
     }
 
+    SpawnedBoss.Reset();
+    BossTargetPlayer.Reset();
     SpawnedEnemies.Reset();
+
+    bBossSpawned = false;
     NavigationRetryCount = 0;
-    bMapPopulated = false;
+    TotalSpawnedEnemies = 0;
+    DeadEnemies = 0;
+
+    if (bServer)
+    {
+        if (ATestGameGameState* GameState =
+            GetWorld()->GetGameState<ATestGameGameState>())
+        {
+            GameState->SetEnemyKillProgress(0, 0);
+        }
+    }
 }
+
 
 TSubclassOf<AEnemyCharacter>
 AEncounterManager::ChooseEnemyClass()
@@ -445,5 +466,258 @@ void AEncounterManager::HandleEnemyDied(
             TotalSpawnedEnemies,
             DeadEnemies
         );
+
+        const int32 RequiredKills =
+            GameState->GetRequiredEnemyKills();
+
+        if (
+            RequiredKills > 0 &&
+            DeadEnemies >= RequiredKills &&
+            !bBossSpawned &&
+            !GetWorldTimerManager().IsTimerActive(BossSpawnRetryTimer)
+            )
+        {
+            GetWorldTimerManager().SetTimer(
+                BossSpawnRetryTimer,
+                this,
+                &AEncounterManager::TrySpawnBossNearPlayer,
+                1.0f,
+                true
+            );
+
+            TrySpawnBossNearPlayer();
+        }
     }
+}
+
+
+void AEncounterManager::TrySpawnBossNearPlayer()
+{
+    UWorld* World = GetWorld();
+
+    if (!World)
+    {
+        return;
+    }
+
+    if (
+        GetNetMode() == NM_Client ||
+        !HasAuthority() ||
+        !bMapPopulated ||
+        bBossSpawned
+        )
+    {
+        GetWorldTimerManager().ClearTimer(BossSpawnRetryTimer);
+        return;
+    }
+
+    if (
+        !BossClass ||
+        BossMinSpawnDistance < 0.0f ||
+        BossMaxSpawnDistance <= BossMinSpawnDistance
+        )
+    {
+        GetWorldTimerManager().ClearTimer(BossSpawnRetryTimer);
+        return;
+    }
+
+    // Retain the selected player while they remain alive.
+    APlayerCharacter* Player = BossTargetPlayer.Get();
+
+    if (!IsValid(Player) || Player->bIsDead)
+    {
+        BossTargetPlayer.Reset();
+        Player = nullptr;
+
+        for (
+            FConstPlayerControllerIterator It =
+            World->GetPlayerControllerIterator();
+            It;
+            ++It
+            )
+        {
+            APlayerController* PC = It->Get();
+
+            APlayerCharacter* Candidate =
+                PC ? Cast<APlayerCharacter>(PC->GetPawn()) : nullptr;
+
+            if (IsValid(Candidate) && !Candidate->bIsDead)
+            {
+                Player = Candidate;
+                BossTargetPlayer = Candidate;
+                break;
+            }
+        }
+    }
+
+    if (!Player)
+    {
+        return;
+    }
+
+    UNavigationSystemV1* NavSystem =
+        FNavigationSystem::GetCurrent<UNavigationSystemV1>(World);
+
+    if (!NavSystem || NavSystem->IsNavigationBuildInProgress())
+    {
+        return;
+    }
+
+    const AEnemyCharacter* BossDefaults =
+        BossClass->GetDefaultObject<AEnemyCharacter>();
+
+    const UCapsuleComponent* Capsule =
+        BossDefaults ? BossDefaults->GetCapsuleComponent() : nullptr;
+
+    if (!Capsule)
+    {
+        GetWorldTimerManager().ClearTimer(BossSpawnRetryTimer);
+        return;
+    }
+
+    const float Radius = Capsule->GetScaledCapsuleRadius();
+    const float HalfHeight = Capsule->GetScaledCapsuleHalfHeight();
+
+    // Request navigation appropriate for the boss's size.
+    FNavAgentProperties AgentProperties =
+        BossDefaults->GetNavAgentPropertiesRef();
+
+    AgentProperties.AgentRadius = Radius;
+    AgentProperties.AgentHeight = HalfHeight * 2.0f;
+
+    ANavigationData* NavData = NavSystem->GetNavDataForProps(
+        AgentProperties,
+        Player->GetActorLocation()
+    );
+
+    if (!NavData)
+    {
+        return;
+    }
+
+    FNavLocation PlayerNavLocation;
+
+    if (!NavSystem->ProjectPointToNavigation(
+        Player->GetActorLocation(),
+        PlayerNavLocation,
+        FVector(100.0f, 100.0f, 500.0f),
+        NavData
+    ))
+    {
+        return;
+    }
+
+    // Several candidates per retry, with no tick required.
+    for (int32 Attempt = 0; Attempt < 20; ++Attempt)
+    {
+        FNavLocation BossNavLocation;
+
+        if (!NavSystem->GetRandomReachablePointInRadius(
+            PlayerNavLocation.Location,
+            BossMaxSpawnDistance,
+            BossNavLocation,
+            NavData
+        ))
+        {
+            continue;
+        }
+
+        const float Distance = FVector::Dist2D(
+            BossNavLocation.Location,
+            Player->GetActorLocation()
+        );
+
+        if (
+            Distance < BossMinSpawnDistance ||
+            Distance > BossMaxSpawnDistance
+            )
+        {
+            continue;
+        }
+
+        // Navigation positions are near the floor.
+        // Spawn the character's capsule center above it.
+        const FVector SpawnLocation =
+            BossNavLocation.Location +
+            FVector(0.0f, 0.0f, HalfHeight + 100.0f);
+
+        FCollisionQueryParams QueryParams;
+        QueryParams.AddIgnoredActor(this);
+
+        const FCollisionResponseParams ResponseParams(
+            Capsule->GetCollisionResponseToChannels()
+        );
+
+        if (World->OverlapBlockingTestByChannel(
+            SpawnLocation,
+            FQuat::Identity,
+            Capsule->GetCollisionObjectType(),
+            FCollisionShape::MakeCapsule(Radius, HalfHeight),
+            QueryParams,
+            ResponseParams
+        ))
+        {
+            continue;
+        }
+
+        const FVector ToPlayer =
+            Player->GetActorLocation() - SpawnLocation;
+
+        const FRotator SpawnRotation(
+            0.0f,
+            ToPlayer.Rotation().Yaw,
+            0.0f
+        );
+
+        FActorSpawnParameters Params;
+        Params.SpawnCollisionHandlingOverride =
+            ESpawnActorCollisionHandlingMethod::DontSpawnIfColliding;
+
+        AEnemyCharacter* Boss = World->SpawnActor<AEnemyCharacter>(
+            BossClass,
+            SpawnLocation,
+            SpawnRotation,
+            Params
+        );
+
+        if (!IsValid(Boss))
+        {
+            continue;
+        }
+
+        SpawnedBoss = Boss;
+        bBossSpawned = true;
+
+        GetWorldTimerManager().ClearTimer(BossSpawnRetryTimer);
+
+        if (!Boss->GetController())
+        {
+            Boss->SpawnDefaultController();
+        }
+
+        AEnemyAIController* BossController =
+            Cast<AEnemyAIController>(Boss->GetController());
+
+        if (BossController)
+        {
+            BossController->SetAggroTarget(Player);
+        }
+
+#if WITH_EDITOR
+        Boss->SetFolderPath(FName(TEXT("Enemies/Boss")));
+
+        if (BossController)
+        {
+            BossController->SetFolderPath(
+                FName(TEXT("Enemies/Boss"))
+            );
+        }
+#endif
+        // Do not add the boss to SpawnedEnemies,
+        // increment TotalSpawnedEnemies,
+        // or bind HandleEnemyDied to the boss.
+        return;
+    }
+
+    // All candidates failed. The timer tries again next second.
 }

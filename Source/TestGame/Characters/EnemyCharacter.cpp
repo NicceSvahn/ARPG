@@ -98,6 +98,7 @@ AEnemyCharacter::AEnemyCharacter()
     );
 }
 
+
 void AEnemyCharacter::BeginPlay()
 {
     Super::BeginPlay();
@@ -123,22 +124,19 @@ void AEnemyCharacter::BeginPlay()
 
     if (HasAuthority() && AbilitySystemComponent)
     {
-        AggroHealthChangedHandle =
-            AbilitySystemComponent
-            ->GetGameplayAttributeValueChangeDelegate(
-                UHealthAttributeSet::GetHealthAttribute()
-            )
-            .AddUObject(
-                this,
-                &AEnemyCharacter::
-                HandleHealthChangedForAggro
-            );
-
         if (bIsElite)
         {
             ApplyAttributeEffect(
                 EliteModifierEffect
             );
+
+            if (HealthAttributeSet)
+            {
+                AbilitySystemComponent->SetNumericAttributeBase(
+                    UHealthAttributeSet::GetHealthAttribute(),
+                    HealthAttributeSet->GetMaxHealth()
+                );
+            }
         }
     }
 
@@ -156,6 +154,7 @@ void AEnemyCharacter::BeginPlay()
     }
 }
 
+
 void AEnemyCharacter::EndPlay(
     const EEndPlayReason::Type EndPlayReason)
 {
@@ -166,22 +165,6 @@ void AEnemyCharacter::EndPlay(
     GetWorldTimerManager().ClearTimer(
         AggroDropTimerHandle
     );
-
-    if (
-        AbilitySystemComponent &&
-        AggroHealthChangedHandle.IsValid()
-        )
-    {
-        AbilitySystemComponent
-            ->GetGameplayAttributeValueChangeDelegate(
-                UHealthAttributeSet::GetHealthAttribute()
-            )
-            .Remove(
-                AggroHealthChangedHandle
-            );
-
-        AggroHealthChangedHandle.Reset();
-    }
 
     if (
         AbilitySystemComponent &&
@@ -202,6 +185,7 @@ void AEnemyCharacter::EndPlay(
         EndPlayReason
     );
 }
+
 
 void AEnemyCharacter::InitializeHealthBar()
 {
@@ -228,9 +212,10 @@ void AEnemyCharacter::InitializeHealthBar()
     );
 }
 
+
 void AEnemyCharacter::InitializeAggroTarget()
 {
-    if (!HasAuthority())
+    if (!HasAuthority() || bIsDead)
     {
         return;
     }
@@ -273,7 +258,6 @@ void AEnemyCharacter::InitializeAggroTarget()
         }
     }
 
-
     APlayerCharacter* PlayerCharacter =
         FindClosestPlayer();
 
@@ -296,6 +280,7 @@ void AEnemyCharacter::InitializeAggroTarget()
         PlayerCharacter
     );
 }
+
 
 void AEnemyCharacter::HandleAggroBeginOverlap(
     UPrimitiveComponent* OverlappedComponent,
@@ -325,6 +310,7 @@ void AEnemyCharacter::HandleAggroBeginOverlap(
     InitializeAggroTarget();
 }
 
+
 void AEnemyCharacter::HandleAggroEndOverlap(
     UPrimitiveComponent* OverlappedComponent,
     AActor* OtherActor,
@@ -352,6 +338,7 @@ void AEnemyCharacter::HandleAggroEndOverlap(
         EvaluateAggroAfterPlayerLeft
     );
 }
+
 
 void AEnemyCharacter::
 EvaluateAggroAfterPlayerLeft()
@@ -403,6 +390,7 @@ EvaluateAggroAfterPlayerLeft()
     );
 }
 
+
 void AEnemyCharacter::
 HandleAggroDropTimerExpired()
 {
@@ -445,6 +433,7 @@ HandleAggroDropTimerExpired()
     EnemyController->ClearAggroTarget();
 }
 
+
 void AEnemyCharacter::CancelAggroDropTimer()
 {
     if (
@@ -460,6 +449,7 @@ void AEnemyCharacter::CancelAggroDropTimer()
         AggroDropTimerHandle
     );
 }
+
 
 APlayerCharacter*
 AEnemyCharacter::FindClosestPlayer() const
@@ -558,11 +548,11 @@ AEnemyCharacter::FindClosestPlayer() const
     return ClosestPlayer;
 }
 
+
 void AEnemyCharacter::OnDeathStarted()
 {
-    GetWorldTimerManager().ClearTimer(
-        AggroDropTimerHandle
-    );
+    GetWorldTimerManager().ClearTimer(AggroDropTimerHandle);
+    GetWorldTimerManager().ClearTimer(AggroSearchTimer);
 
     Super::OnDeathStarted();
 
@@ -599,111 +589,12 @@ void AEnemyCharacter::OnDeathStarted()
     }
 }
 
-void AEnemyCharacter::HandleHealthChangedForAggro(
-    const FOnAttributeChangeData& Data)
-{
-    if (
-        HasAuthority() &&
-        !bIsDead &&
-        Data.NewValue < Data.OldValue &&
-        Data.GEModData
-        )
-    {
-        const FGameplayEffectContextHandle& Context =
-            Data.GEModData
-            ->EffectSpec
-            .GetContext();
-
-
-        AActor* DamageInstigator =
-            Context.GetOriginalInstigator();
-
-        APlayerCharacter* Attacker =
-            Cast<APlayerCharacter>(
-                DamageInstigator
-            );
-
-
-        if (!Attacker)
-        {
-            if (
-                const AController*
-                AttackingController =
-                Cast<AController>(
-                    DamageInstigator
-                )
-                )
-            {
-                Attacker =
-                    Cast<APlayerCharacter>(
-                        AttackingController
-                        ->GetPawn()
-                    );
-            }
-        }
-
-
-        if (!Attacker)
-        {
-            Attacker =
-                Cast<APlayerCharacter>(
-                    Context.GetEffectCauser()
-                );
-        }
-
-
-        if (
-            IsValid(Attacker) &&
-            !Attacker->bIsDead
-            )
-        {
-            CancelAggroDropTimer();
-
-
-            if (
-                AEnemyAIController*
-                EnemyController =
-                Cast<AEnemyAIController>(
-                    GetController()
-                )
-                )
-            {
-                EnemyController->SetAggroTarget(
-                    Attacker
-                );
-
-
-                if (
-                    !AggroSphere ||
-                    !AggroSphere
-                    ->IsOverlappingActor(
-                        Attacker
-                    )
-                    )
-                {
-                    GetWorldTimerManager().SetTimer(
-                        AggroDropTimerHandle,
-                        this,
-                        &AEnemyCharacter::
-                        HandleAggroDropTimerExpired,
-                        AggroDropDelay,
-                        false
-                    );
-                }
-            }
-        }
-    }
-}
 
 void AEnemyCharacter::HandleDamageResult(
     const FDamageResult& DamageResult)
 {
-    if (!HasAuthority())
-    {
-        return;
-    }
-
-    if (DamageResult.DamageAmount <= 0.0f)
+    if (!HasAuthority() || bIsDead ||
+        DamageResult.DamageAmount <= 0.0f)
     {
         return;
     }
@@ -712,7 +603,10 @@ void AEnemyCharacter::HandleDamageResult(
         DamageResult.DamageAmount,
         DamageResult.bCritical
     );
+
+    HandleDamageAggro(DamageResult);
 }
+
 
 void AEnemyCharacter::
 MulticastShowDamageNumber_Implementation(
@@ -724,6 +618,7 @@ MulticastShowDamageNumber_Implementation(
         bCritical
     );
 }
+
 
 void AEnemyCharacter::SpawnDamageNumber(
     float DamageAmount,
@@ -769,4 +664,52 @@ void AEnemyCharacter::SpawnDamageNumber(
         DamageAmount,
         bCritical
     );
+}
+
+
+void AEnemyCharacter::HandleDamageAggro(
+    const FDamageResult& DamageResult)
+{
+    APlayerCharacter* Attacker =
+        Cast<APlayerCharacter>(
+            DamageResult.AggroInstigator.Get()
+        );
+
+    if (!IsValid(Attacker) || Attacker->bIsDead)
+    {
+        return;
+    }
+
+    AEnemyAIController* EnemyController =
+        Cast<AEnemyAIController>(GetController());
+
+    if (!EnemyController)
+    {
+        return;
+    }
+
+    CancelAggroDropTimer();
+
+    EnemyController->SetAggroTarget(Attacker);
+
+    if (
+        !AggroSphere ||
+        !AggroSphere->IsOverlappingActor(Attacker)
+        )
+    {
+        if (AggroDropDelay <= 0.0f)
+        {
+            HandleAggroDropTimerExpired();
+        }
+        else
+        {
+            GetWorldTimerManager().SetTimer(
+                AggroDropTimerHandle,
+                this,
+                &AEnemyCharacter::HandleAggroDropTimerExpired,
+                AggroDropDelay,
+                false
+            );
+        }
+    }
 }
