@@ -7,6 +7,9 @@
 
 class UTextBlock;
 struct FOnAttributeChangeData;
+class UInventoryComponent;
+class UItemSlotWidget;
+class UUniformGridPanel;
 
 UCLASS()
 class TESTGAME_API UCharacterPanelWidget : public UAbilitySystemWidget
@@ -17,6 +20,7 @@ protected:
     virtual void OnAbilitySystemReady() override;
     virtual void UnbindFromAbilitySystem() override;
 
+    virtual void NativeConstruct() override;
 private:
     void RefreshAllStats();
 
@@ -27,6 +31,30 @@ private:
     void BindAttribute(
         const FGameplayAttribute& Attribute
     );
+    
+
+    //Inventory
+    void RefreshInventory();
+
+    void HandleItemSlotPressed(
+        int32 Index,
+        FGuid ExpectedItemId
+    );
+
+    UPROPERTY(meta = (BindWidget))
+    TObjectPtr<UUniformGridPanel> InventoryGrid;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Inventory")
+    TSubclassOf<UItemSlotWidget> InventorySlotWidgetClass;
+
+    UPROPERTY(
+        EditDefaultsOnly,
+        Category = "Inventory",
+        meta = (ClampMin = "1")
+    )
+    int32 InventoryColumns = 12;
+
+    TWeakObjectPtr<UInventoryComponent> ObservedInventory;
 
     // --------------------------------------------------
     // PRIMARY

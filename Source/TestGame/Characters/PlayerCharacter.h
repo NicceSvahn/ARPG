@@ -8,6 +8,7 @@ class UAbilitySystemComponent;
 class UHealthAttributeSet;
 class ADamageNumberActor;
 class UPlayerClassDefinitions;
+class UInventoryComponent;
 
 
 UCLASS()
@@ -23,6 +24,13 @@ public:
         Category = "Combat Text"
     )
     TSubclassOf<ADamageNumberActor>HealingNumberActorClass;
+
+    UPROPERTY(
+        VisibleAnywhere,
+        BlueprintReadOnly,
+        Category = "Inventory"
+    )
+    TObjectPtr<UInventoryComponent> InventoryComponent;
 
     //Class
     void ApplyPlayerClassDefinition(
