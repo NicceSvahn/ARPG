@@ -76,44 +76,9 @@ void UTestGameAbilitySystemComponent::AbilityInputTagPressed(
     }
 }
 
-/*void UTestGameAbilitySystemComponent::AbilityInputTagReleased(
-    const FGameplayTag& InputTag)
-{
-    if (!InputTag.IsValid())
-    {
-        return;
-    }
-
-    FGameplayAbilitySpec* AbilitySpec =
-        FindAbilitySpecForTag(InputTag);
-
-    if (!AbilitySpec || !AbilitySpec->Ability)
-    {
-        return;
-    }
-
-    AbilitySpec->InputPressed = false;
-
-    if (AbilitySpec->IsActive())
-    {
-        AbilitySpecInputReleased(
-            *AbilitySpec
-        );
-    }
-}*/
-
 void UTestGameAbilitySystemComponent::AbilityInputTagReleased(
     const FGameplayTag& InputTag)
 {
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT(
-            "[ABILITY INPUT] RELEASE ASC: %s"
-        ),
-        *InputTag.ToString()
-    );
-
     if (!InputTag.IsValid())
     {
         return;
@@ -124,41 +89,13 @@ void UTestGameAbilitySystemComponent::AbilityInputTagReleased(
 
     if (!AbilitySpec || !AbilitySpec->Ability)
     {
-        UE_LOG(
-            LogTemp,
-            Error,
-            TEXT(
-                "[ABILITY INPUT] No ability spec found for %s"
-            ),
-            *InputTag.ToString()
-        );
-
         return;
     }
-
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT(
-            "[ABILITY INPUT] Spec found. Active=%s"
-        ),
-        AbilitySpec->IsActive()
-        ? TEXT("true")
-        : TEXT("false")
-    );
 
     AbilitySpec->InputPressed = false;
 
     if (AbilitySpec->IsActive())
     {
-        UE_LOG(
-            LogTemp,
-            Warning,
-            TEXT(
-                "[ABILITY INPUT] Calling AbilitySpecInputReleased"
-            )
-        );
-
         AbilitySpecInputReleased(
             *AbilitySpec
         );
@@ -216,14 +153,6 @@ void UTestGameAbilitySystemComponent::AbilitySpecInputReleased(
         : Spec
         .ActivationInfo
         .GetActivationPredictionKey();
-
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT(
-            "[ABILITY INPUT] Invoking GAS InputReleased event"
-        )
-    );
 
     InvokeReplicatedEvent(
         EAbilityGenericReplicatedEvent::InputReleased,

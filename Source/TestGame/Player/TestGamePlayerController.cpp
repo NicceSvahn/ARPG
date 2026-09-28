@@ -372,33 +372,6 @@ void ATestGamePlayerController::OnAbilityInputReleased(
     );
 }
 
-/*void ATestGamePlayerController::OnAbilityInputReleased(
-    FGameplayTag InputTag)
-{
-    AGenericCharacter* ControlledCharacter =
-        Cast<AGenericCharacter>(
-            GetPawn()
-        );
-
-    if (!ControlledCharacter)
-    {
-        return;
-    }
-
-    UTestGameAbilitySystemComponent* ASC =
-        ControlledCharacter->
-        GetAbilitySystemComponent();
-
-    if (!ASC)
-    {
-        return;
-    }
-
-    ASC->AbilityInputTagReleased(
-        InputTag
-    );
-}*/
-
 void ATestGamePlayerController::TryInitializeHud()
 {
     if (!IsLocalController())
