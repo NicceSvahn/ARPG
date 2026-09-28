@@ -7,8 +7,6 @@
 
 class UTextBlock;
 struct FOnAttributeChangeData;
-class UButton;
-class UWidgetSwitcher;
 
 UCLASS()
 class TESTGAME_API UCharacterPanelWidget : public UAbilitySystemWidget
@@ -18,9 +16,6 @@ class TESTGAME_API UCharacterPanelWidget : public UAbilitySystemWidget
 protected:
     virtual void OnAbilitySystemReady() override;
     virtual void UnbindFromAbilitySystem() override;
-
-    virtual void NativeConstruct() override;
-    virtual void NativeDestruct() override;
 
 private:
     void RefreshAllStats();
@@ -32,18 +27,6 @@ private:
     void BindAttribute(
         const FGameplayAttribute& Attribute
     );
-
-    UFUNCTION()
-    void HandleDetailsClicked();
-
-    UPROPERTY(meta = (BindWidget))
-    TObjectPtr<UButton> DetailsButton;
-
-    UPROPERTY(meta = (BindWidget))
-    TObjectPtr<UTextBlock> DetailsButtonText;
-
-    UPROPERTY(meta = (BindWidget))
-    TObjectPtr<UWidgetSwitcher> CharacterPageSwitcher;
 
     // --------------------------------------------------
     // PRIMARY
