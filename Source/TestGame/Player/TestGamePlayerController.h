@@ -117,6 +117,8 @@ private:
 
     void OnAbilityInputPressed(FGameplayTag InputTag);
 
+    void OnAbilityInputReleased(FGameplayTag InputTag);
+
     void FinishMoveIntoRange(bool bSuccess);
 
     void TryInitializeHud();

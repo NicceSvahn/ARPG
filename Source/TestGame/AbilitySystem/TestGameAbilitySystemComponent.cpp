@@ -50,6 +50,117 @@ bool UTestGameAbilitySystemComponent::RequestAbility(
     return TryActivateRequestedAbility(AbilitySpec->Handle, Context);
 }
 
+void UTestGameAbilitySystemComponent::AbilityInputTagPressed(
+    const FGameplayTag& InputTag)
+{
+    if (IsOwnerDead() || !InputTag.IsValid())
+    {
+        return;
+    }
+
+    FGameplayAbilitySpec* AbilitySpec =
+        FindAbilitySpecForTag(InputTag);
+
+    if (!AbilitySpec || !AbilitySpec->Ability)
+    {
+        return;
+    }
+
+    AbilitySpec->InputPressed = true;
+
+    if (AbilitySpec->IsActive())
+    {
+        AbilitySpecInputPressed(
+            *AbilitySpec
+        );
+    }
+}
+
+void UTestGameAbilitySystemComponent::AbilityInputTagReleased(
+    const FGameplayTag& InputTag)
+{
+    if (!InputTag.IsValid())
+    {
+        return;
+    }
+
+    FGameplayAbilitySpec* AbilitySpec =
+        FindAbilitySpecForTag(InputTag);
+
+    if (!AbilitySpec || !AbilitySpec->Ability)
+    {
+        return;
+    }
+
+    AbilitySpec->InputPressed = false;
+
+    if (AbilitySpec->IsActive())
+    {
+        AbilitySpecInputReleased(
+            *AbilitySpec
+        );
+    }
+}
+
+void UTestGameAbilitySystemComponent::AbilitySpecInputPressed(
+    FGameplayAbilitySpec& Spec)
+{
+    Super::AbilitySpecInputPressed(Spec);
+
+    if (!Spec.IsActive())
+    {
+        return;
+    }
+
+    const UGameplayAbility* Ability =
+        Spec.GetPrimaryInstance();
+
+    const FPredictionKey PredictionKey =
+        Ability
+        ? Ability
+        ->GetCurrentActivationInfo()
+        .GetActivationPredictionKey()
+        : Spec
+        .ActivationInfo
+        .GetActivationPredictionKey();
+
+    InvokeReplicatedEvent(
+        EAbilityGenericReplicatedEvent::InputPressed,
+        Spec.Handle,
+        PredictionKey
+    );
+}
+
+
+void UTestGameAbilitySystemComponent::AbilitySpecInputReleased(
+    FGameplayAbilitySpec& Spec)
+{
+    Super::AbilitySpecInputReleased(Spec);
+
+    if (!Spec.IsActive())
+    {
+        return;
+    }
+
+    const UGameplayAbility* Ability =
+        Spec.GetPrimaryInstance();
+
+    const FPredictionKey PredictionKey =
+        Ability
+        ? Ability
+        ->GetCurrentActivationInfo()
+        .GetActivationPredictionKey()
+        : Spec
+        .ActivationInfo
+        .GetActivationPredictionKey();
+
+    InvokeReplicatedEvent(
+        EAbilityGenericReplicatedEvent::InputReleased,
+        Spec.Handle,
+        PredictionKey
+    );
+}
+
 FGameplayAbilitySpec*
 UTestGameAbilitySystemComponent::FindAbilitySpecForTag(
     const FGameplayTag& AbilityTag)
