@@ -9,8 +9,17 @@
 #include "../AbilitySystem/Attributes/HealthAttributeSet.h"
 #include "../AbilitySystem/Attributes/ResourceAttributeSet.h"
 
+#include "../Characters/PlayerCharacter.h"
+#include "../Items/InventoryComponent.h"
+#include "ItemSlotWidget.h"
+#include "Blueprint/WidgetTree.h"
+#include "Components/UniformGridPanel.h"
+#include "Components/UniformGridSlot.h"
+
 void UCharacterPanelWidget::OnAbilitySystemReady()
 {
+    UnbindFromAbilitySystem();
+
     UAbilitySystemComponent* ASC =
         GetObservedAbilitySystem();
 
@@ -125,6 +134,25 @@ void UCharacterPanelWidget::OnAbilitySystemReady()
 
 
     RefreshAllStats();
+
+    if (APlayerCharacter* Player =
+        Cast<APlayerCharacter>(GetObservedActor()))
+    {
+        ObservedInventory = Player->InventoryComponent;
+
+        if (UInventoryComponent* Inventory =
+            ObservedInventory.Get())
+        {
+            Inventory->OnInventoryChanged.RemoveAll(this);
+
+            Inventory->OnInventoryChanged.AddUObject(
+                this,
+                &UCharacterPanelWidget::RefreshInventory
+            );
+        }
+    }
+
+    RefreshInventory();
 }
 
 void UCharacterPanelWidget::BindAttribute(
@@ -133,7 +161,12 @@ void UCharacterPanelWidget::BindAttribute(
     UAbilitySystemComponent* ASC =
         GetObservedAbilitySystem();
 
-    if (!ASC)
+    if (!ASC || !Attribute.IsValid())
+    {
+        return;
+    }
+
+    if (BoundAttributes.Contains(Attribute))
     {
         return;
     }
@@ -152,6 +185,14 @@ void UCharacterPanelWidget::BindAttribute(
 
 void UCharacterPanelWidget::UnbindFromAbilitySystem()
 {
+    if (UInventoryComponent* Inventory =
+        ObservedInventory.Get())
+    {
+        Inventory->OnInventoryChanged.RemoveAll(this);
+    }
+
+    ObservedInventory.Reset();
+
     UAbilitySystemComponent* ASC =
         GetObservedAbilitySystem();
 
@@ -591,6 +632,149 @@ void UCharacterPanelWidget::RefreshAllStats()
                     MaxResource
                 )
             )
+        );
+    }
+}
+
+void UCharacterPanelWidget::NativeConstruct()
+{
+    Super::NativeConstruct();
+
+    // Replace Designer placeholders with actual inventory slots.
+    if (InventoryGrid)
+    {
+        InventoryGrid->ClearChildren();
+    }
+
+    RefreshInventory();
+}
+
+void UCharacterPanelWidget::RefreshInventory()
+{
+    UInventoryComponent* Inventory =
+        ObservedInventory.Get();
+
+    if (!Inventory || !InventoryGrid || !WidgetTree)
+    {
+        return;
+    }
+
+    if (!InventorySlotWidgetClass)
+    {
+        UE_LOG(
+            LogTemp,
+            Error,
+            TEXT("[INVENTORY UI] InventorySlotWidgetClass is not assigned.")
+        );
+        return;
+    }
+
+    const int32 Capacity =
+        Inventory->GetInventoryCapacity();
+
+    const int32 Columns =
+        FMath::Max(1, InventoryColumns);
+
+    if (InventoryGrid->GetChildrenCount() != Capacity)
+    {
+        InventoryGrid->ClearChildren();
+
+        for (int32 Index = 0; Index < Capacity; ++Index)
+        {
+            UItemSlotWidget* ItemSlot =
+                CreateWidget<UItemSlotWidget>(
+                    GetOwningPlayer(),
+                    InventorySlotWidgetClass
+                );
+
+            if (!ItemSlot)
+            {
+                return;
+            }
+
+            ItemSlot->bEquipmentSlot = false;
+
+            UUniformGridSlot* GridSlot =
+                InventoryGrid->AddChildToUniformGrid(
+                    ItemSlot,
+                    Index / Columns,
+                    Index % Columns
+                );
+
+            GridSlot->SetHorizontalAlignment(HAlign_Fill);
+            GridSlot->SetVerticalAlignment(VAlign_Fill);
+        }
+    }
+
+    // Update backpack slots.
+    for (int32 Index = 0; Index < Capacity; ++Index)
+    {
+        UItemSlotWidget* ItemSlot =
+            Cast<UItemSlotWidget>(
+                InventoryGrid->GetChildAt(Index)
+            );
+
+        if (!ItemSlot)
+        {
+            continue;
+        }
+
+        ItemSlot->OnSlotPressed.RemoveAll(this);
+
+        ItemSlot->OnSlotPressed.AddUObject(
+            this,
+            &UCharacterPanelWidget::HandleItemSlotPressed
+        );
+
+        ItemSlot->SetItem(
+            Index,
+            Inventory->GetItem(Index)
+        );
+    }
+
+    // Update the equipment slots positioned in the Designer.
+    TArray<UWidget*> Widgets;
+    WidgetTree->GetAllWidgets(Widgets);
+
+    for (UWidget* Widget : Widgets)
+    {
+        UItemSlotWidget* ItemSlot =
+            Cast<UItemSlotWidget>(Widget);
+
+        if (!ItemSlot || !ItemSlot->bEquipmentSlot)
+        {
+            continue;
+        }
+
+        const int32 Index =
+            Inventory->GetEquipmentIndex(
+                ItemSlot->EquipmentSlot
+            );
+
+        ItemSlot->OnSlotPressed.RemoveAll(this);
+
+        ItemSlot->OnSlotPressed.AddUObject(
+            this,
+            &UCharacterPanelWidget::HandleItemSlotPressed
+        );
+
+        ItemSlot->SetItem(
+            Index,
+            Inventory->GetItem(Index)
+        );
+    }
+}
+
+void UCharacterPanelWidget::HandleItemSlotPressed(
+    int32 Index,
+    FGuid ExpectedItemId)
+{
+    if (UInventoryComponent* Inventory =
+        ObservedInventory.Get())
+    {
+        Inventory->RequestUseSlot(
+            Index,
+            ExpectedItemId
         );
     }
 }
