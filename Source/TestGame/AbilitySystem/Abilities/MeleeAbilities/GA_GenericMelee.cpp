@@ -1,5 +1,8 @@
 #include "GA_GenericMelee.h"
 
+#include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
+#include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
+
 #include "../../../Characters/GenericCharacter.h"
 #include "../../Damage/GE_Damage.h"
 
@@ -7,6 +10,11 @@ UGA_GenericMelee::UGA_GenericMelee()
 {
     bRequiresTargetData = true;
     DamageEffect = UGE_Damage::StaticClass();
+
+    MeleeHitEventTag =
+        FGameplayTag::RequestGameplayTag(
+            FName("Event.Combat.MeleeHit")
+        );
 }
 
 AActor* UGA_GenericMelee::ExtractTargetActor(
@@ -67,11 +75,20 @@ void UGA_GenericMelee::OnTargetDataReady(
 void UGA_GenericMelee::ExecuteMeleeAbility(
     AActor* TargetActor)
 {
+
+    UE_LOG(
+        LogTemp,
+        Warning,
+        TEXT("MELEE: ExecuteMeleeAbility | RequiresTarget=%s | Montage=%s"),
+        RequiresTarget() ? TEXT("YES") : TEXT("NO"),
+        AttackMontage ? *AttackMontage->GetName() : TEXT("NULL")
+    );
+
     AGenericCharacter* Character =
         GetGenericCharacter();
 
     if (!Character ||
-        !IsValid(TargetActor))
+        (RequiresTarget() && !IsValid(TargetActor)))
     {
         EndAbility(
             GetCurrentAbilitySpecHandle(),
@@ -82,6 +99,8 @@ void UGA_GenericMelee::ExecuteMeleeAbility(
         );
         return;
     }
+
+    UE_LOG(LogTemp, Warning, TEXT("MELEE: About to CommitAbility"));
 
     if (!CommitAbility(
         GetCurrentAbilitySpecHandle(),
@@ -98,34 +117,181 @@ void UGA_GenericMelee::ExecuteMeleeAbility(
         return;
     }
 
-    FVector Direction =
-        TargetActor->GetActorLocation() -
-        Character->GetActorLocation();
+    UAnimMontage* MontageToPlay = GetAttackMontageForActivation();
 
-    Direction.Z = 0.0f;
+    PendingTargetActor = TargetActor;
 
-    if (!Direction.IsNearlyZero())
+    bMeleeHitTriggered = false;
+
+    // Targeted abilities such as Bash face their target.
+    // Cleave has nullptr here and therefore keeps the
+    // direction the player is already facing.
+    if (IsValid(TargetActor))
     {
-        Character->SetActorRotation(
-            Direction.Rotation()
+        FVector Direction =
+            TargetActor->GetActorLocation() -
+            Character->GetActorLocation();
+
+        Direction.Z = 0.0f;
+
+        if (!Direction.IsNearlyZero())
+        {
+            Character->SetActorRotation(
+                Direction.Rotation()
+            );
+        }
+    }
+
+    // Allows a melee ability without a montage to still work.
+    if (!MontageToPlay)
+    {
+        const FGameplayAbilityActorInfo* ActorInfo =
+            GetCurrentActorInfo();
+
+        if (ActorInfo &&
+            ActorInfo->IsNetAuthority())
+        {
+            OnMeleeHit(
+                PendingTargetActor.Get()
+            );
+        }
+
+        FinishMeleeAbility(false);
+        return;
+    }
+
+    // Start listening before the montage begins so that
+    // the hit-frame event cannot be missed.
+    HitEventTask =
+        UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(
+            this,
+            MeleeHitEventTag,
+            nullptr,
+            true,
+            true
+        );
+
+    if (!HitEventTask)
+    {
+        FinishMeleeAbility(true);
+        return;
+    }
+
+    HitEventTask->EventReceived.AddDynamic(
+        this,
+        &UGA_GenericMelee::HandleMeleeHitEvent
+    );
+
+    HitEventTask->ReadyForActivation();
+
+    MontageTask =
+        UAbilityTask_PlayMontageAndWait::
+        CreatePlayMontageAndWaitProxy(
+            this,
+            NAME_None,
+            MontageToPlay,
+            1.0f,
+            NAME_None
+        );
+
+    if (!MontageTask)
+    {
+        FinishMeleeAbility(true);
+        return;
+    }
+
+    MontageTask->OnCompleted.AddDynamic(
+        this,
+        &UGA_GenericMelee::HandleMontageCompleted
+    );
+
+    MontageTask->OnInterrupted.AddDynamic(
+        this,
+        &UGA_GenericMelee::HandleMontageInterrupted
+    );
+
+    MontageTask->OnCancelled.AddDynamic(
+        this,
+        &UGA_GenericMelee::HandleMontageCancelled
+    );
+
+    MontageTask->ReadyForActivation();
+}
+
+void UGA_GenericMelee::HandleMeleeHitEvent(
+    FGameplayEventData Payload)
+{
+    const FGameplayAbilityActorInfo* ActorInfo =
+        GetCurrentActorInfo();
+
+    if (!ActorInfo ||
+        !ActorInfo->IsNetAuthority())
+    {
+        return;
+    }
+
+    // Prevent duplicate damage if a montage accidentally
+    // contains multiple identical hit notifies.
+    if (bMeleeHitTriggered)
+    {
+        return;
+    }
+
+    bMeleeHitTriggered = true;
+
+    OnMeleeHit(
+        PendingTargetActor.Get()
+    );
+}
+
+void UGA_GenericMelee::HandleMontageCompleted()
+{
+    const FGameplayAbilityActorInfo* ActorInfo =
+        GetCurrentActorInfo();
+
+    // Fallback:
+    // If no animation hit event was received, still perform
+    // the attack at montage completion.
+    if (!bMeleeHitTriggered &&
+        ActorInfo &&
+        ActorInfo->IsNetAuthority())
+    {
+        bMeleeHitTriggered = true;
+
+        OnMeleeHit(
+            PendingTargetActor.Get()
         );
     }
 
-    if (AttackMontage)
-    {
-        Character->PlayAnimMontage(
-            AttackMontage
-        );
-    }
+    FinishMeleeAbility(false);
+}
 
-    OnMeleeHit(TargetActor);
+void UGA_GenericMelee::HandleMontageInterrupted()
+{
+    FinishMeleeAbility(true);
+}
+
+void UGA_GenericMelee::HandleMontageCancelled()
+{
+    FinishMeleeAbility(true);
+}
+
+void UGA_GenericMelee::FinishMeleeAbility(
+    const bool bWasCancelled)
+{
+    PendingTargetActor.Reset();
+
+    bMeleeHitTriggered = false;
+
+    MontageTask = nullptr;
+    HitEventTask = nullptr;
 
     EndAbility(
         GetCurrentAbilitySpecHandle(),
         GetCurrentActorInfo(),
         GetCurrentActivationInfo(),
         true,
-        false
+        bWasCancelled
     );
 }
 
@@ -137,4 +303,9 @@ void UGA_GenericMelee::OnMeleeHit(
         DamageEffect,
         DamageData
     );
+}
+
+UAnimMontage* UGA_GenericMelee::GetAttackMontageForActivation()
+{
+    return AttackMontage;
 }

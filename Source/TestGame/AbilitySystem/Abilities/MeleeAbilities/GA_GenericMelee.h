@@ -7,6 +7,8 @@
 
 class UAnimMontage;
 class UGameplayEffect;
+class UAbilityTask_PlayMontageAndWait;
+class UAbilityTask_WaitGameplayEvent;
 
 UCLASS(Abstract)
 class TESTGAME_API UGA_GenericMelee
@@ -44,6 +46,7 @@ protected:
     )
     TSubclassOf<UGameplayEffect> DamageEffect;
 
+    //Animations
     UPROPERTY(
         EditDefaultsOnly,
         BlueprintReadOnly,
@@ -51,24 +54,59 @@ protected:
     )
     TObjectPtr<UAnimMontage> AttackMontage = nullptr;
 
+    virtual UAnimMontage* GetAttackMontageForActivation();
+
+    UPROPERTY(
+        EditDefaultsOnly,
+        BlueprintReadOnly,
+        Category = "Ability|Melee",
+        meta = (Categories = "Event.Combat")
+    )
+    FGameplayTag MeleeHitEventTag;
+
+    // Handling
     virtual void OnTargetDataReady(
         const FGameplayAbilityTargetDataHandle& Data
     ) override;
 
-    /**
-     * Override this in a concrete melee ability when it needs extra behavior
-     * after the common target/commit setup.
-     */
-    virtual void ExecuteMeleeAbility(AActor* TargetActor);
+    virtual void ExecuteMeleeAbility(
+        AActor* TargetActor
+    );
 
-    /**
-     * Override this when a melee ability needs custom hit behavior.
-     * The default implementation applies inherited DamageData through DamageEffect.
-     */
-    virtual void OnMeleeHit(AActor* TargetActor);
+    virtual void OnMeleeHit(
+        AActor* TargetActor
+    );
+
+    bool bMeleeHitTriggered = false;
 
 private:
+    UPROPERTY()
+    TObjectPtr<UAbilityTask_PlayMontageAndWait> MontageTask = nullptr;
+
+    UPROPERTY()
+    TObjectPtr<UAbilityTask_WaitGameplayEvent> HitEventTask = nullptr;
+
+    TWeakObjectPtr<AActor> PendingTargetActor;
+
     AActor* ExtractTargetActor(
         const FGameplayAbilityTargetDataHandle& Data
     ) const;
+
+    UFUNCTION()
+    void HandleMeleeHitEvent(
+        FGameplayEventData Payload
+    );
+
+    UFUNCTION()
+    void HandleMontageCompleted();
+
+    UFUNCTION()
+    void HandleMontageInterrupted();
+
+    UFUNCTION()
+    void HandleMontageCancelled();
+
+    void FinishMeleeAbility(
+        bool bWasCancelled
+    );
 };
