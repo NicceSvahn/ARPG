@@ -18,6 +18,8 @@
 
 void UCharacterPanelWidget::OnAbilitySystemReady()
 {
+    UnbindFromAbilitySystem();
+
     UAbilitySystemComponent* ASC =
         GetObservedAbilitySystem();
 
@@ -159,7 +161,12 @@ void UCharacterPanelWidget::BindAttribute(
     UAbilitySystemComponent* ASC =
         GetObservedAbilitySystem();
 
-    if (!ASC)
+    if (!ASC || !Attribute.IsValid())
+    {
+        return;
+    }
+
+    if (BoundAttributes.Contains(Attribute))
     {
         return;
     }
@@ -185,11 +192,6 @@ void UCharacterPanelWidget::UnbindFromAbilitySystem()
     }
 
     ObservedInventory.Reset();
-
-    if (InventoryGrid)
-    {
-        InventoryGrid->ClearChildren();
-    }
 
     UAbilitySystemComponent* ASC =
         GetObservedAbilitySystem();
