@@ -28,6 +28,31 @@ struct TESTGAME_API FItemStatRange
     int32 MaxValue = 10;
 };
 
+USTRUCT(BlueprintType)
+struct TESTGAME_API FItemStatGroup
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stats")
+    FName GroupName = NAME_None;
+
+    UPROPERTY(
+        EditAnywhere,
+        BlueprintReadOnly,
+        Category = "Stats",
+        meta = (ClampMin = "0")
+    )
+    int32 StatCount = 1;
+
+    UPROPERTY(
+        EditAnywhere,
+        BlueprintReadOnly,
+        Category = "Stats",
+        meta = (TitleProperty = "DisplayName")
+    )
+    TArray<FItemStatRange> StatPool;
+};
+
 // Stores the actual value rolled for an individual item.
 USTRUCT(BlueprintType)
 struct TESTGAME_API FItemRolledStat
@@ -137,4 +162,12 @@ public:
         Category = "Equipment"
     )
     TSubclassOf<UGameplayEffect> EquippedEffect;
+
+    UPROPERTY(
+        EditDefaultsOnly,
+        BlueprintReadOnly,
+        Category = "Item|Stats",
+        meta = (TitleProperty = "GroupName")
+    )
+        TArray<FItemStatGroup> StatGroups;
 };

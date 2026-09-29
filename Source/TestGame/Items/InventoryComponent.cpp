@@ -8,6 +8,67 @@
 #include "../Characters/GenericCharacter.h"
 
 
+namespace
+{
+    bool RollStatsFromPool(
+        const TArray<FItemStatRange>& Pool,
+        int32 Count,
+        TSet<FGameplayTag>& ConfiguredTags,
+        TArray<FItemRolledStat>& OutStats)
+    {
+        if (Count < 0 || Count > Pool.Num())
+        {
+            return false;
+        }
+
+        // Validate every entry, including duplicate tags across pools.
+        for (const FItemStatRange& Range : Pool)
+        {
+            if (!Range.StatTag.IsValid() ||
+                Range.MinValue > Range.MaxValue ||
+                ConfiguredTags.Contains(Range.StatTag))
+            {
+                return false;
+            }
+
+            ConfiguredTags.Add(Range.StatTag);
+        }
+
+        // Work on a copy so the data asset is never modified.
+        TArray<FItemStatRange> RemainingStats = Pool;
+
+        for (int32 Pick = 0; Pick < Count; ++Pick)
+        {
+            const int32 RandomIndex = FMath::RandRange(
+                0,
+                RemainingStats.Num() - 1
+            );
+
+            const FItemStatRange& Selected =
+                RemainingStats[RandomIndex];
+
+            FItemRolledStat& Rolled =
+                OutStats.AddDefaulted_GetRef();
+
+            Rolled.StatTag = Selected.StatTag;
+            Rolled.DisplayName = Selected.DisplayName;
+
+            Rolled.Value = static_cast<float>(
+                FMath::RandRange(
+                    Selected.MinValue,
+                    Selected.MaxValue
+                )
+                );
+
+            // Prevent this stat from being selected again.
+            RemainingStats.RemoveAtSwap(RandomIndex);
+        }
+
+        return true;
+    }
+}
+
+
 UInventoryComponent::UInventoryComponent()
 {
     PrimaryComponentTick.bCanEverTick = false;
@@ -99,14 +160,11 @@ int32 UInventoryComponent::FindEmptyInventorySlot() const
 }
 
 
-bool UInventoryComponent::AddItem(
-    UItemDefinition* Definition)
+bool UInventoryComponent::AddItem(UItemDefinition* Definition)
 {
-    if (
-        !GetOwner() ||
+    if (!GetOwner() ||
         !GetOwner()->HasAuthority() ||
-        !IsValid(Definition)
-        )
+        !IsValid(Definition))
     {
         return false;
     }
@@ -122,38 +180,31 @@ bool UInventoryComponent::AddItem(
     NewItem.InstanceId = FGuid::NewGuid();
     NewItem.Definition = Definition;
 
-    TSet<FGameplayTag> UsedTags;
+    TSet<FGameplayTag> ConfiguredTags;
 
-    for (const FItemStatRange& Range : Definition->StatRanges)
+    for (const FItemStatGroup& Group : Definition->StatGroups)
     {
-        // Reject invalid item configuration.
-        if (!Range.StatTag.IsValid() ||
-            Range.MinValue > Range.MaxValue ||
-            UsedTags.Contains(Range.StatTag))
+        const bool bSuccess = RollStatsFromPool(
+            Group.StatPool,
+            Group.StatCount,
+            ConfiguredTags,
+            NewItem.RolledStats
+        );
+
+        if (!bSuccess)
         {
             UE_LOG(
                 LogTemp,
                 Warning,
-                TEXT("Invalid stat range on item definition %s"),
+                TEXT("Invalid stat group '%s' on item '%s'"),
+                *Group.GroupName.ToString(),
                 *GetNameSafe(Definition)
             );
 
             return false;
         }
-
-        UsedTags.Add(Range.StatTag);
-
-        FItemRolledStat& RolledStat =
-            NewItem.RolledStats.AddDefaulted_GetRef();
-
-        RolledStat.StatTag = Range.StatTag;
-        RolledStat.DisplayName = Range.DisplayName;
-        RolledStat.Value = static_cast<float>(
-            FMath::RandRange(Range.MinValue, Range.MaxValue)
-            );
     }
 
-    // Index is the empty inventory slot found earlier.
     Items[Index] = MoveTemp(NewItem);
 
     NotifyChanged();
@@ -240,6 +291,19 @@ bool UInventoryComponent::ApplyEquipmentEffect(
         return false;
     }
 
+    /// Initialize every possible additive stat bonus to zero.
+    for (const FItemStatGroup& Group : Definition->StatGroups)
+    {
+        for (const FItemStatRange& Range : Group.StatPool)
+        {
+            Spec.Data->SetSetByCallerMagnitude(
+                Range.StatTag,
+                0.0f
+            );
+        }
+    }
+
+    // Replace zero with the actual values selected for this item.
     for (const FItemRolledStat& Stat : Item.RolledStats)
     {
         Spec.Data->SetSetByCallerMagnitude(
