@@ -1,5 +1,7 @@
 #include "ItemSlotWidget.h"
 
+#include "ItemTooltipWidget.h"
+
 #include "Components/Button.h"
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
@@ -73,6 +75,8 @@ void UItemSlotWidget::SetItem(
         )
         : FText::GetEmpty()
     );
+
+    UpdateItemTooltip(InItem);
 }
 
 void UItemSlotWidget::HandleClicked()
@@ -84,4 +88,43 @@ void UItemSlotWidget::HandleClicked()
             ItemId
         );
     }
+}
+
+void UItemSlotWidget::UpdateItemTooltip(
+    const FInventoryItem& Item)
+{
+    // Remove any previous tooltip on the slot widget.
+    SetToolTip(nullptr);
+    SetToolTipText(FText::GetEmpty());
+
+    if (!SlotButton)
+    {
+        return;
+    }
+
+    // Clear the button's tooltip when the item changes.
+    SlotButton->SetToolTip(nullptr);
+    SlotButton->SetToolTipText(FText::GetEmpty());
+
+    if (!Item.IsValid() ||
+        !IsValid(Item.Definition.Get()) ||
+        !ItemTooltipClass)
+    {
+        return;
+    }
+
+    UItemTooltipWidget* Tooltip =
+        CreateWidget<UItemTooltipWidget>(
+            GetOwningPlayer(),
+            ItemTooltipClass
+        );
+
+    if (!Tooltip)
+    {
+        return;
+    }
+
+    Tooltip->SetItem(Item);
+
+    SlotButton->SetToolTip(Tooltip);
 }

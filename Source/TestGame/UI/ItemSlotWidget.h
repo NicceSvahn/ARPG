@@ -8,6 +8,7 @@
 class UButton;
 class UImage;
 class UTextBlock;
+class UItemTooltipWidget;
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(
     FOnItemSlotPressed,
@@ -45,6 +46,9 @@ public:
 protected:
     virtual void NativeOnInitialized() override;
 
+    UPROPERTY(EditDefaultsOnly, Category = "Item|Tooltip")
+    TSubclassOf<UItemTooltipWidget> ItemTooltipClass;
+
 private:
     UFUNCTION()
     void HandleClicked();
@@ -63,4 +67,6 @@ private:
 
     int32 ItemIndex = INDEX_NONE;
     FGuid ItemId;
+
+    void UpdateItemTooltip(const FInventoryItem& Item);
 };
