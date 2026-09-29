@@ -88,7 +88,7 @@ private:
     int32 FindEmptyInventorySlot() const;
 
     bool ApplyEquipmentEffect(
-        UItemDefinition* Definition,
+        const FInventoryItem& Item,
         FActiveGameplayEffectHandle& OutHandle
     );
 

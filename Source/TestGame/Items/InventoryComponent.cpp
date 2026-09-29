@@ -118,8 +118,43 @@ bool UInventoryComponent::AddItem(
         return false;
     }
 
-    Items[Index].InstanceId = FGuid::NewGuid();
-    Items[Index].Definition = Definition;
+    FInventoryItem NewItem;
+    NewItem.InstanceId = FGuid::NewGuid();
+    NewItem.Definition = Definition;
+
+    TSet<FGameplayTag> UsedTags;
+
+    for (const FItemStatRange& Range : Definition->StatRanges)
+    {
+        // Reject invalid item configuration.
+        if (!Range.StatTag.IsValid() ||
+            Range.MinValue > Range.MaxValue ||
+            UsedTags.Contains(Range.StatTag))
+        {
+            UE_LOG(
+                LogTemp,
+                Warning,
+                TEXT("Invalid stat range on item definition %s"),
+                *GetNameSafe(Definition)
+            );
+
+            return false;
+        }
+
+        UsedTags.Add(Range.StatTag);
+
+        FItemRolledStat& RolledStat =
+            NewItem.RolledStats.AddDefaulted_GetRef();
+
+        RolledStat.StatTag = Range.StatTag;
+        RolledStat.DisplayName = Range.DisplayName;
+        RolledStat.Value = static_cast<float>(
+            FMath::RandRange(Range.MinValue, Range.MaxValue)
+            );
+    }
+
+    // Index is the empty inventory slot found earlier.
+    Items[Index] = MoveTemp(NewItem);
 
     NotifyChanged();
     return true;
@@ -135,10 +170,17 @@ void UInventoryComponent::RequestUseSlot(
 
 
 bool UInventoryComponent::ApplyEquipmentEffect(
-    UItemDefinition* Definition,
+    const FInventoryItem& Item,
     FActiveGameplayEffectHandle& OutHandle)
 {
-    OutHandle = FActiveGameplayEffectHandle{};
+    OutHandle = FActiveGameplayEffectHandle();
+
+    if (!Item.IsValid())
+    {
+        return false;
+    }
+
+    UItemDefinition* Definition = Item.Definition.Get();
 
     if (!IsValid(Definition))
     {
@@ -196,6 +238,14 @@ bool UInventoryComponent::ApplyEquipmentEffect(
     if (!Spec.IsValid())
     {
         return false;
+    }
+
+    for (const FItemRolledStat& Stat : Item.RolledStats)
+    {
+        Spec.Data->SetSetByCallerMagnitude(
+            Stat.StatTag,
+            Stat.Value
+        );
     }
 
     OutHandle =
@@ -287,7 +337,7 @@ void UInventoryComponent::ServerUseSlot_Implementation(
         FActiveGameplayEffectHandle NewHandle;
 
         // Keep existing equipment if the new effect fails.
-        if (!ApplyEquipmentEffect(Definition, NewHandle))
+        if (!ApplyEquipmentEffect(Items[Index], NewHandle))
         {
             return;
         }

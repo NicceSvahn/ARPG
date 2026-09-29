@@ -2,11 +2,47 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
+#include "GameplayTagContainer.h"
+
 #include "ItemDefinition.generated.h"
 
 class UTexture2D;
 class UGameplayEffect;
 
+// Defines the possible values for one stat.
+USTRUCT(BlueprintType)
+struct TESTGAME_API FItemStatRange
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item")
+    FGameplayTag StatTag;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item")
+    FText DisplayName;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item")
+    int32 MinValue = 1;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item")
+    int32 MaxValue = 10;
+};
+
+// Stores the actual value rolled for an individual item.
+USTRUCT(BlueprintType)
+struct TESTGAME_API FItemRolledStat
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadOnly, Category = "Item")
+    FGameplayTag StatTag;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Item")
+    FText DisplayName;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Item")
+    float Value = 0.0f;
+};
 
 // The equipment positions available on a character.
 UENUM(BlueprintType)
@@ -29,6 +65,27 @@ enum class EEquipmentSlot : uint8
     // Used by C++ to determine the number of equipment slots.
     // This is not an actual equipment position.
     Count UMETA(Hidden)
+};
+
+// One particular copy of an item in an inventory.
+USTRUCT(BlueprintType)
+struct TESTGAME_API FInventoryItem
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadOnly, Category = "Item")
+    FGuid InstanceId;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Item")
+    TObjectPtr<UItemDefinition> Definition = nullptr;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Item")
+    TArray<FItemRolledStat> RolledStats;
+
+    bool IsValid() const
+    {
+        return InstanceId.IsValid() && Definition != nullptr;
+    }
 };
 
 
@@ -61,6 +118,9 @@ public:
     )
     TObjectPtr<UTexture2D> Icon = nullptr;
 
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Item|Stats")
+    TArray<FItemStatRange> StatRanges;
+
     // An empty array means this item cannot be equipped.
     // A ring can support both LeftRing and RightRing.
     UPROPERTY(
@@ -77,23 +137,4 @@ public:
         Category = "Equipment"
     )
     TSubclassOf<UGameplayEffect> EquippedEffect;
-};
-
-
-// One particular copy of an item in an inventory.
-USTRUCT(BlueprintType)
-struct TESTGAME_API FInventoryItem
-{
-    GENERATED_BODY()
-
-    UPROPERTY(BlueprintReadOnly, Category = "Item")
-    FGuid InstanceId;
-
-    UPROPERTY(BlueprintReadOnly, Category = "Item")
-    TObjectPtr<UItemDefinition> Definition = nullptr;
-
-    bool IsValid() const
-    {
-        return InstanceId.IsValid() && Definition != nullptr;
-    }
 };
