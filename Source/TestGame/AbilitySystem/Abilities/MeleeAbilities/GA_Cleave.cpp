@@ -3,15 +3,9 @@
 #include "../AoEAbilities/GA_GenericAoE.h"
 #include "../../../Characters/EnemyCharacter.h"
 #include "../../../Characters/GenericCharacter.h"
-#include "../../TestGameAbilitySystemComponent.h"
-#include "../../AbilityInputContext.h"
 
 UGA_Cleave::UGA_Cleave()
 {
-    // Cleave does not use cursor target data.
-    // It checks which enemies are inside the arc at the actual hit frame.
-    bRequiresTargetData = false;
-
     AffectedCharacterClass = AEnemyCharacter::StaticClass();
 
     DamageData.BaseDamage = 20.0f;
@@ -27,63 +21,6 @@ UGA_Cleave::UGA_Cleave()
     ResourceGain = 10.0f;
 }
 
-void UGA_Cleave::ActivateAbility(
-    const FGameplayAbilitySpecHandle Handle,
-    const FGameplayAbilityActorInfo* ActorInfo,
-    const FGameplayAbilityActivationInfo ActivationInfo,
-    const FGameplayEventData* TriggerEventData)
-{
-    Super::ActivateAbility(
-        Handle,
-        ActorInfo,
-        ActivationInfo,
-        TriggerEventData
-    );
-
-    AGenericCharacter* Character =
-        GetGenericCharacter();
-
-    UTestGameAbilitySystemComponent* ASC =
-        GetTestGameASC();
-
-    if (Character && ASC)
-    {
-        const FAbilityInputContext& InputContext =
-            ASC->GetAbilityInputContext();
-
-        const FGameplayAbilityTargetDataHandle TargetData =
-            InputContext.MakeTargetData();
-
-        if (TargetData.Num() > 0)
-        {
-            const FGameplayAbilityTargetData* Data =
-                TargetData.Get(0);
-
-            if (Data)
-            {
-                if (const FHitResult* HitResult =
-                    Data->GetHitResult())
-                {
-                    FVector Direction =
-                        HitResult->ImpactPoint -
-                        Character->GetActorLocation();
-
-                    Direction.Z = 0.0f;
-
-                    if (!Direction.IsNearlyZero())
-                    {
-                        Character->SetActorRotation(
-                            Direction.Rotation()
-                        );
-                    }
-                }
-            }
-        }
-    }
-
-    ExecuteMeleeAbility(nullptr);
-}
-
 void UGA_Cleave::OnMeleeHit(
     AActor* TargetActor)
 {
@@ -95,6 +32,9 @@ void UGA_Cleave::OnMeleeHit(
         return;
     }
 
+    // The actor target is only used by GA_GenericMelee for chase/facing.
+    // Cleave damage is always determined by the actual arc at the hit frame,
+    // which makes targeted and Shift-forced Cleaves use the exact same query.
     ApplyCleaveDamage(
         SourceCharacter
     );

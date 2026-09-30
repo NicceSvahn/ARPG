@@ -57,6 +57,10 @@ public:
 
     void CancelMoveIntoRange();
 
+    // Used by abilities that must attack in place. Stops both click movement
+    // and target-chasing movement immediately.
+    void StopMovementForAbility();
+
     // Combat debug helper.
     AGenericCharacter* GetCharacterUnderCursor() const;
 

@@ -4,6 +4,8 @@
 #include "EnhancedInputComponent.h"
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/Character.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "InputCoreTypes.h"
 
 #include "../UI/PlayerHudWidget.h"
 #include "../AbilitySystem/TestGameAbilitySystemComponent.h"
@@ -272,6 +274,26 @@ void ATestGamePlayerController::CancelMoveIntoRange()
     FinishMoveIntoRange(false);
 }
 
+void ATestGamePlayerController::StopMovementForAbility()
+{
+    CancelMoveIntoRange();
+    StopClickMove();
+
+    ACharacter* ControlledCharacter =
+        GetCharacter();
+
+    if (!ControlledCharacter)
+    {
+        return;
+    }
+
+    if (UCharacterMovementComponent* MovementComponent =
+        ControlledCharacter->GetCharacterMovement())
+    {
+        MovementComponent->StopMovementImmediately();
+    }
+}
+
 void ATestGamePlayerController::OnAbilityInputPressed(
     FGameplayTag InputTag)
 {
@@ -295,6 +317,14 @@ void ATestGamePlayerController::OnAbilityInputPressed(
     }
 
     FAbilityInputContext Context;
+
+    // Capture the modifier at the instant the ability is pressed.
+    // Both Shift keys behave identically. The ASC will only honour this
+    // flag for abilities that explicitly support directional attacks.
+    Context.bForceDirectionalAttack =
+        IsInputKeyDown(EKeys::LeftShift) ||
+        IsInputKeyDown(EKeys::RightShift);
+
     FHitResult HitResult;
 
     if (GetHitResultUnderCursor(

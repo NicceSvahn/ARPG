@@ -28,31 +28,59 @@ bool UTestGameAbilitySystemComponent::RequestAbility(
     const IAbilityRequestPolicy* RequestPolicy =
         Cast<IAbilityRequestPolicy>(AbilitySpec->Ability);
 
+    const bool bSupportsForceDirectionalAttack =
+        RequestPolicy &&
+        RequestPolicy->SupportsForceDirectionalAttack();
+
+    // Only abilities that explicitly opt into this behaviour may consume
+    // the Shift modifier. Holding Shift must not silently change targeting
+    // data for unrelated abilities such as Fireball.
+    FAbilityInputContext EffectiveContext = Context;
+    EffectiveContext.bForceDirectionalAttack =
+        bSupportsForceDirectionalAttack &&
+        Context.bForceDirectionalAttack;
+
     const bool bRequiresTarget =
-        RequestPolicy && RequestPolicy->RequiresTarget();
+        RequestPolicy &&
+        RequestPolicy->RequiresTarget() &&
+        !EffectiveContext.bForceDirectionalAttack;
 
     const float MaximumRange =
-        RequestPolicy
-        ? RequestPolicy->GetMaximumRange()
-        : 0.0f;
+        EffectiveContext.bForceDirectionalAttack
+        ? 0.0f
+        : (RequestPolicy
+            ? RequestPolicy->GetMaximumRange()
+            : 0.0f);
 
-    if (!CheckTarget(bRequiresTarget, Context))
+    // Directional attacks need a real cursor/world hit to define the aim
+    // point. If the cursor trace found nothing, do not activate.
+    if (EffectiveContext.bForceDirectionalAttack &&
+        !EffectiveContext.HitResult.bBlockingHit)
     {
         return false;
     }
 
-    if (!CheckRange(MaximumRange, Context))
+    if (!CheckTarget(
+        bRequiresTarget,
+        EffectiveContext))
+    {
+        return false;
+    }
+
+    if (!CheckRange(
+        MaximumRange,
+        EffectiveContext))
     {
         return RequestMovement(
             AbilityTag,
-            Context,
+            EffectiveContext,
             MaximumRange
         );
     }
 
     return TryActivateRequestedAbility(
         AbilitySpec->Handle,
-        Context
+        EffectiveContext
     );
 }
 
@@ -224,6 +252,25 @@ bool UTestGameAbilitySystemComponent::TryActivateRequestedAbility(
     ))
     {
         return false;
+    }
+
+    // A forced directional melee attack is intentionally stationary.
+    // Stop both click movement and any pending chase only after we know the
+    // ability is actually allowed to activate.
+    if (Context.bForceDirectionalAttack)
+    {
+        APawn* AvatarPawn = Cast<APawn>(GetAvatarActor());
+
+        ATestGamePlayerController* PlayerController =
+            AvatarPawn
+            ? Cast<ATestGamePlayerController>(
+                AvatarPawn->GetController())
+            : nullptr;
+
+        if (PlayerController)
+        {
+            PlayerController->StopMovementForAbility();
+        }
     }
 
     return TryActivateAbility(AbilityHandle);

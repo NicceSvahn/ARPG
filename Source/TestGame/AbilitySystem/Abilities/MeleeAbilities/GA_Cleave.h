@@ -13,14 +13,12 @@ class TESTGAME_API UGA_Cleave : public UGA_GenericMelee
 
 public:
     UGA_Cleave();
-    virtual bool RequiresTarget() const override
-    {
-        return false;
-    }
 
+    // Normal Cleave requests chase until the target is inside the same range
+    // that the arc query uses at the hit frame.
     virtual float GetMaximumRange() const override
     {
-        return 0.0f;
+        return CleaveRange;
     }
 
     UPROPERTY(
@@ -38,13 +36,6 @@ public:
     TObjectPtr<UAnimMontage> CleaveMontageRL = nullptr;
 
 protected:
-    virtual void ActivateAbility(
-        const FGameplayAbilitySpecHandle Handle,
-        const FGameplayAbilityActorInfo* ActorInfo,
-        const FGameplayAbilityActivationInfo ActivationInfo,
-        const FGameplayEventData* TriggerEventData
-    ) override;
-
     virtual void OnMeleeHit(
         AActor* TargetActor
     ) override;
@@ -72,7 +63,6 @@ protected:
     )
     TSubclassOf<AGenericCharacter> AffectedCharacterClass;
 
-protected:
     virtual UAnimMontage*
         GetAttackMontageForActivation() override;
 

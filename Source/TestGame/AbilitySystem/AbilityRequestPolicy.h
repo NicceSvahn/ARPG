@@ -21,4 +21,10 @@ class TESTGAME_API IAbilityRequestPolicy
 public:
     virtual bool RequiresTarget() const { return false; }
     virtual float GetMaximumRange() const { return 0.0f; }
+
+    /**
+     * If true, Shift + ability may bypass normal target/range requirements
+     * and activate as a stationary directional attack toward the cursor.
+     */
+    virtual bool SupportsForceDirectionalAttack() const { return false; }
 };

@@ -1,6 +1,7 @@
 #include "AnimNotify_AbilityGameplayEvent.h"
 
-#include "AbilitySystemBlueprintLibrary.h"
+#include "AbilitySystemComponent.h"
+#include "AbilitySystemInterface.h"
 #include "Components/SkeletalMeshComponent.h"
 
 void UAnimNotify_AbilityGameplayEvent::Notify(
@@ -28,16 +29,30 @@ void UAnimNotify_AbilityGameplayEvent::Notify(
         return;
     }
 
+    // Animation Editor preview actors are not gameplay actors and do not have
+    // an AbilitySystemComponent. Guard explicitly instead of using
+    // SendGameplayEventToActor(), which logs an error for those preview actors.
+    IAbilitySystemInterface* AbilitySystemInterface =
+        Cast<IAbilitySystemInterface>(Owner);
+
+    UAbilitySystemComponent* ASC =
+        AbilitySystemInterface
+        ? AbilitySystemInterface->GetAbilitySystemComponent()
+        : nullptr;
+
+    if (!ASC)
+    {
+        return;
+    }
+
     FGameplayEventData Payload;
 
     Payload.EventTag = EventTag;
     Payload.Instigator = Owner;
     Payload.Target = Owner;
 
-    UAbilitySystemBlueprintLibrary::
-        SendGameplayEventToActor(
-            Owner,
-            EventTag,
-            Payload
-        );
+    ASC->HandleGameplayEvent(
+        EventTag,
+        &Payload
+    );
 }
