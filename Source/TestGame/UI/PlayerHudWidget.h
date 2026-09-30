@@ -4,7 +4,6 @@
 #include "AbilitySystemWidget.h"
 #include "PlayerHudWidget.generated.h"
 
-class AGenericCharacter;
 class UAbilitySlotWidget;
 class UHealthBarWidget;
 class UHorizontalBox;
@@ -22,9 +21,6 @@ class TESTGAME_API UPlayerHudWidget : public UAbilitySystemWidget
     GENERATED_BODY()
 
 public:
-    // Compatibility wrapper for existing PlayerController/Blueprint calls.
-    void InitializeHud(AGenericCharacter* InCharacter);
-
     void RefreshAbilitySlots();
 
 protected:

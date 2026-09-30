@@ -76,14 +76,6 @@ void UGA_GenericMelee::ExecuteMeleeAbility(
     AActor* TargetActor)
 {
 
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT("MELEE: ExecuteMeleeAbility | RequiresTarget=%s | Montage=%s"),
-        RequiresTarget() ? TEXT("YES") : TEXT("NO"),
-        AttackMontage ? *AttackMontage->GetName() : TEXT("NULL")
-    );
-
     AGenericCharacter* Character =
         GetGenericCharacter();
 
@@ -100,7 +92,6 @@ void UGA_GenericMelee::ExecuteMeleeAbility(
         return;
     }
 
-    UE_LOG(LogTemp, Warning, TEXT("MELEE: About to CommitAbility"));
 
     if (!CommitAbility(
         GetCurrentAbilitySpecHandle(),

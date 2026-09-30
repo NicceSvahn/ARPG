@@ -15,12 +15,6 @@ class TESTGAME_API ATestGamePlayerState : public APlayerState
 public:
     ATestGamePlayerState();
 
-    UFUNCTION(BlueprintPure, Category = "Player")
-    FString GetDebugPlayerName() const;
-
-    UFUNCTION(BlueprintPure, Category = "Player")
-    FString GetDebugPlayerLabel() const;
-
     virtual void GetLifetimeReplicatedProps(
         TArray<FLifetimeProperty>& OutLifetimeProps
     ) const override;

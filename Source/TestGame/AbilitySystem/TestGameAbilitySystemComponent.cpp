@@ -12,21 +12,8 @@ bool UTestGameAbilitySystemComponent::RequestAbility(
     const FGameplayTag& AbilityTag,
     const FAbilityInputContext& Context)
 {
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT("[REQUEST] Tag=%s"),
-        *AbilityTag.ToString()
-    );
-
     if (IsOwnerDead() || !AbilityTag.IsValid())
     {
-        UE_LOG(
-            LogTemp,
-            Error,
-            TEXT("[REQUEST] FAILED: Dead or invalid tag")
-        );
-
         return false;
     }
 
@@ -35,79 +22,27 @@ bool UTestGameAbilitySystemComponent::RequestAbility(
 
     if (!AbilitySpec || !AbilitySpec->Ability)
     {
-        UE_LOG(
-            LogTemp,
-            Error,
-            TEXT("[REQUEST] FAILED: No ability found for %s"),
-            *AbilityTag.ToString()
-        );
-
         return false;
     }
 
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT("[REQUEST] Found ability: %s"),
-        *AbilitySpec->Ability->GetName()
-    );
-
     const IAbilityRequestPolicy* RequestPolicy =
-        Cast<IAbilityRequestPolicy>(
-            AbilitySpec->Ability
-        );
+        Cast<IAbilityRequestPolicy>(AbilitySpec->Ability);
 
     const bool bRequiresTarget =
-        RequestPolicy &&
-        RequestPolicy->RequiresTarget();
+        RequestPolicy && RequestPolicy->RequiresTarget();
 
     const float MaximumRange =
         RequestPolicy
         ? RequestPolicy->GetMaximumRange()
         : 0.0f;
 
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT(
-            "[REQUEST] RequiresTarget=%s | MaximumRange=%.2f | Target=%s"
-        ),
-        bRequiresTarget ? TEXT("YES") : TEXT("NO"),
-        MaximumRange,
-        IsValid(Context.TargetActor)
-        ? *Context.TargetActor->GetName()
-        : TEXT("NULL")
-    );
-
-    if (!CheckTarget(
-        bRequiresTarget,
-        Context))
+    if (!CheckTarget(bRequiresTarget, Context))
     {
-        UE_LOG(
-            LogTemp,
-            Error,
-            TEXT("[REQUEST] FAILED: CheckTarget")
-        );
-
         return false;
     }
 
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT("[REQUEST] CheckTarget SUCCESS")
-    );
-
-    if (!CheckRange(
-        MaximumRange,
-        Context))
+    if (!CheckRange(MaximumRange, Context))
     {
-        UE_LOG(
-            LogTemp,
-            Warning,
-            TEXT("[REQUEST] CheckRange FAILED - requesting movement")
-        );
-
         return RequestMovement(
             AbilityTag,
             Context,
@@ -115,26 +50,10 @@ bool UTestGameAbilitySystemComponent::RequestAbility(
         );
     }
 
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT("[REQUEST] CheckRange SUCCESS")
+    return TryActivateRequestedAbility(
+        AbilitySpec->Handle,
+        Context
     );
-
-    const bool bResult =
-        TryActivateRequestedAbility(
-            AbilitySpec->Handle,
-            Context
-        );
-
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT("[REQUEST] TryActivateRequestedAbility=%s"),
-        bResult ? TEXT("SUCCESS") : TEXT("FAILED")
-    );
-
-    return bResult;
 }
 
 void UTestGameAbilitySystemComponent::AbilityInputTagPressed(
@@ -296,33 +215,18 @@ bool UTestGameAbilitySystemComponent::TryActivateRequestedAbility(
 
     FGameplayTagContainer FailureTags;
 
-    const bool bCanActivate =
-        Spec->Ability->CanActivateAbility(
-            AbilityHandle,
-            AbilityActorInfo.Get(),
-            nullptr,
-            nullptr,
-            &FailureTags
-        );
-
-    if (!bCanActivate)
+    if (!Spec->Ability->CanActivateAbility(
+        AbilityHandle,
+        AbilityActorInfo.Get(),
+        nullptr,
+        nullptr,
+        &FailureTags
+    ))
     {
-
-        UE_LOG(
-            LogTemp,
-            Error,
-            TEXT(
-                "[REQUEST] CanActivateAbility FAILED | FailureTags=%s"
-            ),
-            *FailureTags.ToStringSimple()
-        );
         return false;
     }
 
-    const bool bActivated =
-        TryActivateAbility(AbilityHandle);
-
-    return bActivated;
+    return TryActivateAbility(AbilityHandle);
 }
 
 bool UTestGameAbilitySystemComponent::RequestMovement(
@@ -445,7 +349,6 @@ void UTestGameAbilitySystemComponent::SendAbilityEvent(
     FGameplayEventData EventData;
     EventData.Instigator = GetAvatarActor();
     EventData.Target = Context.TargetActor;
-    //EventData.ContextHandle = MakeEffectContext();
 
     HandleGameplayEvent(
         EventTag,
