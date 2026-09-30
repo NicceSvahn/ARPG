@@ -4,6 +4,8 @@
 #include "Engine/DataAsset.h"
 #include "GameplayTagContainer.h"
 
+#include "ItemRarity.h"
+
 #include "ItemDefinition.generated.h"
 
 class UTexture2D;
@@ -150,8 +152,12 @@ public:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Item|Display")
     FText ItemTypeText;
 
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Item|Display")
-    FText RarityText;
+    UPROPERTY(
+        EditDefaultsOnly,
+        BlueprintReadOnly,
+        Category = "Item"
+    )
+    EItemRarity Rarity = EItemRarity::Normal;
 
     // An empty array means this item cannot be equipped.
     // A ring can support both LeftRing and RightRing.

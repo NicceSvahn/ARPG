@@ -1,7 +1,9 @@
 #include "ItemSlotWidget.h"
 
 #include "ItemTooltipWidget.h"
+#include "../Items/ItemRarity.h"
 
+#include "Components/Border.h"
 #include "Components/Button.h"
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
@@ -76,6 +78,7 @@ void UItemSlotWidget::SetItem(
         : FText::GetEmpty()
     );
 
+    UpdateRarityVisuals(InItem);
     UpdateItemTooltip(InItem);
 }
 
@@ -127,4 +130,32 @@ void UItemSlotWidget::UpdateItemTooltip(
     Tooltip->SetItem(Item);
 
     SlotButton->SetToolTip(Tooltip);
+}
+
+void UItemSlotWidget::UpdateRarityVisuals(
+    const FInventoryItem& Item)
+{
+    if (!RarityBorder)
+    {
+        return;
+    }
+
+    // Neutral border for empty slots.
+    FLinearColor BorderColor(
+        0.08f,
+        0.08f,
+        0.08f,
+        1.0f
+    );
+
+    const UItemDefinition* Definition =
+        Item.Definition.Get();
+
+    if (Item.IsValid() && IsValid(Definition))
+    {
+        BorderColor =
+            ItemRarity::GetColor(Definition->Rarity);
+    }
+
+    RarityBorder->SetBrushColor(BorderColor);
 }

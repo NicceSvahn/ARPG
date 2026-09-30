@@ -1,5 +1,8 @@
 #include "ItemTooltipWidget.h"
 
+#include "../Items/ItemRarity.h"
+
+#include "Styling/SlateColor.h"
 #include "Components/TextBlock.h"
 
 
@@ -54,8 +57,17 @@ void UItemTooltipWidget::SetItem(
 
     SetOptionalText(
         RarityText,
-        Definition->RarityText
+        ItemRarity::GetDisplayName(Definition->Rarity)
     );
+
+    if (RarityText)
+    {
+        RarityText->SetColorAndOpacity(
+            FSlateColor(
+                ItemRarity::GetColor(Definition->Rarity)
+            )
+        );
+    }
 
     SetOptionalText(
         DescriptionText,
