@@ -3,6 +3,8 @@
 #include "../AoEAbilities/GA_GenericAoE.h"
 #include "../../../Characters/EnemyCharacter.h"
 #include "../../../Characters/GenericCharacter.h"
+#include "../../TestGameAbilitySystemComponent.h"
+#include "../../AbilityInputContext.h"
 
 UGA_Cleave::UGA_Cleave()
 {
@@ -10,8 +12,7 @@ UGA_Cleave::UGA_Cleave()
     // It checks which enemies are inside the arc at the actual hit frame.
     bRequiresTargetData = false;
 
-    AffectedCharacterClass =
-        AEnemyCharacter::StaticClass();
+    AffectedCharacterClass = AEnemyCharacter::StaticClass();
 
     DamageData.BaseDamage = 20.0f;
     DamageData.WeaponDamageCoefficient = 1.0f;
@@ -38,6 +39,47 @@ void UGA_Cleave::ActivateAbility(
         ActivationInfo,
         TriggerEventData
     );
+
+    AGenericCharacter* Character =
+        GetGenericCharacter();
+
+    UTestGameAbilitySystemComponent* ASC =
+        GetTestGameASC();
+
+    if (Character && ASC)
+    {
+        const FAbilityInputContext& InputContext =
+            ASC->GetAbilityInputContext();
+
+        const FGameplayAbilityTargetDataHandle TargetData =
+            InputContext.MakeTargetData();
+
+        if (TargetData.Num() > 0)
+        {
+            const FGameplayAbilityTargetData* Data =
+                TargetData.Get(0);
+
+            if (Data)
+            {
+                if (const FHitResult* HitResult =
+                    Data->GetHitResult())
+                {
+                    FVector Direction =
+                        HitResult->ImpactPoint -
+                        Character->GetActorLocation();
+
+                    Direction.Z = 0.0f;
+
+                    if (!Direction.IsNearlyZero())
+                    {
+                        Character->SetActorRotation(
+                            Direction.Rotation()
+                        );
+                    }
+                }
+            }
+        }
+    }
 
     ExecuteMeleeAbility(nullptr);
 }
