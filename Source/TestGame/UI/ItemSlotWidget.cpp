@@ -154,7 +154,7 @@ void UItemSlotWidget::UpdateRarityVisuals(
     if (Item.IsValid() && IsValid(Definition))
     {
         BorderColor =
-            ItemRarity::GetColor(Definition->Rarity);
+            ItemRarity::GetColor(Item.Rarity);
     }
 
     RarityBorder->SetBrushColor(BorderColor);

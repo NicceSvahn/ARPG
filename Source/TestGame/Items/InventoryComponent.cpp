@@ -4,6 +4,8 @@
 #include "AbilitySystemInterface.h"
 #include "GameplayEffect.h"
 #include "Net/UnrealNetwork.h"
+#include "Abilities/GameplayAbility.h"
+#include "Templates/UnrealTemplate.h"
 
 #include "../Characters/GenericCharacter.h"
 
@@ -66,6 +68,225 @@ namespace
 
         return true;
     }
+
+
+    bool ValidateGenerationSettings(
+        const UItemDefinition* Definition,
+        const UItemGenerationProfile* Profile)
+    {
+        if (!IsValid(Definition))
+        {
+            return false;
+        }
+
+        // No selected profile means guaranteed stats only.
+        if (!Profile)
+        {
+            return true;
+        }
+
+        TSet<FName> GroupNames;
+
+        for (const FItemStatGroup& Group : Definition->StatGroups)
+        {
+            if (Group.GroupName.IsNone() ||
+                GroupNames.Contains(Group.GroupName))
+            {
+                UE_LOG(
+                    LogTemp,
+                    Warning,
+                    TEXT("[INVENTORY] Empty or duplicate group name on %s"),
+                    *GetNameSafe(Definition)
+                );
+
+                return false;
+            }
+
+            GroupNames.Add(Group.GroupName);
+        }
+
+        TSet<FName> RuleNames;
+
+        for (const FItemAffixCountRule& Rule : Profile->AffixRules)
+        {
+            if (Rule.GroupName.IsNone() ||
+                RuleNames.Contains(Rule.GroupName) ||
+                Rule.MinCount < 0 ||
+                Rule.MaxCount < Rule.MinCount)
+            {
+                UE_LOG(
+                    LogTemp,
+                    Warning,
+                    TEXT("[INVENTORY] Invalid affix rule in %s"),
+                    *GetNameSafe(Profile)
+                );
+
+                return false;
+            }
+
+            RuleNames.Add(Rule.GroupName);
+
+            const FItemStatGroup* MatchingGroup = nullptr;
+
+            for (const FItemStatGroup& Group : Definition->StatGroups)
+            {
+                if (Group.GroupName == Rule.GroupName)
+                {
+                    MatchingGroup = &Group;
+                    break;
+                }
+            }
+
+            if (!MatchingGroup)
+            {
+                UE_LOG(
+                    LogTemp,
+                    Warning,
+                    TEXT("[INVENTORY] Profile group '%s' is missing on %s"),
+                    *Rule.GroupName.ToString(),
+                    *GetNameSafe(Definition)
+                );
+
+                return false;
+            }
+
+            if (MatchingGroup->bGuaranteed)
+            {
+                UE_LOG(
+                    LogTemp,
+                    Warning,
+                    TEXT(
+                        "[INVENTORY] Profile must not assign affix counts "
+                        "to guaranteed group '%s' on %s"
+                    ),
+                    *Rule.GroupName.ToString(),
+                    *GetNameSafe(Definition)
+                );
+
+                return false;
+            }
+
+            // Reject the configuration up front instead of randomly
+            // failing only when a count larger than the pool is selected.
+            if (Rule.MaxCount > MatchingGroup->StatPool.Num())
+            {
+                UE_LOG(
+                    LogTemp,
+                    Warning,
+                    TEXT(
+                        "[INVENTORY] Group '%s' on %s needs at least "
+                        "%d pool entries"
+                    ),
+                    *Rule.GroupName.ToString(),
+                    *GetNameSafe(Definition),
+                    Rule.MaxCount
+                );
+
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+
+    bool SelectGenerationProfile(
+        const UItemDefinition* Definition,
+        const UItemGenerationProfile*& OutProfile)
+    {
+        OutProfile = nullptr;
+
+        if (!IsValid(Definition))
+        {
+            return false;
+        }
+
+        if (Definition->GenerationChoices.Num() > 3)
+        {
+            UE_LOG(
+                LogTemp,
+                Warning,
+                TEXT("[INVENTORY] %s has more than 3 generation choices"),
+                *GetNameSafe(Definition)
+            );
+
+            return false;
+        }
+
+        // Validate the definition even if it has no choices.
+        if (!ValidateGenerationSettings(Definition, nullptr))
+        {
+            return false;
+        }
+
+        int32 TotalChance = 0;
+
+        // Validate all choices before rolling so bad configuration
+        // does not cause intermittent item-creation failures.
+        for (const FItemGenerationChoice& Choice :
+            Definition->GenerationChoices)
+        {
+            if (!IsValid(Choice.Profile.Get()) ||
+                Choice.ChancePercent < 0 ||
+                Choice.ChancePercent > 100)
+            {
+                UE_LOG(
+                    LogTemp,
+                    Warning,
+                    TEXT("[INVENTORY] Invalid generation choice on %s"),
+                    *GetNameSafe(Definition)
+                );
+
+                return false;
+            }
+
+            TotalChance += Choice.ChancePercent;
+
+            if (!ValidateGenerationSettings(
+                Definition,
+                Choice.Profile.Get()))
+            {
+                return false;
+            }
+        }
+
+        if (TotalChance > 100)
+        {
+            UE_LOG(
+                LogTemp,
+                Warning,
+                TEXT("[INVENTORY] Generation chances exceed 100%% on %s"),
+                *GetNameSafe(Definition)
+            );
+
+            return false;
+        }
+
+        if (TotalChance == 0)
+        {
+            return true;
+        }
+
+        const int32 Roll = FMath::RandRange(1, 100);
+
+        int32 CumulativeChance = 0;
+
+        for (const FItemGenerationChoice& Choice :
+            Definition->GenerationChoices)
+        {
+            CumulativeChance += Choice.ChancePercent;
+
+            if (Roll <= CumulativeChance)
+            {
+                OutProfile = Choice.Profile.Get();
+                return true;
+            }
+        }
+
+        // The roll landed in the unassigned percentage.
+        // OutProfile stays null: guaranteed stats only.
+        return true;
+    }
 }
 
 
@@ -92,6 +313,7 @@ void UInventoryComponent::BeginPlay()
 
     Items.SetNum(InventoryCapacity + EquipmentCount);
     EquipmentEffectHandles.SetNum(EquipmentCount);
+    EquipmentAbilityHandles.SetNum(EquipmentCount);
 
     for (UItemDefinition* Definition : StartingItems)
     {
@@ -160,7 +382,8 @@ int32 UInventoryComponent::FindEmptyInventorySlot() const
 }
 
 
-bool UInventoryComponent::AddItem(UItemDefinition* Definition)
+bool UInventoryComponent::AddItem(
+    UItemDefinition* Definition)
 {
     if (!GetOwner() ||
         !GetOwner()->HasAuthority() ||
@@ -176,32 +399,83 @@ bool UInventoryComponent::AddItem(UItemDefinition* Definition)
         return false;
     }
 
+    const UItemGenerationProfile* SelectedProfile = nullptr;
+
+    if (!SelectGenerationProfile(Definition, SelectedProfile))
+    {
+        return false;
+    }
+
     FInventoryItem NewItem;
     NewItem.InstanceId = FGuid::NewGuid();
     NewItem.Definition = Definition;
+
+    NewItem.Rarity = SelectedProfile
+        ? SelectedProfile->Rarity
+        : Definition->Rarity;
+
+    UE_LOG(
+        LogTemp,
+        Warning,
+        TEXT("[INVENTORY] Generated %s | Profile=%s | Rarity=%s"),
+        *GetNameSafe(Definition),
+        *GetNameSafe(SelectedProfile),
+        *ItemRarity::GetDisplayName(NewItem.Rarity).ToString()
+    );
 
     TSet<FGameplayTag> ConfiguredTags;
 
     for (const FItemStatGroup& Group : Definition->StatGroups)
     {
-        const bool bSuccess = RollStatsFromPool(
-            Group.StatPool,
-            Group.StatCount,
-            ConfiguredTags,
-            NewItem.RolledStats
-        );
+        int32 CountToRoll = 0;
 
-        if (!bSuccess)
+        if (Group.bGuaranteed)
+        {
+            CountToRoll = Group.StatPool.Num();
+        }
+        else if (SelectedProfile)
+        {
+            for (const FItemAffixCountRule& Rule :
+                SelectedProfile->AffixRules)
+            {
+                if (Rule.GroupName == Group.GroupName)
+                {
+                    CountToRoll = FMath::RandRange(
+                        Rule.MinCount,
+                        Rule.MaxCount
+                    );
+
+                    break;
+                }
+            }
+        }
+
+        const int32 FirstNewStatIndex =
+            NewItem.RolledStats.Num();
+
+        if (!RollStatsFromPool(
+            Group.StatPool,
+            CountToRoll,
+            ConfiguredTags,
+            NewItem.RolledStats))
         {
             UE_LOG(
                 LogTemp,
                 Warning,
-                TEXT("Invalid stat group '%s' on item '%s'"),
+                TEXT("[INVENTORY] Invalid stat pool '%s' on %s"),
                 *Group.GroupName.ToString(),
                 *GetNameSafe(Definition)
             );
 
             return false;
+        }
+
+        for (int32 StatIndex = FirstNewStatIndex;
+            StatIndex < NewItem.RolledStats.Num();
+            ++StatIndex)
+        {
+            NewItem.RolledStats[StatIndex].bGuaranteed =
+                Group.bGuaranteed;
         }
     }
 
@@ -325,19 +599,26 @@ void UInventoryComponent::ServerUseSlot_Implementation(
     int32 Index,
     FGuid ExpectedItemId)
 {
-    const AGenericCharacter* Character =
-        Cast<AGenericCharacter>(GetOwner());
-
-    if (
-        !Character ||
-        Character->bIsDead ||
-        !Items.IsValidIndex(Index) ||
-        !Items[Index].IsValid() ||
-        Items[Index].InstanceId != ExpectedItemId
-        )
+    if (!GetOwner() ||
+        !GetOwner()->HasAuthority() ||
+        bChangingEquipment)
     {
         return;
     }
+
+    const AGenericCharacter* Character =
+        Cast<AGenericCharacter>(GetOwner());
+
+    if (!IsValid(Character) ||
+        Character->bIsDead ||
+        !Items.IsValidIndex(Index) ||
+        !Items[Index].IsValid() ||
+        Items[Index].InstanceId != ExpectedItemId)
+    {
+        return;
+    }
+
+    TGuardValue<bool> ChangeGuard(bChangingEquipment, true);
 
     if (Index < InventoryCapacity)
     {
@@ -345,15 +626,18 @@ void UInventoryComponent::ServerUseSlot_Implementation(
         UItemDefinition* Definition =
             Items[Index].Definition.Get();
 
+        if (!IsValid(Definition))
+        {
+            return;
+        }
+
         int32 EquipmentSlotIndex = INDEX_NONE;
 
         const int32 EquipmentCount =
             static_cast<int32>(EEquipmentSlot::Count);
 
-        for (
-            EEquipmentSlot AllowedSlot :
-        Definition->AllowedSlots
-            )
+        for (const EEquipmentSlot AllowedSlot :
+        Definition->AllowedSlots)
         {
             const int32 Candidate =
                 static_cast<int32>(AllowedSlot);
@@ -363,110 +647,135 @@ void UInventoryComponent::ServerUseSlot_Implementation(
                 continue;
             }
 
-            // If all allowed positions are occupied,
-            // replace the first allowed position.
+            const int32 CandidateIndex =
+                InventoryCapacity + Candidate;
+
+            if (!Items.IsValidIndex(CandidateIndex))
+            {
+                continue;
+            }
+
+            // Replace the first allowed position if all are occupied.
             if (EquipmentSlotIndex == INDEX_NONE)
             {
                 EquipmentSlotIndex = Candidate;
             }
 
             // Prefer an empty allowed position.
-            if (!Items[InventoryCapacity + Candidate].IsValid())
+            if (!Items[CandidateIndex].IsValid())
             {
                 EquipmentSlotIndex = Candidate;
                 break;
             }
         }
 
-        if (
-            EquipmentSlotIndex == INDEX_NONE ||
-            !EquipmentEffectHandles.IsValidIndex(
-                EquipmentSlotIndex
-            )
-            )
+        if (EquipmentSlotIndex == INDEX_NONE ||
+            !EquipmentEffectHandles.IsValidIndex(EquipmentSlotIndex) ||
+            !EquipmentAbilityHandles.IsValidIndex(EquipmentSlotIndex))
         {
             return;
         }
 
         UAbilitySystemComponent* ASC = GetASC();
 
-        const FActiveGameplayEffectHandle OldHandle =
+        const FActiveGameplayEffectHandle OldEffectHandle =
             EquipmentEffectHandles[EquipmentSlotIndex];
 
-        if (OldHandle.IsValid() && !ASC)
+        const bool bHasOldAbility =
+            EquipmentAbilityHandles[EquipmentSlotIndex].IsValid();
+
+        // Existing grants need the ASC for removal.
+        if ((OldEffectHandle.IsValid() || bHasOldAbility) &&
+            !IsValid(ASC))
         {
             return;
         }
 
-        FActiveGameplayEffectHandle NewHandle;
-
-        // Keep existing equipment if the new effect fails.
-        if (!ApplyEquipmentEffect(Items[Index], NewHandle))
+        // A new item ability requires initialized actor information.
+        if (Definition->EquippedAbility &&
+            (!IsValid(ASC) || ASC->GetAvatarActor() != GetOwner()))
         {
             return;
         }
 
-        if (OldHandle.IsValid())
+        FActiveGameplayEffectHandle NewEffectHandle;
+
+        // Preserve the previous equipment if applying the new
+        // item's stat effect fails.
+        if (!ApplyEquipmentEffect(Items[Index], NewEffectHandle))
         {
-            ASC->RemoveActiveGameplayEffect(OldHandle);
+            return;
+        }
+
+        // Stop the previous item's ability before starting the new one.
+        RemoveEquipmentAbility(EquipmentSlotIndex);
+
+        if (OldEffectHandle.IsValid())
+        {
+            ASC->RemoveActiveGameplayEffect(OldEffectHandle);
         }
 
         const int32 EquippedIndex =
             InventoryCapacity + EquipmentSlotIndex;
 
-        // The previous equipment returns to the clicked
-        // backpack slot, so swapping needs no extra space.
-        Swap(
-            Items[Index],
-            Items[EquippedIndex]
-        );
+        // Return replaced equipment to the clicked backpack slot.
+        Swap(Items[Index], Items[EquippedIndex]);
 
         EquipmentEffectHandles[EquipmentSlotIndex] =
-            NewHandle;
+            NewEffectHandle;
+
+        // The new item is now in its equipment slot, so its ability
+        // can inspect the equipped inventory during activation.
+        GrantAndActivateEquipmentAbility(
+            Items[EquippedIndex],
+            EquipmentSlotIndex
+        );
     }
     else
     {
         // Unequip an item into the backpack.
-        const int32 EmptyIndex =
-            FindEmptyInventorySlot();
+        const int32 EmptyIndex = FindEmptyInventorySlot();
 
         if (EmptyIndex == INDEX_NONE)
         {
-            // Backpack full: leave the item equipped.
+            // Backpack full: preserve the item and its ability.
             return;
         }
 
         const int32 EquipmentSlotIndex =
             Index - InventoryCapacity;
 
-        if (!EquipmentEffectHandles.IsValidIndex(
-            EquipmentSlotIndex))
+        if (!EquipmentEffectHandles.IsValidIndex(EquipmentSlotIndex) ||
+            !EquipmentAbilityHandles.IsValidIndex(EquipmentSlotIndex))
         {
             return;
         }
 
         UAbilitySystemComponent* ASC = GetASC();
 
-        const FActiveGameplayEffectHandle Handle =
+        const FActiveGameplayEffectHandle EffectHandle =
             EquipmentEffectHandles[EquipmentSlotIndex];
 
-        if (Handle.IsValid())
-        {
-            if (!ASC)
-            {
-                return;
-            }
+        const bool bHasAbility =
+            EquipmentAbilityHandles[EquipmentSlotIndex].IsValid();
 
-            ASC->RemoveActiveGameplayEffect(Handle);
+        if ((EffectHandle.IsValid() || bHasAbility) &&
+            !IsValid(ASC))
+        {
+            return;
+        }
+
+        RemoveEquipmentAbility(EquipmentSlotIndex);
+
+        if (EffectHandle.IsValid())
+        {
+            ASC->RemoveActiveGameplayEffect(EffectHandle);
         }
 
         EquipmentEffectHandles[EquipmentSlotIndex] =
-            FActiveGameplayEffectHandle{};
+            FActiveGameplayEffectHandle();
 
-        Swap(
-            Items[Index],
-            Items[EmptyIndex]
-        );
+        Swap(Items[Index], Items[EmptyIndex]);
     }
 
     NotifyChanged();
@@ -493,23 +802,162 @@ void UInventoryComponent::OnRep_Items()
 void UInventoryComponent::EndPlay(
     const EEndPlayReason::Type EndPlayReason)
 {
+    // Block equipment changes triggered by teardown callbacks.
+    bChangingEquipment = true;
+
     if (GetOwner() && GetOwner()->HasAuthority())
     {
+        for (int32 EquipmentSlotIndex = 0;
+            EquipmentSlotIndex < EquipmentAbilityHandles.Num();
+            ++EquipmentSlotIndex)
+        {
+            RemoveEquipmentAbility(EquipmentSlotIndex);
+        }
+
         if (UAbilitySystemComponent* ASC = GetASC())
         {
-            for (
-                FActiveGameplayEffectHandle Handle :
-            EquipmentEffectHandles
-                )
+            for (const FActiveGameplayEffectHandle EffectHandle :
+            EquipmentEffectHandles)
             {
-                if (Handle.IsValid())
+                if (EffectHandle.IsValid())
                 {
-                    ASC->RemoveActiveGameplayEffect(Handle);
+                    ASC->RemoveActiveGameplayEffect(EffectHandle);
                 }
             }
         }
     }
 
+    EquipmentAbilityHandles.Reset();
+    EquipmentEffectHandles.Reset();
+
     Super::EndPlay(EndPlayReason);
 }
 
+
+void UInventoryComponent::GrantAndActivateEquipmentAbility(
+    const FInventoryItem& Item,
+    int32 EquipmentSlotIndex)
+{
+    if (!GetOwner() ||
+        !GetOwner()->HasAuthority() ||
+        !Item.IsValid() ||
+        !EquipmentAbilityHandles.IsValidIndex(EquipmentSlotIndex))
+    {
+        return;
+    }
+
+    UItemDefinition* Definition = Item.Definition.Get();
+
+    if (!IsValid(Definition) || !Definition->EquippedAbility)
+    {
+        return;
+    }
+
+    // Never overwrite a tracked ability handle.
+    if (EquipmentAbilityHandles[EquipmentSlotIndex].IsValid())
+    {
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT("[INVENTORY] Equipment slot already has an ability.")
+        );
+
+        return;
+    }
+
+    UAbilitySystemComponent* ASC = GetASC();
+
+    if (!IsValid(ASC) || ASC->GetAvatarActor() != GetOwner())
+    {
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT("[INVENTORY] ASC is not ready for item ability: %s"),
+            *GetNameSafe(Definition)
+        );
+
+        return;
+    }
+
+    FGameplayAbilitySpec AbilitySpec(
+        Definition->EquippedAbility,
+        1,
+        INDEX_NONE,
+        Definition
+    );
+
+    const FGameplayAbilitySpecHandle AbilityHandle =
+        ASC->GiveAbility(AbilitySpec);
+
+    if (!AbilityHandle.IsValid())
+    {
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT("[INVENTORY] Could not grant ability for item: %s"),
+            *GetNameSafe(Definition)
+        );
+
+        return;
+    }
+
+    // Store the handle before activation, which may invoke callbacks.
+    EquipmentAbilityHandles[EquipmentSlotIndex] = AbilityHandle;
+
+    // Activate here on the server. Do not forward activation
+    // to a client for a locally executed ability.
+    const bool bActivated =
+        ASC->TryActivateAbility(AbilityHandle, false);
+
+    if (!bActivated)
+    {
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT(
+                "[INVENTORY] Item %s equipped, but ability %s "
+                "could not activate. Check network policy, "
+                "costs, cooldowns, and activation requirements."
+            ),
+            *GetNameSafe(Definition),
+            *GetNameSafe(Definition->EquippedAbility.Get())
+        );
+
+        // The item remains equipped. Remove the failed grant.
+        RemoveEquipmentAbility(EquipmentSlotIndex);
+    }
+}
+
+
+void UInventoryComponent::RemoveEquipmentAbility(
+    int32 EquipmentSlotIndex)
+{
+    if (!GetOwner() ||
+        !GetOwner()->HasAuthority() ||
+        !EquipmentAbilityHandles.IsValidIndex(EquipmentSlotIndex))
+    {
+        return;
+    }
+
+    const FGameplayAbilitySpecHandle AbilityHandle =
+        EquipmentAbilityHandles[EquipmentSlotIndex];
+
+    if (!AbilityHandle.IsValid())
+    {
+        return;
+    }
+
+    UAbilitySystemComponent* ASC = GetASC();
+
+    if (!IsValid(ASC))
+    {
+        return;
+    }
+
+    // Clear our tracking before cancellation invokes callbacks.
+    EquipmentAbilityHandles[EquipmentSlotIndex] =
+        FGameplayAbilitySpecHandle();
+
+    ASC->CancelAbilityHandle(AbilityHandle);
+    ASC->ClearAbility(AbilityHandle);
+}

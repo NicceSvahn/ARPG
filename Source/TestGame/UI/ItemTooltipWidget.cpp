@@ -57,14 +57,14 @@ void UItemTooltipWidget::SetItem(
 
     SetOptionalText(
         RarityText,
-        ItemRarity::GetDisplayName(Definition->Rarity)
+        ItemRarity::GetDisplayName(Item.Rarity)
     );
 
     if (RarityText)
     {
         RarityText->SetColorAndOpacity(
             FSlateColor(
-                ItemRarity::GetColor(Definition->Rarity)
+                ItemRarity::GetColor(Item.Rarity)
             )
         );
     }
