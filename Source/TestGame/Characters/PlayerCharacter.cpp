@@ -3,6 +3,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 
 #include "../Game/TestGameGameState.h"
+#include "../Items/InventoryComponent.h"
 #include "PlayerClassDefinitions.h"
 
 APlayerCharacter::APlayerCharacter()
@@ -14,6 +15,11 @@ APlayerCharacter::APlayerCharacter()
     GetCharacterMovement()->bOrientRotationToMovement = true;
     GetCharacterMovement()->bUseControllerDesiredRotation = false;
     GetCharacterMovement()->RotationRate = FRotator(0.0f, 720.0f, 0.0f);
+
+    InventoryComponent =
+        CreateDefaultSubobject<UInventoryComponent>(
+            TEXT("InventoryComponent")
+        );
 }
 
 void APlayerCharacter::OnDeathStarted()

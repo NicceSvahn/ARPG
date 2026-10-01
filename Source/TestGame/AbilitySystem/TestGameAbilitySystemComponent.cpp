@@ -5,6 +5,7 @@
 #include "GameFramework/Pawn.h"
 
 #include "Abilities/GameplayAbilityTypes.h"
+#include "Abilities/GameplayAbility.h"
 #include "AbilityRequestPolicy.h"
 #include "../Player/TestGamePlayerController.h"
 
@@ -139,6 +140,8 @@ void UTestGameAbilitySystemComponent::AbilityInputTagReleased(
 void UTestGameAbilitySystemComponent::AbilitySpecInputPressed(
     FGameplayAbilitySpec& Spec)
 {
+    ABILITYLIST_SCOPE_LOCK();
+
     Super::AbilitySpecInputPressed(Spec);
 
     if (!Spec.IsActive())
@@ -146,29 +149,30 @@ void UTestGameAbilitySystemComponent::AbilitySpecInputPressed(
         return;
     }
 
-    const UGameplayAbility* Ability =
-        Spec.GetPrimaryInstance();
+    const TArray<UGameplayAbility*> Instances =
+        Spec.GetAbilityInstances();
 
-    const FPredictionKey PredictionKey =
-        Ability
-        ? Ability
-        ->GetCurrentActivationInfo()
-        .GetActivationPredictionKey()
-        : Spec
-        .ActivationInfo
-        .GetActivationPredictionKey();
+    for (UGameplayAbility* Ability : Instances)
+    {
+        if (!IsValid(Ability) || !Ability->IsActive())
+        {
+            continue;
+        }
 
-    InvokeReplicatedEvent(
-        EAbilityGenericReplicatedEvent::InputPressed,
-        Spec.Handle,
-        PredictionKey
-    );
+        InvokeReplicatedEvent(
+            EAbilityGenericReplicatedEvent::InputPressed,
+            Spec.Handle,
+            Ability->GetCurrentActivationInfo()
+            .GetActivationPredictionKey()
+        );
+    }
 }
-
 
 void UTestGameAbilitySystemComponent::AbilitySpecInputReleased(
     FGameplayAbilitySpec& Spec)
 {
+    ABILITYLIST_SCOPE_LOCK();
+
     Super::AbilitySpecInputReleased(Spec);
 
     if (!Spec.IsActive())
@@ -176,23 +180,23 @@ void UTestGameAbilitySystemComponent::AbilitySpecInputReleased(
         return;
     }
 
-    const UGameplayAbility* Ability =
-        Spec.GetPrimaryInstance();
+    const TArray<UGameplayAbility*> Instances =
+        Spec.GetAbilityInstances();
 
-    const FPredictionKey PredictionKey =
-        Ability
-        ? Ability
-        ->GetCurrentActivationInfo()
-        .GetActivationPredictionKey()
-        : Spec
-        .ActivationInfo
-        .GetActivationPredictionKey();
+    for (UGameplayAbility* Ability : Instances)
+    {
+        if (!IsValid(Ability) || !Ability->IsActive())
+        {
+            continue;
+        }
 
-    InvokeReplicatedEvent(
-        EAbilityGenericReplicatedEvent::InputReleased,
-        Spec.Handle,
-        PredictionKey
-    );
+        InvokeReplicatedEvent(
+            EAbilityGenericReplicatedEvent::InputReleased,
+            Spec.Handle,
+            Ability->GetCurrentActivationInfo()
+            .GetActivationPredictionKey()
+        );
+    }
 }
 
 FGameplayAbilitySpec*

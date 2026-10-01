@@ -6,6 +6,7 @@
 
 class ADamageNumberActor;
 class UPlayerClassDefinitions;
+class UInventoryComponent;
 
 UCLASS()
 class TESTGAME_API APlayerCharacter : public AGenericCharacter
@@ -21,6 +22,14 @@ public:
     )
     TSubclassOf<ADamageNumberActor> HealingNumberActorClass;
 
+    UPROPERTY(
+        VisibleAnywhere,
+        BlueprintReadOnly,
+        Category = "Inventory"
+    )
+    TObjectPtr<UInventoryComponent> InventoryComponent;
+
+    //Class
     void ApplyPlayerClassDefinition(
         const UPlayerClassDefinitions* ClassDefinition
     );
