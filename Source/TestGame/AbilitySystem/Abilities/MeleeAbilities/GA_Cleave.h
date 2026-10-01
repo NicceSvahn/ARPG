@@ -14,26 +14,10 @@ class TESTGAME_API UGA_Cleave : public UGA_GenericMelee
 public:
     UGA_Cleave();
 
-    // Normal Cleave requests chase until the target is inside the same range
-    // that the arc query uses at the hit frame.
     virtual float GetMaximumRange() const override
     {
         return CleaveRange;
     }
-
-    UPROPERTY(
-        EditDefaultsOnly,
-        BlueprintReadOnly,
-        Category = "Ability|Cleave|Animation"
-    )
-    TObjectPtr<UAnimMontage> CleaveMontageLR = nullptr;
-
-    UPROPERTY(
-        EditDefaultsOnly,
-        BlueprintReadOnly,
-        Category = "Ability|Cleave|Animation"
-    )
-    TObjectPtr<UAnimMontage> CleaveMontageRL = nullptr;
 
 protected:
     virtual void OnMeleeHit(
@@ -44,7 +28,10 @@ protected:
         EditDefaultsOnly,
         BlueprintReadOnly,
         Category = "Ability|Cleave",
-        meta = (ClampMin = "0.0", Units = "cm")
+        meta = (
+            ClampMin = "0.0",
+            Units = "cm"
+            )
     )
     float CleaveRange = 250.0f;
 
@@ -52,7 +39,10 @@ protected:
         EditDefaultsOnly,
         BlueprintReadOnly,
         Category = "Ability|Cleave",
-        meta = (ClampMin = "0.0", ClampMax = "360.0")
+        meta = (
+            ClampMin = "0.0",
+            ClampMax = "360.0"
+            )
     )
     float CleaveArcDegrees = 180.0f;
 
@@ -63,13 +53,8 @@ protected:
     )
     TSubclassOf<AGenericCharacter> AffectedCharacterClass;
 
-    virtual UAnimMontage*
-        GetAttackMontageForActivation() override;
-
 private:
     void ApplyCleaveDamage(
         AGenericCharacter* SourceCharacter
     );
-
-    bool bUseLeftToRightNext = true;
 };

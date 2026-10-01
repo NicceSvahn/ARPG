@@ -6,19 +6,35 @@
 
 UGA_Cleave::UGA_Cleave()
 {
-    AffectedCharacterClass = AEnemyCharacter::StaticClass();
+    AffectedCharacterClass =
+        AEnemyCharacter::StaticClass();
 
-    DamageData.BaseDamage = 20.0f;
-    DamageData.WeaponDamageCoefficient = 1.0f;
-    DamageData.StrengthCoefficient = 0.5f;
-    DamageData.DexterityCoefficient = 0.0f;
-    DamageData.IntellectCoefficient = 0.0f;
-    DamageData.AttackPowerCoefficient = 0.0f;
-    DamageData.SpellPowerCoefficient = 0.0f;
+    DamageData.BaseDamage =
+        20.0f;
+
+    DamageData.WeaponDamageCoefficient =
+        1.0f;
+
+    DamageData.StrengthCoefficient =
+        0.5f;
+
+    DamageData.DexterityCoefficient =
+        0.0f;
+
+    DamageData.IntellectCoefficient =
+        0.0f;
+
+    DamageData.AttackPowerCoefficient =
+        0.0f;
+
+    DamageData.SpellPowerCoefficient =
+        0.0f;
+
     DamageData.DamageType =
         EAbilityDamageType::Physical;
 
-    ResourceGain = 10.0f;
+    ResourceGain =
+        10.0f;
 }
 
 void UGA_Cleave::OnMeleeHit(
@@ -32,9 +48,6 @@ void UGA_Cleave::OnMeleeHit(
         return;
     }
 
-    // The actor target is only used by GA_GenericMelee for chase/facing.
-    // Cleave damage is always determined by the actual arc at the hit frame,
-    // which makes targeted and Shift-forced Cleaves use the exact same query.
     ApplyCleaveDamage(
         SourceCharacter
     );
@@ -43,8 +56,10 @@ void UGA_Cleave::OnMeleeHit(
 void UGA_Cleave::ApplyCleaveDamage(
     AGenericCharacter* SourceCharacter)
 {
-    if (!SourceCharacter ||
-        !SourceCharacter->HasAuthority())
+    if (
+        !SourceCharacter ||
+        !SourceCharacter->HasAuthority()
+        )
     {
         return;
     }
@@ -60,7 +75,8 @@ void UGA_Cleave::ApplyCleaveDamage(
             AffectedCharacterClass
         );
 
-    bool bHitAnyTarget = false;
+    bool bHitAnyTarget =
+        false;
 
     for (AGenericCharacter* Target : Targets)
     {
@@ -78,32 +94,15 @@ void UGA_Cleave::ApplyCleaveDamage(
 
         if (bAppliedDamage)
         {
-            bHitAnyTarget = true;
+            bHitAnyTarget =
+                true;
         }
     }
 
-    // Resource is generated once per successful Cleave,
-    // not once per enemy.
     if (bHitAnyTarget)
     {
         GrantResource(
             ResourceGain
         );
     }
-}
-
-UAnimMontage* UGA_Cleave::GetAttackMontageForActivation()
-{
-    UAnimMontage* MontageToPlay =
-        bUseLeftToRightNext
-        ? CleaveMontageLR
-        : CleaveMontageRL;
-
-    if (MontageToPlay)
-    {
-        bUseLeftToRightNext =
-            !bUseLeftToRightNext;
-    }
-
-    return MontageToPlay;
 }
