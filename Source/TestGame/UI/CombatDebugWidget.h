@@ -6,7 +6,6 @@
 
 class UTextBlock;
 class AGenericCharacter;
-class UTestGameAbilitySystemComponent;
 class UCombatDebugWidget;
 class UInputAction;
 
@@ -51,6 +50,4 @@ private:
     UPROPERTY()
     TObjectPtr<AGenericCharacter> PlayerCharacter;
 
-    UPROPERTY()
-    TObjectPtr<UTestGameAbilitySystemComponent> AbilitySystemComponent;
 };

@@ -1,5 +1,4 @@
 #include "TestGamePlayerState.h"
-#include "../AbilitySystem/TestGameAbilitySystemComponent.h"
 
 #include "Net/UnrealNetwork.h"
 #include "GameplayTagContainer.h"
@@ -10,30 +9,6 @@
 ATestGamePlayerState::ATestGamePlayerState()
 {
     bReplicates = true;
-}
-
-FString ATestGamePlayerState::GetDebugPlayerName() const
-{
-    const FString CurrentPlayerName = GetPlayerName();
-
-    if (!CurrentPlayerName.IsEmpty())
-    {
-        return CurrentPlayerName;
-    }
-
-    return FString::Printf(
-        TEXT("Player %d"),
-        GetPlayerId()
-    );
-}
-
-FString ATestGamePlayerState::GetDebugPlayerLabel() const
-{
-    return FString::Printf(
-        TEXT("%s [ID=%d]"),
-        *GetDebugPlayerName(),
-        GetPlayerId()
-    );
 }
 
 void ATestGamePlayerState::GetLifetimeReplicatedProps(
@@ -194,8 +169,6 @@ void ATestGamePlayerState::ApplyPlayerClassTagToASC()
         break;
     }
 
-    FGameplayTagContainer OwnedTags;
-    ASC->GetOwnedGameplayTags(OwnedTags);
 }
 
 const UPlayerClassDefinitions*

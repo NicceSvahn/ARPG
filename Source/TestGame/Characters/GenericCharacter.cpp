@@ -72,8 +72,7 @@ void AGenericCharacter::BeginPlay()
 			FGameplayTag::RequestGameplayTag(
 				TEXT("State.HitReaction.Hit"));
 
-		HitReactionTagChangedHandle =
-			AbilitySystemComponent
+		AbilitySystemComponent
 			->RegisterGameplayTagEvent(
 				HitReactionTag,
 				EGameplayTagEventType::NewOrRemoved)
@@ -99,10 +98,6 @@ void AGenericCharacter::BeginPlay()
 		PreviousHealth =
 			HealthAttributeSet->GetHealth();
 
-		OnHealthChanged.Broadcast(
-			GetCurrentHealth(),
-			GetMaxHealth()
-		);
 	}
 
 	if (ResourceAttributeSet) 
@@ -113,8 +108,7 @@ void AGenericCharacter::BeginPlay()
 
 	if (MovementSpeedAttributeSet) 
 	{
-		MovementSpeedChangedHandle =
-			AbilitySystemComponent
+		AbilitySystemComponent
 			->GetGameplayAttributeValueChangeDelegate(
 				UMovementSpeedAttributeSet::GetMovementSpeedAttribute()
 			)
@@ -155,7 +149,6 @@ void AGenericCharacter::HandleAttributeChanged(
 	{
 		const float OldHealth = PreviousHealth;
 		PreviousHealth = NewValue;
-		OnHealthChanged.Broadcast(NewValue, GetMaxHealth());
 
 		if (NewValue <= 0 &&
 			HasAuthority())
@@ -163,23 +156,13 @@ void AGenericCharacter::HandleAttributeChanged(
 			EnterDeathState();
 		}
 
-		if (NewValue < OldHealth)
+		if (NewValue < OldHealth &&
+			NewValue > 0.0f &&
+			HasAuthority())
 		{
-			const float DamageAmount =
-				OldHealth - NewValue;
-
-			OnDamageReceived.Broadcast(
-				DamageAmount);
-
-			if (NewValue > 0.0f &&
-				HasAuthority())
-			{
-				MulticastHitReaction();
-			}
+			MulticastHitReaction();
 		}
-		return;
 	}
-	return;
 }
 
 void AGenericCharacter::MulticastHitReaction_Implementation()
@@ -255,10 +238,6 @@ UTestGameAbilitySystemComponent* AGenericCharacter::GetAbilitySystemComponent() 
 	return AbilitySystemComponent;
 }
 
-void AGenericCharacter::Tick(float DeltaTime)
-{
-	Super::Tick(DeltaTime);
-}
 
 void AGenericCharacter::ApplyResourceRegeneration()
 {
@@ -435,32 +414,6 @@ void AGenericCharacter::InitializeAbilitySystem()
 		);
 	}
 
-	if (HasAuthority())
-	{
-		UE_LOG(LogTemp, Warning, TEXT("===== ATTRIBUTE TEST: %s ====="), *GetName());
-
-		UE_LOG(LogTemp, Warning, TEXT("Primary:"));
-		UE_LOG(LogTemp, Warning, TEXT("  Strength: %.2f"),
-			PrimaryAttributeSet->GetStrength());
-		UE_LOG(LogTemp, Warning, TEXT("  Dexterity: %.2f"),
-			PrimaryAttributeSet->GetDexterity());
-		UE_LOG(LogTemp, Warning, TEXT("  Intellect: %.2f"),
-			PrimaryAttributeSet->GetIntellect());
-
-		UE_LOG(LogTemp, Warning, TEXT("Derived:"));
-		UE_LOG(LogTemp, Warning, TEXT("  MaxHealth: %.2f"),
-			HealthAttributeSet->GetMaxHealth());
-		UE_LOG(LogTemp, Warning, TEXT("  PhysicalDamage: %.3f"),
-			OffensiveAttributeSet->GetPhysicalDamage());
-		UE_LOG(LogTemp, Warning, TEXT("  Evasion: %.3f"),
-			DefensiveAttributeSet->GetEvasion());
-		UE_LOG(LogTemp, Warning, TEXT("  CritChance: %.3f"),
-			OffensiveAttributeSet->GetCritChance());
-		UE_LOG(LogTemp, Warning, TEXT("  MagicResistance: %.2f"),
-			DefensiveAttributeSet->GetMagicResistance());
-		UE_LOG(LogTemp, Warning, TEXT("  MagicDamage: %.3f"),
-			OffensiveAttributeSet->GetMagicDamage());
-	}
 }
 
 void AGenericCharacter::GrantStartupAbilities()

@@ -78,12 +78,6 @@ void UBuffBarWidget::OnAbilitySystemReady()
         );
     }
 
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT("BuffBar initialized with %d registered buffs"),
-        BuffTagDelegateHandles.Num()
-    );
 }
 
 
@@ -138,13 +132,6 @@ void UBuffBarWidget::HandleBuffTagChanged(
     FGameplayTag Tag,
     int32 NewCount)
 {
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT("BuffBar: %s changed. Count=%d"),
-        *Tag.ToString(),
-        NewCount
-    );
 
 
     if (NewCount > 0)
@@ -232,12 +219,6 @@ void UBuffBarWidget::AddBuff(
     );
 
 
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT("BuffBar: Added %s"),
-        *BuffTag.ToString()
-    );
 }
 
 
@@ -262,12 +243,6 @@ void UBuffBarWidget::RemoveBuff(
     );
 
 
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT("BuffBar: Removed %s"),
-        *BuffTag.ToString()
-    );
 }
 
 

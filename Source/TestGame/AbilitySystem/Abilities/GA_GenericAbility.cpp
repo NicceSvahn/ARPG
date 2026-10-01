@@ -524,3 +524,62 @@ bool UGA_GenericAbility::ApplyDamageToTarget(
 
     return true;
 }
+
+void UGA_GenericAbility::GrantResource(
+    const float Amount) const
+{
+    if (Amount <= 0.0f)
+    {
+        return;
+    }
+
+    UAbilitySystemComponent* ASC =
+        GetAbilitySystemComponentFromActorInfo();
+
+    if (!ASC || !ResourceGainEffect)
+    {
+        return;
+    }
+
+    const FGameplayAbilityActorInfo* ActorInfo =
+        GetCurrentActorInfo();
+
+    if (!ActorInfo ||
+        !ActorInfo->IsNetAuthority())
+    {
+        return;
+    }
+
+    FGameplayEffectContextHandle EffectContext =
+        ASC->MakeEffectContext();
+
+    EffectContext.AddSourceObject(
+        GetAvatarActorFromActorInfo()
+    );
+
+    FGameplayEffectSpecHandle SpecHandle =
+        ASC->MakeOutgoingSpec(
+            ResourceGainEffect,
+            GetAbilityLevel(),
+            EffectContext
+        );
+
+    if (!SpecHandle.IsValid())
+    {
+        return;
+    }
+
+    const FGameplayTag ResourceGainTag =
+        FGameplayTag::RequestGameplayTag(
+            TEXT("Data.ResourceGain")
+        );
+
+    SpecHandle.Data->SetSetByCallerMagnitude(
+        ResourceGainTag,
+        Amount
+    );
+
+    ASC->ApplyGameplayEffectSpecToSelf(
+        *SpecHandle.Data.Get()
+    );
+}

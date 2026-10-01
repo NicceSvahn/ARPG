@@ -100,6 +100,24 @@ protected:
         const FGameplayAbilityActivationInfo ActivationInfo
     ) const override;
 
+    // Resource generation
+    UPROPERTY(
+        EditDefaultsOnly,
+        BlueprintReadOnly,
+        Category = "Ability|Resource",
+        meta = (ClampMin = "0.0")
+    )
+    float ResourceGain = 0.0f;
+
+    UPROPERTY(
+        EditDefaultsOnly,
+        BlueprintReadOnly,
+        Category = "Ability|Resource"
+    )
+    TSubclassOf<UGameplayEffect> ResourceGainEffect;
+
+    void GrantResource(float Amount) const;
+
     // General
     AGenericCharacter* GetGenericCharacter() const;
 

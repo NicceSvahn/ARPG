@@ -13,7 +13,6 @@
 #include "Components/WidgetComponent.h"
 
 #include "TimerManager.h"
-#include "GameplayEffectExtension.h"
 
 #include "BehaviorTree/BlackboardComponent.h"
 
@@ -120,15 +119,10 @@ void AEnemyCharacter::BeginPlay()
                 this,
                 &AEnemyCharacter::HandleDamageResult
             );
-    }
 
-    if (HasAuthority() && AbilitySystemComponent)
-    {
         if (bIsElite)
         {
-            ApplyAttributeEffect(
-                EliteModifierEffect
-            );
+            ApplyAttributeEffect(EliteModifierEffect);
 
             if (HealthAttributeSet)
             {

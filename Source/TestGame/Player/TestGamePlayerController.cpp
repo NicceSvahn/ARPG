@@ -2,19 +2,17 @@
 
 #include "EnhancedInputSubsystems.h"
 #include "EnhancedInputComponent.h"
-#include "Blueprint/AIBlueprintHelperLibrary.h"
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/Character.h"
-#include "GameFramework/PlayerController.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "InputCoreTypes.h"
 
 #include "../UI/PlayerHudWidget.h"
-#include "../AbilitySystem/AbilityInputContext.h"
 #include "../AbilitySystem/TestGameAbilitySystemComponent.h"
 #include "../Characters/GenericCharacter.h"
 #include "../UI/CombatDebugWidget.h"
 #include "../UI/CharacterPanelWidget.h"
 #include "../Camera/CameraOccludableComponent.h"
-#include "../Characters/PlayerClass.h"
 #include "../Game/TestGamePlayerState.h"
 
 
@@ -28,7 +26,7 @@ void ATestGamePlayerController::BeginPlay()
 {
     Super::BeginPlay();
 
-    int32 priority = 0; // Low numerical priority means high priority
+    constexpr int32 MappingPriority = 0;
 
     bShowMouseCursor = true;
     bEnableClickEvents = true;
@@ -43,28 +41,14 @@ void ATestGamePlayerController::BeginPlay()
             {
                 Subsystem->AddMappingContext(
                     DefaultMappingContext,
-                    priority
+                    MappingPriority
                 );
             }
         }
     }
 
-    if (IsLocalController() && PlayerHudWidgetClass)
-    {
-        PlayerHudWidget =
-            CreateWidget<UPlayerHudWidget>(
-                this,
-                PlayerHudWidgetClass
-            );
-
-        if (PlayerHudWidget)
-        {
-            PlayerHudWidget->AddToViewport();
-        }
-    }
-
     TryInitializeHud();
-    InitializeCharacterPanel();
+    TryInitializeCharacterPanel();
 }
 
 
@@ -74,7 +58,7 @@ void ATestGamePlayerController::OnPossess(
     Super::OnPossess(InPawn);
 
     TryInitializeHud();
-    InitializeCharacterPanel();
+    TryInitializeCharacterPanel();
 }
 
 
@@ -83,6 +67,7 @@ void ATestGamePlayerController::OnRep_Pawn()
     Super::OnRep_Pawn();
 
     TryInitializeHud();
+    TryInitializeCharacterPanel();
 }
 
 
@@ -289,6 +274,26 @@ void ATestGamePlayerController::CancelMoveIntoRange()
     FinishMoveIntoRange(false);
 }
 
+void ATestGamePlayerController::StopMovementForAbility()
+{
+    CancelMoveIntoRange();
+    StopClickMove();
+
+    ACharacter* ControlledCharacter =
+        GetCharacter();
+
+    if (!ControlledCharacter)
+    {
+        return;
+    }
+
+    if (UCharacterMovementComponent* MovementComponent =
+        ControlledCharacter->GetCharacterMovement())
+    {
+        MovementComponent->StopMovementImmediately();
+    }
+}
+
 void ATestGamePlayerController::OnAbilityInputPressed(
     FGameplayTag InputTag)
 {
@@ -312,6 +317,14 @@ void ATestGamePlayerController::OnAbilityInputPressed(
     }
 
     FAbilityInputContext Context;
+
+    // Capture the modifier at the instant the ability is pressed.
+    // Both Shift keys behave identically. The ASC will only honour this
+    // flag for abilities that explicitly support directional attacks.
+    Context.bForceDirectionalAttack =
+        IsInputKeyDown(EKeys::LeftShift) ||
+        IsInputKeyDown(EKeys::RightShift);
+
     FHitResult HitResult;
 
     if (GetHitResultUnderCursor(
@@ -342,15 +355,6 @@ void ATestGamePlayerController::OnAbilityInputPressed(
 void ATestGamePlayerController::OnAbilityInputReleased(
     FGameplayTag InputTag)
 {
-    UE_LOG(
-        LogTemp,
-        Warning,
-        TEXT(
-            "[ABILITY INPUT] RELEASE controller: %s"
-        ),
-        *InputTag.ToString()
-    );
-
     AGenericCharacter* ControlledCharacter =
         Cast<AGenericCharacter>(GetPawn());
 
@@ -380,20 +384,9 @@ void ATestGamePlayerController::TryInitializeHud()
     }
 
     AGenericCharacter* PlayerCharacter =
-        Cast<AGenericCharacter>(
-            GetPawn()
-        );
+        Cast<AGenericCharacter>(GetPawn());
 
     if (!PlayerCharacter)
-    {
-        return;
-    }
-
-    UTestGameAbilitySystemComponent* ASC =
-        PlayerCharacter->
-        GetAbilitySystemComponent();
-
-    if (!ASC)
     {
         return;
     }
@@ -419,9 +412,7 @@ void ATestGamePlayerController::TryInitializeHud()
         PlayerHudWidget->AddToViewport();
     }
 
-    PlayerHudWidget->InitializeHud(
-        PlayerCharacter
-    );
+    PlayerHudWidget->InitializeFromActor(PlayerCharacter);
 }
 
 void ATestGamePlayerController::ToggleCombatDebug()
@@ -481,9 +472,9 @@ void ATestGamePlayerController::ToggleCombatDebug()
 }
 
 
+
 AGenericCharacter*
-ATestGamePlayerController::
-GetCharacterUnderCursor() const
+ATestGamePlayerController::GetCharacterUnderCursor() const
 {
     FHitResult HitResult;
 
@@ -495,9 +486,7 @@ GetCharacterUnderCursor() const
         return nullptr;
     }
 
-    return Cast<AGenericCharacter>(
-        HitResult.GetActor()
-    );
+    return Cast<AGenericCharacter>(HitResult.GetActor());
 }
 
 void ATestGamePlayerController::
@@ -752,47 +741,40 @@ ServerRequestPlayerClass_Implementation(
 }
 
 void ATestGamePlayerController::
-InitializeCharacterPanel()
+TryInitializeCharacterPanel()
 {
-    if (
-        !IsLocalController() ||
-        !CharacterPanelClass
-        )
+    if (!IsLocalController() || !CharacterPanelClass)
     {
         return;
     }
 
-    CharacterPanelWidget =
-        CreateWidget<UCharacterPanelWidget>(
-            this,
-            CharacterPanelClass
-        );
-
-    if (!CharacterPanelWidget)
-    {
-        return;
-    }
-
-    APawn* PlayerPawn =
-        GetPawn();
+    APawn* PlayerPawn = GetPawn();
 
     if (!PlayerPawn)
     {
         return;
     }
 
-    CharacterPanelWidget->
-        InitializeFromActor(
-            PlayerPawn
-        );
+    if (!CharacterPanelWidget)
+    {
+        CharacterPanelWidget =
+            CreateWidget<UCharacterPanelWidget>(
+                this,
+                CharacterPanelClass
+            );
 
-    CharacterPanelWidget->
-        AddToViewport();
+        if (!CharacterPanelWidget)
+        {
+            return;
+        }
 
-    CharacterPanelWidget->
-        SetVisibility(
+        CharacterPanelWidget->AddToViewport();
+        CharacterPanelWidget->SetVisibility(
             ESlateVisibility::Collapsed
         );
+    }
+
+    CharacterPanelWidget->InitializeFromActor(PlayerPawn);
 }
 
 

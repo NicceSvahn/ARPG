@@ -25,4 +25,20 @@ public:
 			AActor* ActorToIgnore,
 			TSubclassOf<AGenericCharacter>RequiredCharacterClass
 		);
+
+	UFUNCTION(
+		BlueprintCallable,
+		Category = "Ability|AOE",
+		meta = (WorldContext = "WorldContextObject")
+	)
+	static TArray<AGenericCharacter*>
+		FindCharactersInArc(
+			UObject* WorldContextObject,
+			const FVector& Origin,
+			const FVector& ForwardDirection,
+			float Radius,
+			float ArcDegrees,
+			AActor* ActorToIgnore,
+			TSubclassOf<AGenericCharacter> RequiredCharacterClass
+		);
 };

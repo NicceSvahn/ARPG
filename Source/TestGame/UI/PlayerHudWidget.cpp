@@ -9,13 +9,6 @@
 #include "Components/HorizontalBoxSlot.h"
 
 #include "../AbilitySystem/TestGameAbilitySystemComponent.h"
-#include "../Characters/GenericCharacter.h"
-
-void UPlayerHudWidget::InitializeHud(
-    AGenericCharacter* InCharacter)
-{
-    InitializeFromActor(InCharacter);
-}
 
 void UPlayerHudWidget::OnAbilitySystemReady()
 {
