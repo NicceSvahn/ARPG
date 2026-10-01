@@ -1,0 +1,94 @@
+= Ability Creation Checklist
+
+[cols="1,2", options="header"]
+|===
+| Del | Ansvar
+
+| C++
+| Ability-beteende
+
+| Blueprint
+| Konfiguration
+
+| Montage
+| Timing
+
+| Niagara / Material
+| Visuals
+|===
+
+== 1. Design
+
+* Vad gör abilityn?
+* Targeting?
+* Range?
+* Damage/healing?
+* Cooldown/resource?
+* Animation/VFX?
+
+== 2. Välj rätt C++-bas
+
+* Återanvänd `GA_GenericMelee`, buff/projectile-system osv. om möjligt.
+* Skapa ny `GA_<Ability>.h/.cpp` bara om abilityn har unik mekanik.
+
+== 3. Gameplay
+
+* Targeting, direction, damage, movement, CC och annan logik i C++.
+* Använd gemensamma `GameplayEffects` där det går.
+
+== 4. Ability Blueprint
+
+`BP_GA_<Ability>` används bara för config:
+
+* damage values
+* coefficients
+* montage
+* effects
+* projectile class
+* cooldown/range
+
+== 5. Animation
+
+* Skapa/välj `A_<Ability>` och `AM_<Ability>`.
+* Montaget bestämmer när hit, VFX osv. sker.
+
+== 6. AnimNotifies
+
+Använd generella C++ notifies.
+
+Exempel:
+
+* `AbilityGameplayEvent`
+* `SpawnDirectionalNiagara`
+
+== 7. VFX
+
+* Niagara: size, lifetime, particles, fade, color.
+* Material: shape, opacity, emissive, shaderutseende.
+* Ingen gameplay-logik här.
+
+== 8. Input/UI
+
+* Ability ska gå genom befintligt ASC/slot-system.
+* Undvik ability-specifik `PlayerController`-logik.
+* UI visar systemets data, räknar inte gameplay själv.
+
+== 9. Testa i ordning
+
+. Aktivering
+. Targeting/facing
+. Montage
+. Hit/event
+. Damage/effects
+. Cooldown/resource
+. VFX
+. UI
+. Multiplayer/server
+
+== 10. Definition of Done
+
+* Ingen duplicerad logik
+* Ingen gameplay-matte i Blueprint
+* Generiska system återanvänds
+* VFX/animation fungerar
+* Server/client fungerar

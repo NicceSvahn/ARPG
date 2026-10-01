@@ -427,23 +427,6 @@ void UGA_GenericMelee::HandleMeleeHitEvent(
 
 void UGA_GenericMelee::HandleMontageCompleted()
 {
-    const FGameplayAbilityActorInfo* ActorInfo =
-        GetCurrentActorInfo();
-
-    // Fallback:
-    // If no animation hit event was received, still perform
-    // the attack at montage completion.
-    if (!bMeleeHitTriggered &&
-        ActorInfo &&
-        ActorInfo->IsNetAuthority())
-    {
-        bMeleeHitTriggered = true;
-
-        OnMeleeHit(
-            PendingTargetActor.Get()
-        );
-    }
-
     FinishMeleeAbility(false);
 }
 
