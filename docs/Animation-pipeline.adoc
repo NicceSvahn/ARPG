@@ -1,0 +1,869 @@
+= Animation Pipeline
+:toc:
+:toclevels: 3
+:sectnums:
+
+== Purpose
+
+This document defines a repeatable workflow for creating character animations for the project.
+
+The goal is to avoid treating every new animation as a new technical experiment. The pipeline separates:
+
+* technical rigging and export setup,
+* animation production,
+* Unreal Engine integration,
+* gameplay validation.
+
+The main runtime character is currently *Manny*, but the workflow should remain valid if the character is replaced later.
+
+== Core Principles
+
+* *Blender owns motion authoring.*
+* *Unreal Engine owns runtime animation playback, blending, montages and gameplay integration.*
+* *C++ owns gameplay logic and calculations.*
+* *Animation Montages own gameplay timing.*
+* *Niagara and Materials own visual effects.*
+* *The runtime/export skeleton must remain stable.*
+* *The animation control rig is a production tool and is not exported as the runtime skeleton.*
+* *Do not polish an animation before its timing and gameplay feel have been validated.*
+
+A useful mental model is:
+
+[source,text]
+----
+Blender
+  -> animation authoring
+  -> control rig
+  -> bake to runtime skeleton
+  -> FBX
+
+Unreal Engine
+  -> Animation Sequence
+  -> Animation Blueprint / Layers
+  -> Animation Montage
+  -> Gameplay events
+  -> VFX
+  -> runtime playback
+----
+
+== High-Level Workflow
+
+There are two separate pipelines.
+
+=== One-Time Technical Pipeline
+
+This is established once and reused for all animations.
+
+[source,text]
+----
+Runtime skeleton
+  -> Blender control rig
+  -> Bake to runtime skeleton
+  -> FBX export
+  -> Unreal import
+  -> verified round-trip
+----
+
+Once this works, save a reusable animation template and avoid rebuilding the rig for each animation.
+
+=== Per-Animation Production Pipeline
+
+[source,text]
+----
+Design brief
+  -> Reference
+  -> Blocking
+  -> Gameplay test
+  -> Spline / refinement
+  -> Polish
+  -> Bake
+  -> Export
+  -> Unreal integration
+  -> Final gameplay validation
+----
+
+== Gate 0 - Technical Pipeline
+
+Before creating production animations, verify the complete technical pipeline.
+
+=== Runtime Skeleton
+
+Choose one canonical runtime/export skeleton.
+
+For the current project:
+
+[source,text]
+----
+Runtime Skeleton = Manny
+----
+
+Rules:
+
+* Do not rename runtime bones.
+* Do not change the runtime bone hierarchy.
+* Do not use the animation control rig as the export skeleton.
+* All final animation must ultimately be baked onto the runtime skeleton.
+
+=== Animation Control Rig
+
+Use a dedicated Blender control rig, such as Rigify or another rigging solution, for animation authoring.
+
+The control rig should provide animator-friendly controls such as:
+
+* hip control,
+* torso/chest controls,
+* head control,
+* hand IK/FK,
+* foot IK,
+* elbow and knee pole controls,
+* finger controls where needed.
+
+The control rig exists only to make animation easier.
+
+[source,text]
+----
+Control Rig
+   -> drives
+Runtime Skeleton
+   -> exported to
+Unreal Engine
+----
+
+=== Round-Trip Test
+
+Before creating real animations:
+
+. Create a trivial test animation using the control rig.
+. Example:
++
+[source,text]
+----
+Frame 0   Neutral
+Frame 20  Raise right arm
+Frame 40  Lower right arm
+----
+. Bake the result onto the runtime skeleton.
+. Export the runtime skeleton and animation to FBX.
+. Import the FBX into Unreal using the existing runtime skeleton.
+. Confirm that the motion matches the Blender result.
+
+Do not begin production animation until this works.
+
+=== Save an Animation Template
+
+When the round-trip is verified, save a reusable Blender file, for example:
+
+[source,text]
+----
+Character_Animation_Template.blend
+----
+
+Recommended contents:
+
+* character mesh,
+* runtime/export skeleton,
+* animation control rig,
+* weapon helper setup,
+* secondary-hand grip setup,
+* scene FPS,
+* export settings,
+* naming conventions.
+
+For a new animation, duplicate the template instead of rebuilding the setup.
+
+== Step 1 - Animation Brief
+
+Every animation should start with a short written specification.
+
+Example:
+
+[source,text]
+----
+Name: 2H_Attack_01
+Stance: TwoHanded
+Length: 57 frames
+Movement: In-place
+Start Pose: TwoHanded_Idle
+End Pose: TwoHanded_Idle
+Gameplay Type: Directional melee attack
+Weapon Type: Two-handed weapon
+Major Beats:
+  - Anticipation
+  - Strike
+  - Follow-through
+  - Recovery
+----
+
+The brief should answer:
+
+* What is the animation for?
+* What stance does it start from?
+* What stance does it return to?
+* Is it in-place or does it contain movement?
+* How long is it?
+* Where should the gameplay impact approximately happen?
+* Which weapon category does it use?
+* Does it loop?
+* Can it be interrupted?
+
+=== Frame Rate
+
+Choose one project-wide animation authoring FPS and document it.
+
+Do not use frame count as a timing specification without also defining FPS.
+
+Example convention:
+
+[source,text]
+----
+Authoring FPS: 60
+Normal attack length: 57 frames
+Frame range: 0-56
+----
+
+Keep the convention consistent across the project.
+
+== Step 2 - Reference
+
+Do not start by keyframing blindly.
+
+Gather or record reference first.
+
+For a combat animation, study:
+
+* weight transfer,
+* hip movement,
+* torso rotation,
+* shoulder timing,
+* arm acceleration,
+* weapon path,
+* follow-through,
+* recovery,
+* balance.
+
+Reference can come from:
+
+* recorded video,
+* martial arts footage,
+* sports footage,
+* film,
+* other games,
+* real weapon demonstrations.
+
+Reference is information, not something that must be copied exactly.
+
+For stylized gameplay animation, exaggeration is often desirable after the real motion is understood.
+
+== Step 3 - Blocking
+
+Blocking establishes the important poses and timing.
+
+Do not try to make the animation smooth yet.
+
+Use stepped/constant interpolation while blocking.
+
+=== Typical Attack Structure
+
+A normal attack can often be broken into:
+
+[source,text]
+----
+Start
+  -> Anticipation
+  -> Maximum Wind-Up
+  -> Strike / Impact
+  -> Follow-Through
+  -> Recovery
+  -> End
+----
+
+Example only:
+
+[source,text]
+----
+Frame 0   Start
+Frame 12  Load
+Frame 18  Maximum anticipation
+Frame 24  Strike
+Frame 34  Follow-through
+Frame 45  Recovery
+Frame 56  End
+----
+
+The exact frame positions are ability-dependent.
+
+Do not standardize the impact frame for all attacks merely because the total animation length is standardized.
+
+=== Work from Large Motion to Small Motion
+
+A useful order is:
+
+[source,text]
+----
+Feet
+  -> Hips
+  -> Spine
+  -> Chest
+  -> Shoulders
+  -> Arms
+  -> Weapon
+  -> Head
+  -> Hands / Fingers
+----
+
+Do not start with finger posing while the hips and torso are still wrong.
+
+=== Blocking Exit Criteria
+
+Blocking is ready when:
+
+* the animation is readable,
+* the timing feels intentional,
+* the major poses communicate the action,
+* the attack still reads correctly in stepped playback.
+
+If the animation does not feel good while blocked, do not proceed to polish.
+
+== Gate 1 - Blocking Review
+
+Before refinement:
+
+* Review the animation from the gameplay camera.
+* Check silhouette and readability.
+* Confirm that the action direction is obvious.
+* Confirm that the start and end poses fit the stance.
+* Confirm that the timing feels plausible.
+
+Only continue when the blocking is approved.
+
+== Step 4 - Early Gameplay Test
+
+Export the blocked animation to Unreal before polishing.
+
+Do not wait until the animation is visually finished.
+
+Workflow:
+
+[source,text]
+----
+Blocked Animation
+  -> Bake
+  -> FBX
+  -> Unreal Animation Sequence
+  -> Temporary Montage
+  -> Gameplay test
+----
+
+Check:
+
+* responsiveness,
+* wind-up length,
+* impact timing,
+* recovery length,
+* readability from the gameplay camera,
+* whether the animation feels too slow or too fast,
+* whether movement lock or cancellation feels correct.
+
+If the attack feels wrong in gameplay, return to blocking.
+
+Do not try to fix gameplay timing with VFX or polish.
+
+== Gate 2 - Gameplay Approval
+
+Before refinement, confirm:
+
+* the ability feels responsive,
+* impact happens at the correct moment,
+* recovery is acceptable,
+* the move is readable from the intended camera,
+* gameplay hit timing can be aligned with the animation.
+
+Only then move to spline/refinement.
+
+== Step 5 - Spline and Refinement
+
+Once blocking is approved, switch from stepped interpolation to smooth interpolation.
+
+Use Blender's Graph Editor to refine motion.
+
+Focus on:
+
+* spacing,
+* acceleration,
+* deceleration,
+* motion arcs,
+* weight transfer,
+* center of gravity,
+* foot planting,
+* overlap,
+* follow-through.
+
+=== Motion Should Cascade Through the Body
+
+For a powerful attack, motion often works better when it does not start everywhere at once.
+
+Example:
+
+[source,text]
+----
+Hips
+  -> Torso
+  -> Shoulders
+  -> Arms
+  -> Weapon
+----
+
+This creates a stronger sense of momentum than rotating the entire character simultaneously.
+
+=== Weapon Motion
+
+For weapon attacks:
+
+* track the weapon path carefully,
+* avoid accidental wobble,
+* keep the arc readable,
+* check whether the weapon intersects the character,
+* verify that both hands behave correctly for two-handed weapons.
+
+== Step 6 - Polish
+
+Polish happens only after timing and gameplay are approved.
+
+Typical polish tasks:
+
+* remove pops,
+* remove foot sliding,
+* clean weapon arcs,
+* improve wrist alignment,
+* refine elbow motion,
+* refine shoulder motion,
+* fix body intersections,
+* add subtle head lag,
+* add overlap and settle,
+* refine finger grip,
+* improve recovery pose,
+* verify loop continuity for looping animations.
+
+Avoid polishing details that are not visible from the gameplay camera.
+
+== Two-Handed Weapon Tips
+
+For a two-handed weapon, use a clear ownership model.
+
+Recommended concept:
+
+[source,text]
+----
+Primary Hand
+  -> drives weapon
+
+Weapon
+  -> contains secondary grip reference
+
+Secondary Hand
+  -> follows secondary grip
+----
+
+Do not make both hands independently drive the same weapon.
+
+The secondary hand should normally follow a grip target on the weapon through IK or a suitable rigging constraint.
+
+For animation authoring, verify:
+
+* primary hand grip,
+* secondary hand spacing,
+* elbow direction,
+* wrist orientation,
+* shoulder tension,
+* weapon center of mass,
+* weapon arc.
+
+== Step 7 - Bake to Runtime Skeleton
+
+When the animation is finished:
+
+. Bake the control-rig result onto the runtime skeleton.
+. Ensure the runtime skeleton receives regular keyframes.
+. Temporarily disable or hide the control rig.
+. Verify that the runtime skeleton still performs the animation correctly.
+
+The animation is not ready for Unreal until the runtime skeleton can perform it without the control rig.
+
+== Step 8 - FBX Export
+
+Export only what Unreal needs.
+
+Recommended export contents:
+
+* runtime skeleton,
+* baked animation.
+
+Do not export production-only objects unless required:
+
+* control rig controls,
+* Rigify mechanism bones,
+* meta-rig,
+* helper objects,
+* unrelated meshes.
+
+Create and save an export preset once the settings are verified.
+
+Do not rediscover export settings for every animation.
+
+== Step 9 - Unreal Import
+
+Import the FBX as an animation using the existing runtime skeleton.
+
+Typical result:
+
+[source,text]
+----
+FBX
+  -> Animation Sequence
+  -> existing character Skeleton
+----
+
+Check immediately:
+
+* animation length,
+* frame count,
+* playback rate,
+* root behavior,
+* foot placement,
+* hand placement,
+* weapon pose,
+* unexpected scale or rotation changes.
+
+If the imported animation is technically wrong, fix the bake/export pipeline rather than compensating inside the animation.
+
+== Step 10 - Runtime Animation Integration
+
+Use the imported Animation Sequence as the motion source.
+
+Runtime flow may look like:
+
+[source,text]
+----
+Animation Sequence
+  -> Animation Blueprint / Animation Layer
+  -> Animation Montage
+  -> Gameplay Ability
+----
+
+Responsibilities:
+
+* *Animation Sequence* = motion.
+* *Animation Blueprint / Layer* = stance and locomotion selection.
+* *Animation Montage* = runtime ability timing.
+* *C++* = gameplay behavior.
+* *Niagara / Material* = visual effects.
+
+== Step 11 - Gameplay Events and VFX
+
+Gameplay timing belongs in Unreal.
+
+Examples:
+
+[source,text]
+----
+Animation Montage
+  -> Gameplay Event
+  -> damage / hit logic
+
+Animation Montage
+  -> C++ VFX AnimNotify
+  -> Niagara effect
+----
+
+Do not bake damage calculations or gameplay behavior into Blender animation data.
+
+The animation defines the visual moment.
+
+Unreal defines what happens at that moment.
+
+== Step 12 - Attack Speed
+
+Keep source attack animations authored at their standard base speed.
+
+Example:
+
+[source,text]
+----
+Base Animation
+Length: 57 frames
+Play Rate: 1.0
+----
+
+Attack Speed should modify runtime playback speed rather than requiring separate faster animations.
+
+This means the following scale together:
+
+* anticipation,
+* strike,
+* gameplay notify,
+* VFX notify,
+* follow-through,
+* recovery.
+
+Do not permanently speed up the original source animation to represent character stats.
+
+== Step 13 - Final Gameplay Validation
+
+Test the final animation in actual gameplay.
+
+Recommended checks:
+
+* normal activation,
+* activation while moving,
+* activation from multiple directions,
+* low attack speed,
+* default attack speed,
+* high attack speed,
+* close target,
+* maximum-range target,
+* hit volume versus visual weapon arc,
+* VFX timing,
+* damage timing,
+* interruption,
+* cancellation,
+* multiplayer/client-server behavior where applicable.
+
+Useful debugging techniques:
+
+* slow-motion gameplay,
+* visible hit shapes,
+* temporary debug lines,
+* repeated playback from the gameplay camera.
+
+== Production Gates
+
+Use explicit gates to avoid polishing the wrong thing.
+
+=== Gate 0 - Pipeline
+
+[source,text]
+----
+Control Rig
+  -> Runtime Skeleton
+  -> Bake
+  -> FBX
+  -> Unreal
+----
+
+Must work before production animation.
+
+=== Gate 1 - Blocking
+
+The poses and timing must read correctly.
+
+=== Gate 2 - Gameplay
+
+The blocked animation must feel correct in Unreal.
+
+=== Gate 3 - Final
+
+Refinement, polish, VFX and gameplay integration must all be approved.
+
+== Suggested Order for Building the Animation Library
+
+A useful progression is:
+
+. Verify technical round-trip.
+. Create the animation template.
+. Create a simple idle.
+. Create stance-specific idle animations.
+. Create stance-specific locomotion.
+. Create a simple attack.
+. Create more complex attacks.
+. Add transitions and special cases.
+
+Starting with a complicated combat animation before the technical pipeline and stance animations are stable increases the number of problems being solved at once.
+
+== Stance-Based Animation Sets
+
+Avoid creating a completely unique locomotion set for every individual weapon.
+
+Prefer animation sets by stance or weapon category.
+
+Example:
+
+[source,text]
+----
+Unarmed
+  -> Idle
+  -> Walk
+  -> Run
+
+TwoHanded
+  -> Idle
+  -> Walk
+  -> Run
+  -> Attacks
+
+OneHandShield
+  -> Idle
+  -> Walk
+  -> Run
+  -> Attacks
+
+DualWield
+  -> Idle
+  -> Walk
+  -> Run
+  -> Attacks
+----
+
+Individual weapons can override animations later when their proportions or style require it.
+
+== Naming Suggestions
+
+Keep naming predictable.
+
+Example:
+
+[source,text]
+----
+A_2H_Idle
+A_2H_Walk
+A_2H_Run
+A_2H_Attack_01
+
+AM_2H_Attack_01
+
+ANIM_2H_Attack_01.blend
+----
+
+The exact naming convention is less important than consistency.
+
+== Tips and Common Failure Modes
+
+=== Do Not Mix Pipeline Problems with Animation Problems
+
+If the animation looks wrong in Blender, fix animation.
+
+If the animation changes during export/import, fix the bake/export pipeline.
+
+If gameplay timing feels wrong, fix timing or montage integration.
+
+If VFX looks wrong, fix Niagara/material configuration.
+
+Do not compensate for one layer's problem in another layer.
+
+=== Validate Early
+
+A rough animation in-game is more valuable than a polished animation that has never been tested in-game.
+
+=== Save Templates
+
+Do not rebuild:
+
+* rigging,
+* export settings,
+* grip helpers,
+* scene FPS,
+* naming structure
+
+for each new animation.
+
+=== Work from the Gameplay Camera
+
+A pose can look excellent from a cinematic camera and unreadable from a top-down gameplay camera.
+
+Frequently check the intended gameplay view.
+
+=== Avoid Premature Detail
+
+Do not spend time on:
+
+* fingers,
+* facial motion,
+* tiny wrist changes,
+* subtle secondary motion
+
+before the major body mechanics and timing work.
+
+=== Keep Source Files
+
+Keep the Blender source for each animation.
+
+Do not treat exported FBX files as the editable master.
+
+== Per-Animation Checklist
+
+=== Design
+
+* [ ] Name defined
+* [ ] Stance defined
+* [ ] Duration defined
+* [ ] FPS confirmed
+* [ ] Start pose defined
+* [ ] End pose defined
+* [ ] Gameplay purpose defined
+* [ ] Reference gathered
+
+=== Blocking
+
+* [ ] Major poses created
+* [ ] Timing readable in stepped mode
+* [ ] Action direction clear
+* [ ] Weapon path readable
+* [ ] Gameplay camera checked
+
+=== Gameplay Test
+
+* [ ] Blockout exported
+* [ ] Imported into Unreal
+* [ ] Temporary montage created
+* [ ] Impact timing tested
+* [ ] Recovery tested
+* [ ] Movement interaction tested
+
+=== Refinement
+
+* [ ] Curves refined
+* [ ] Weight transfer believable
+* [ ] Arcs clean
+* [ ] Feet stable
+* [ ] Weapon stable
+* [ ] Two-handed grip stable if applicable
+
+=== Polish
+
+* [ ] No obvious pops
+* [ ] No major intersections
+* [ ] Hands and wrists cleaned
+* [ ] Follow-through cleaned
+* [ ] Recovery cleaned
+* [ ] Loop cleaned if applicable
+
+=== Export
+
+* [ ] Animation baked to runtime skeleton
+* [ ] Runtime skeleton verified without control rig
+* [ ] Correct export preset used
+* [ ] Only required data exported
+
+=== Unreal
+
+* [ ] Correct Skeleton selected
+* [ ] Frame count correct
+* [ ] Playback correct
+* [ ] Montage created/updated
+* [ ] Gameplay event timing correct
+* [ ] VFX timing correct
+* [ ] Attack Speed tested
+* [ ] Final gameplay validation complete
+
+== Definition of Done
+
+An animation is complete when:
+
+* the source Blender file is preserved,
+* the runtime skeleton contains the baked animation,
+* the FBX imports correctly,
+* the Animation Sequence behaves correctly,
+* the animation works from the gameplay camera,
+* gameplay timing matches the motion,
+* VFX timing matches the motion,
+* runtime speed scaling behaves correctly,
+* the animation passes the relevant production gates.
