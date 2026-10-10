@@ -1,869 +1,627 @@
-= Animation Pipeline
+= Blender -> Unreal Animation Pipeline
 :toc:
 :toclevels: 3
 :sectnums:
 
 == Purpose
 
-This document defines a repeatable workflow for creating character animations for the project.
+This document describes the repeatable workflow for adding a new character animation to the project after the Blender/Rigify -> Unreal retargeting pipeline has already been set up.
 
-The goal is to avoid treating every new animation as a new technical experiment. The pipeline separates:
+It intentionally does *not* describe how to create the Rigify rig, IK Rigs, IK Retargeter, source skeleton, or Manny setup. Those are one-time pipeline assets.
 
-* technical rigging and export setup,
-* animation production,
-* Unreal Engine integration,
-* gameplay validation.
-
-The main runtime character is currently *Manny*, but the workflow should remain valid if the character is replaced later.
-
-== Core Principles
-
-* *Blender owns motion authoring.*
-* *Unreal Engine owns runtime animation playback, blending, montages and gameplay integration.*
-* *C++ owns gameplay logic and calculations.*
-* *Animation Montages own gameplay timing.*
-* *Niagara and Materials own visual effects.*
-* *The runtime/export skeleton must remain stable.*
-* *The animation control rig is a production tool and is not exported as the runtime skeleton.*
-* *Do not polish an animation before its timing and gameplay feel have been validated.*
-
-A useful mental model is:
+The reusable Unreal pipeline assets are:
 
 [source,text]
 ----
-Blender
-  -> animation authoring
-  -> control rig
-  -> bake to runtime skeleton
-  -> FBX
-
-Unreal Engine
-  -> Animation Sequence
-  -> Animation Blueprint / Layers
-  -> Animation Montage
-  -> Gameplay events
-  -> VFX
-  -> runtime playback
+SK_RigifySource_Manny
+SKEL_RigifySource_Manny
+IK_RigifySource
+IK_Manny
+RTG_RigifyToManny
 ----
 
-== High-Level Workflow
-
-There are two separate pipelines.
-
-=== One-Time Technical Pipeline
-
-This is established once and reused for all animations.
+For each new animation, the normal flow is:
 
 [source,text]
 ----
-Runtime skeleton
-  -> Blender control rig
-  -> Bake to runtime skeleton
-  -> FBX export
-  -> Unreal import
-  -> verified round-trip
+Animate in Blender
+        |
+        v
+Export FBX
+        |
+        v
+Import Only Animation -> SKEL_RigifySource_Manny
+        |
+        v
+RTG_RigifyToManny
+        |
+        v
+Export retargeted Animation Sequence
+        |
+        v
+Use in AnimBP or Anim Montage
 ----
 
-Once this works, save a reusable animation template and avoid rebuilding the rig for each animation.
+== Project Animation Conventions
 
-=== Per-Animation Production Pipeline
+All animation authoring is done at:
 
 [source,text]
 ----
-Design brief
-  -> Reference
-  -> Blocking
-  -> Gameplay test
-  -> Spline / refinement
-  -> Polish
-  -> Bake
-  -> Export
-  -> Unreal integration
-  -> Final gameplay validation
+60 FPS
 ----
 
-== Gate 0 - Technical Pipeline
+Current project timing convention:
 
-Before creating production animations, verify the complete technical pipeline.
+[cols="1,1,2"]
+|===
+|Animation type |Length |Notes
 
-=== Runtime Skeleton
+|Combat ability
+|57 frames
+|Base duration is approximately 0.95 seconds at 60 FPS. Attack speed can increase playback rate.
 
-Choose one canonical runtime/export skeleton.
+|Looping / locomotion
+|180 frames
+|Used for idle, running, and similar continuous animation assets.
 
-For the current project:
+|Channeled abilities
+|Variable
+|Not required to follow the 57-frame combat rule.
+|===
 
-[source,text]
-----
-Runtime Skeleton = Manny
-----
+The Blender scene frame rate must therefore be set to *60 FPS before export*.
 
-Rules:
+== 1. Prepare the Animation in Blender
 
-* Do not rename runtime bones.
-* Do not change the runtime bone hierarchy.
-* Do not use the animation control rig as the export skeleton.
-* All final animation must ultimately be baked onto the runtime skeleton.
+Before exporting:
 
-=== Animation Control Rig
-
-Use a dedicated Blender control rig, such as Rigify or another rigging solution, for animation authoring.
-
-The control rig should provide animator-friendly controls such as:
-
-* hip control,
-* torso/chest controls,
-* head control,
-* hand IK/FK,
-* foot IK,
-* elbow and knee pole controls,
-* finger controls where needed.
-
-The control rig exists only to make animation easier.
-
-[source,text]
-----
-Control Rig
-   -> drives
-Runtime Skeleton
-   -> exported to
-Unreal Engine
-----
-
-=== Round-Trip Test
-
-Before creating real animations:
-
-. Create a trivial test animation using the control rig.
-. Example:
+. Open the `.blend` file containing the finished animation.
+. Confirm that the animation plays correctly.
+. Confirm the scene frame rate:
 +
 [source,text]
 ----
-Frame 0   Neutral
-Frame 20  Raise right arm
-Frame 40  Lower right arm
+Output Properties
+-> Frame Rate = 60 FPS
 ----
-. Bake the result onto the runtime skeleton.
-. Export the runtime skeleton and animation to FBX.
-. Import the FBX into Unreal using the existing runtime skeleton.
-. Confirm that the motion matches the Blender result.
+. Confirm the intended frame range.
++
+Examples:
++
+[source,text]
+----
+Combat:
+Start = 1
+End   = 57
 
-Do not begin production animation until this works.
+Idle / locomotion:
+Start = 1
+End   = 180
+----
+. Confirm that the correct Blender Action is active on the generated Rigify `rig`.
+. Give the Action a useful source name, for example:
++
+[source,text]
+----
+SRC_2H_Axe_CombatRun
+SRC_Cleave
+SRC_Bash
+----
+. Save the `.blend` file before export.
 
-=== Save an Animation Template
+TIP: The source Action name is only an authoring/source name. The final Unreal animation should normally use the project's `A_...` naming convention.
 
-When the round-trip is verified, save a reusable Blender file, for example:
+== 2. Select the Export Objects
+
+Switch Blender to *Object Mode*.
+
+Select the same two objects used by the established pipeline:
 
 [source,text]
 ----
-Character_Animation_Template.blend
+rig
+Manny_RigifyPreview
 ----
 
-Recommended contents:
-
-* character mesh,
-* runtime/export skeleton,
-* animation control rig,
-* weapon helper setup,
-* secondary-hand grip setup,
-* scene FPS,
-* export settings,
-* naming conventions.
-
-For a new animation, duplicate the template instead of rebuilding the setup.
-
-== Step 1 - Animation Brief
-
-Every animation should start with a short written specification.
-
-Example:
+Do *not* select:
 
 [source,text]
 ----
-Name: 2H_Attack_01
-Stance: TwoHanded
-Length: 57 frames
-Movement: In-place
-Start Pose: TwoHanded_Idle
-End Pose: TwoHanded_Idle
-Gameplay Type: Directional melee attack
-Weapon Type: Two-handed weapon
-Major Beats:
-  - Anticipation
-  - Strike
-  - Follow-through
-  - Recovery
+metarig
+original Manny armature
+WGT collections
+weapon meshes
+unrelated scene objects
 ----
 
-The brief should answer:
+The weapon can exist in Blender as an animation reference, but it is not part of the character animation export.
 
-* What is the animation for?
-* What stance does it start from?
-* What stance does it return to?
-* Is it in-place or does it contain movement?
-* How long is it?
-* Where should the gameplay impact approximately happen?
-* Which weapon category does it use?
-* Does it loop?
-* Can it be interrupted?
+== 3. Export FBX from Blender
 
-=== Frame Rate
-
-Choose one project-wide animation authoring FPS and document it.
-
-Do not use frame count as a timing specification without also defining FPS.
-
-Example convention:
+Go to:
 
 [source,text]
 ----
-Authoring FPS: 60
-Normal attack length: 57 frames
-Frame range: 0-56
+File
+-> Export
+-> FBX (.fbx)
 ----
 
-Keep the convention consistent across the project.
-
-== Step 2 - Reference
-
-Do not start by keyframing blindly.
-
-Gather or record reference first.
-
-For a combat animation, study:
-
-* weight transfer,
-* hip movement,
-* torso rotation,
-* shoulder timing,
-* arm acceleration,
-* weapon path,
-* follow-through,
-* recovery,
-* balance.
-
-Reference can come from:
-
-* recorded video,
-* martial arts footage,
-* sports footage,
-* film,
-* other games,
-* real weapon demonstrations.
-
-Reference is information, not something that must be copied exactly.
-
-For stylized gameplay animation, exaggeration is often desirable after the real motion is understood.
-
-== Step 3 - Blocking
-
-Blocking establishes the important poses and timing.
-
-Do not try to make the animation smooth yet.
-
-Use stepped/constant interpolation while blocking.
-
-=== Typical Attack Structure
-
-A normal attack can often be broken into:
+Use a clear source filename, for example:
 
 [source,text]
 ----
-Start
-  -> Anticipation
-  -> Maximum Wind-Up
-  -> Strike / Impact
-  -> Follow-Through
-  -> Recovery
-  -> End
+SRC_2H_Axe_CombatRun.fbx
+SRC_Cleave.fbx
 ----
 
-Example only:
+=== Include
+
+Set:
+
+[cols="2,1"]
+|===
+|Option |Value
+
+|Selected Objects
+|ON
+
+|Object Type: Armature
+|ON
+
+|Object Type: Mesh
+|ON
+
+|Other object types
+|OFF
+|===
+
+=== Transform
+
+Use the established project settings:
+
+[cols="2,1"]
+|===
+|Option |Value
+
+|Scale
+|1.00
+
+|Apply Scalings
+|All Local
+
+|Forward
+|-Z Forward
+
+|Up
+|Y Up
+
+|Apply Unit
+|ON
+
+|Use Space Transform
+|ON
+
+|Apply Transform
+|OFF
+|===
+
+IMPORTANT: Do not casually change the axis or scale settings once the pipeline is working. These values are part of the tested Blender -> Unreal roundtrip.
+
+=== Armature
+
+Set:
+
+[cols="2,1"]
+|===
+|Option |Value
+
+|Armature FBXNode Type
+|Null
+
+|Only Deform Bones
+|ON
+
+|Add Leaf Bones
+|OFF
+|===
+
+=== Animation
+
+Set:
+
+[cols="2,1"]
+|===
+|Option |Value
+
+|Animation
+|ON
+
+|Key All Bones
+|ON
+
+|NLA Strips
+|OFF
+
+|All Actions
+|OFF
+
+|Force Start/End Keying
+|ON
+
+|Sampling Rate
+|1.00
+
+|Simplify
+|0.00
+|===
+
+IMPORTANT: `NLA Strips` and `All Actions` must be OFF. The export should contain the currently active animation, not every Action or NLA strip in the Blender file.
+
+Click *Export FBX*.
+
+== 4. Import the New Animation into Unreal
+
+The source Rigify mesh and skeleton already exist. Do *not* create a new Skeletal Mesh, Skeleton, Material Instance, IK Rig, or Retargeter for each animation.
+
+Import the FBX into an appropriate temporary/source animation folder.
+
+In the Unreal import dialog:
+
+=== Common Skeletal Mesh / Animation Settings
+
+Set:
+
+[cols="2,1"]
+|===
+|Option |Value
+
+|Import Only Animations
+|ON
+
+|Try Auto Select Skeleton
+|OFF
+
+|Skeleton
+|`SKEL_RigifySource_Manny`
+
+|Use T0 As Ref Pose
+|OFF
+|===
+
+The important part is:
 
 [source,text]
 ----
-Frame 0   Start
-Frame 12  Load
-Frame 18  Maximum anticipation
-Frame 24  Strike
-Frame 34  Follow-through
-Frame 45  Recovery
-Frame 56  End
+Skeleton = SKEL_RigifySource_Manny
 ----
 
-The exact frame positions are ability-dependent.
+This causes the new FBX to reuse the existing Rigify source skeleton rather than generating another source character setup.
 
-Do not standardize the impact frame for all attacks merely because the total animation length is standardized.
+=== Animation Settings
 
-=== Work from Large Motion to Small Motion
+Set:
 
-A useful order is:
+[cols="2,1"]
+|===
+|Option |Value
 
-[source,text]
-----
-Feet
-  -> Hips
-  -> Spine
-  -> Chest
-  -> Shoulders
-  -> Arms
-  -> Weapon
-  -> Head
-  -> Hands / Fingers
-----
+|Import Animations
+|ON
 
-Do not start with finger posing while the hips and torso are still wrong.
+|Animation Length
+|Source Timeline
 
-=== Blocking Exit Criteria
+|Use 30Hz to Bake Bone Animation
+|OFF
 
-Blocking is ready when:
+|Custom Bone Animation Sample Rate
+|60
 
-* the animation is readable,
-* the timing feels intentional,
-* the major poses communicate the action,
-* the attack still reads correctly in stepped playback.
+|Import Bone Tracks
+|ON
+|===
 
-If the animation does not feel good while blocked, do not proceed to polish.
+Import the file.
 
-== Gate 1 - Blocking Review
+A normal repeat import should primarily create a new source Animation Sequence, not another complete set of mesh/skeleton/material assets.
 
-Before refinement:
+== 5. Verify the Source Animation
 
-* Review the animation from the gameplay camera.
-* Check silhouette and readability.
-* Confirm that the action direction is obvious.
-* Confirm that the start and end poses fit the stance.
-* Confirm that the timing feels plausible.
-
-Only continue when the blocking is approved.
-
-== Step 4 - Early Gameplay Test
-
-Export the blocked animation to Unreal before polishing.
-
-Do not wait until the animation is visually finished.
-
-Workflow:
-
-[source,text]
-----
-Blocked Animation
-  -> Bake
-  -> FBX
-  -> Unreal Animation Sequence
-  -> Temporary Montage
-  -> Gameplay test
-----
+Open the imported source Animation Sequence.
 
 Check:
 
-* responsiveness,
-* wind-up length,
-* impact timing,
-* recovery length,
-* readability from the gameplay camera,
-* whether the animation feels too slow or too fast,
-* whether movement lock or cancellation feels correct.
+. The pose looks correct.
+. The entire animation plays.
+. No bones explode, twist, or collapse.
+. The animation is sampled at 60 FPS.
+. The duration matches the source.
 
-If the attack feels wrong in gameplay, return to blocking.
-
-Do not try to fix gameplay timing with VFX or polish.
-
-== Gate 2 - Gameplay Approval
-
-Before refinement, confirm:
-
-* the ability feels responsive,
-* impact happens at the correct moment,
-* recovery is acceptable,
-* the move is readable from the intended camera,
-* gameplay hit timing can be aligned with the animation.
-
-Only then move to spline/refinement.
-
-== Step 5 - Spline and Refinement
-
-Once blocking is approved, switch from stepped interpolation to smooth interpolation.
-
-Use Blender's Graph Editor to refine motion.
-
-Focus on:
-
-* spacing,
-* acceleration,
-* deceleration,
-* motion arcs,
-* weight transfer,
-* center of gravity,
-* foot planting,
-* overlap,
-* follow-through.
-
-=== Motion Should Cascade Through the Body
-
-For a powerful attack, motion often works better when it does not start everywhere at once.
-
-Example:
+Useful sanity checks:
 
 [source,text]
 ----
-Hips
-  -> Torso
-  -> Shoulders
-  -> Arms
-  -> Weapon
+57-frame combat animation @ 60 FPS
+~= 0.95 seconds
+
+180-frame animation @ 60 FPS
+~= 3.0 seconds
 ----
 
-This creates a stronger sense of momentum than rotating the entire character simultaneously.
-
-=== Weapon Motion
-
-For weapon attacks:
-
-* track the weapon path carefully,
-* avoid accidental wobble,
-* keep the arc readable,
-* check whether the weapon intersects the character,
-* verify that both hands behave correctly for two-handed weapons.
-
-== Step 6 - Polish
-
-Polish happens only after timing and gameplay are approved.
-
-Typical polish tasks:
-
-* remove pops,
-* remove foot sliding,
-* clean weapon arcs,
-* improve wrist alignment,
-* refine elbow motion,
-* refine shoulder motion,
-* fix body intersections,
-* add subtle head lag,
-* add overlap and settle,
-* refine finger grip,
-* improve recovery pose,
-* verify loop continuity for looping animations.
-
-Avoid polishing details that are not visible from the gameplay camera.
-
-== Two-Handed Weapon Tips
-
-For a two-handed weapon, use a clear ownership model.
-
-Recommended concept:
+For a 180-frame animation, Unreal may display approximately:
 
 [source,text]
 ----
-Primary Hand
-  -> drives weapon
-
-Weapon
-  -> contains secondary grip reference
-
-Secondary Hand
-  -> follows secondary grip
+Number of Sampled Keys:   180
+Number of Sampled Frames: 179
 ----
 
-Do not make both hands independently drive the same weapon.
+This is expected.
 
-The secondary hand should normally follow a grip target on the weapon through IK or a suitable rigging constraint.
+If Unreal instead shows roughly 360 samples for a 180-frame animation, check that Blender was actually set to 60 FPS before export.
 
-For animation authoring, verify:
+== 6. Retarget to the Runtime Manny Skeleton
 
-* primary hand grip,
-* secondary hand spacing,
-* elbow direction,
-* wrist orientation,
-* shoulder tension,
-* weapon center of mass,
-* weapon arc.
-
-== Step 7 - Bake to Runtime Skeleton
-
-When the animation is finished:
-
-. Bake the control-rig result onto the runtime skeleton.
-. Ensure the runtime skeleton receives regular keyframes.
-. Temporarily disable or hide the control rig.
-. Verify that the runtime skeleton still performs the animation correctly.
-
-The animation is not ready for Unreal until the runtime skeleton can perform it without the control rig.
-
-== Step 8 - FBX Export
-
-Export only what Unreal needs.
-
-Recommended export contents:
-
-* runtime skeleton,
-* baked animation.
-
-Do not export production-only objects unless required:
-
-* control rig controls,
-* Rigify mechanism bones,
-* meta-rig,
-* helper objects,
-* unrelated meshes.
-
-Create and save an export preset once the settings are verified.
-
-Do not rediscover export settings for every animation.
-
-== Step 9 - Unreal Import
-
-Import the FBX as an animation using the existing runtime skeleton.
-
-Typical result:
+Open:
 
 [source,text]
 ----
-FBX
-  -> Animation Sequence
-  -> existing character Skeleton
+RTG_RigifyToManny
 ----
 
-Check immediately:
+This retargeter is reused for every animation.
 
-* animation length,
-* frame count,
-* playback rate,
-* root behavior,
-* foot placement,
-* hand placement,
-* weapon pose,
-* unexpected scale or rotation changes.
-
-If the imported animation is technically wrong, fix the bake/export pipeline rather than compensating inside the animation.
-
-== Step 10 - Runtime Animation Integration
-
-Use the imported Animation Sequence as the motion source.
-
-Runtime flow may look like:
+The established mapping contains the main body chains:
 
 [source,text]
 ----
-Animation Sequence
-  -> Animation Blueprint / Animation Layer
-  -> Animation Montage
-  -> Gameplay Ability
+Pelvis
+
+Spine
+Neck
+Head
+
+LeftClavicle
+RightClavicle
+
+LeftArm
+RightArm
+
+LeftLeg
+RightLeg
+
+LeftFoot / LeftToe
+RightFoot / RightToe
 ----
 
-Responsibilities:
+Finger and facial retargeting are intentionally not required for the current top-down gameplay use case.
 
-* *Animation Sequence* = motion.
-* *Animation Blueprint / Layer* = stance and locomotion selection.
-* *Animation Montage* = runtime ability timing.
-* *C++* = gameplay behavior.
-* *Niagara / Material* = visual effects.
+Unused finger/metacarpal target chains should remain mapped to:
 
-== Step 11 - Gameplay Events and VFX
+[source,text]
+----
+None
+----
 
-Gameplay timing belongs in Unreal.
+=== Operation Stack
+
+The working body-retarget setup uses the default retarget operations.
+
+For the current project workflow:
+
+[source,text]
+----
+Pelvis Motion   ON
+FK Chains       ON
+----
+
+`Run IK Rig` is not required for the basic body retarget if the source does not provide matching hand/foot IK goals. It can remain disabled to avoid missing-goal warnings.
+
+Root Motion should only be enabled/configured when an animation is intentionally authored to use root motion.
+
+=== Preview
+
+In the Retargeter's *Asset Browser*:
+
+. Select the new source Animation Sequence.
+. Play it.
+. Confirm that source Manny plays the animation.
+. Confirm that target/runtime Manny follows correctly.
+
+Do not compensate for a bad source export by randomly editing the retarget pose. First verify that the source animation itself is correct.
+
+== 7. Export the Retargeted Manny Animation
+
+In the Retargeter's *Asset Browser*:
+
+. Select the source animation.
+. Click:
++
+[source,text]
+----
+Export Selected Animations
+----
+. Save the exported animation in the appropriate gameplay animation folder.
+. Rename it using the runtime naming convention.
 
 Examples:
 
 [source,text]
 ----
-Animation Montage
-  -> Gameplay Event
-  -> damage / hit logic
-
-Animation Montage
-  -> C++ VFX AnimNotify
-  -> Niagara effect
+A_2H_Axe_CombatIdle
+A_2H_Axe_CombatRun
+A_Cleave
+A_Bash
 ----
 
-Do not bake damage calculations or gameplay behavior into Blender animation data.
+The exported `A_...` Animation Sequence should use Manny's normal runtime Skeleton.
 
-The animation defines the visual moment.
+At this point the temporary/source animation is no longer the asset the game should reference.
 
-Unreal defines what happens at that moment.
+== 8. Put the Animation into the Game
 
-== Step 12 - Attack Speed
+The final step depends on the animation type.
 
-Keep source attack animations authored at their standard base speed.
+=== Looping Idle / Locomotion
 
-Example:
+Examples:
 
 [source,text]
 ----
-Base Animation
-Length: 57 frames
-Play Rate: 1.0
+A_2H_Axe_CombatIdle
+A_2H_Axe_CombatRun
 ----
 
-Attack Speed should modify runtime playback speed rather than requiring separate faster animations.
+Use the Animation Sequence directly in the appropriate Animation Blueprint state / locomotion setup.
 
-This means the following scale together:
+Make sure looping is enabled where appropriate.
 
-* anticipation,
-* strike,
-* gameplay notify,
-* VFX notify,
-* follow-through,
-* recovery.
+Do *not* create a Montage simply because the animation came from Blender.
 
-Do not permanently speed up the original source animation to represent character stats.
-
-== Step 13 - Final Gameplay Validation
-
-Test the final animation in actual gameplay.
-
-Recommended checks:
-
-* normal activation,
-* activation while moving,
-* activation from multiple directions,
-* low attack speed,
-* default attack speed,
-* high attack speed,
-* close target,
-* maximum-range target,
-* hit volume versus visual weapon arc,
-* VFX timing,
-* damage timing,
-* interruption,
-* cancellation,
-* multiplayer/client-server behavior where applicable.
-
-Useful debugging techniques:
-
-* slow-motion gameplay,
-* visible hit shapes,
-* temporary debug lines,
-* repeated playback from the gameplay camera.
-
-== Production Gates
-
-Use explicit gates to avoid polishing the wrong thing.
-
-=== Gate 0 - Pipeline
+General rule:
 
 [source,text]
 ----
-Control Rig
-  -> Runtime Skeleton
-  -> Bake
-  -> FBX
-  -> Unreal
+Idle / Walk / Run / looping stance
+-> Animation Sequence in AnimBP / State Machine
 ----
 
-Must work before production animation.
+=== Triggered Combat Ability
 
-=== Gate 1 - Blocking
-
-The poses and timing must read correctly.
-
-=== Gate 2 - Gameplay
-
-The blocked animation must feel correct in Unreal.
-
-=== Gate 3 - Final
-
-Refinement, polish, VFX and gameplay integration must all be approved.
-
-== Suggested Order for Building the Animation Library
-
-A useful progression is:
-
-. Verify technical round-trip.
-. Create the animation template.
-. Create a simple idle.
-. Create stance-specific idle animations.
-. Create stance-specific locomotion.
-. Create a simple attack.
-. Create more complex attacks.
-. Add transitions and special cases.
-
-Starting with a complicated combat animation before the technical pipeline and stance animations are stable increases the number of problems being solved at once.
-
-== Stance-Based Animation Sets
-
-Avoid creating a completely unique locomotion set for every individual weapon.
-
-Prefer animation sets by stance or weapon category.
-
-Example:
+Examples:
 
 [source,text]
 ----
-Unarmed
-  -> Idle
-  -> Walk
-  -> Run
-
-TwoHanded
-  -> Idle
-  -> Walk
-  -> Run
-  -> Attacks
-
-OneHandShield
-  -> Idle
-  -> Walk
-  -> Run
-  -> Attacks
-
-DualWield
-  -> Idle
-  -> Walk
-  -> Run
-  -> Attacks
+A_Cleave
+A_Bash
+A_Warcry
 ----
 
-Individual weapons can override animations later when their proportions or style require it.
+For an ability animation:
 
-== Naming Suggestions
+. Retarget/export the final Manny Animation Sequence as normal.
+. Create an Anim Montage from the final Manny Animation Sequence.
+. Name it using the Montage convention, for example:
++
+[source,text]
+----
+AM_Cleave
+AM_Bash
+----
+. Add required gameplay notifies/events at the correct frames.
+. Reference the Montage from the ability system.
 
-Keep naming predictable.
-
-Example:
+General rule:
 
 [source,text]
 ----
-A_2H_Idle
-A_2H_Walk
-A_2H_Run
-A_2H_Attack_01
-
-AM_2H_Attack_01
-
-ANIM_2H_Attack_01.blend
+Triggered ability
+-> Animation Sequence
+-> Anim Montage
+-> Ability
 ----
 
-The exact naming convention is less important than consistency.
+== 9. Current Foot IK Rule
 
-== Tips and Common Failure Modes
+The current `ABP_Player` applies a Control Rig after the main state machine.
 
-=== Do Not Mix Pipeline Problems with Animation Problems
+Foot IK can overwrite intentionally authored leg poses. The current project rule is therefore:
 
-If the animation looks wrong in Blender, fix animation.
+[source,text]
+----
+Enable Foot IK = Should Move AND NOT Is Falling
+----
 
-If the animation changes during export/import, fix the bake/export pipeline.
+This gives:
 
-If gameplay timing feels wrong, fix timing or montage integration.
+[cols="1,1"]
+|===
+|State |Foot IK
 
-If VFX looks wrong, fix Niagara/material configuration.
+|Standing authored idle
+|OFF
 
-Do not compensate for one layer's problem in another layer.
+|Grounded movement
+|ON
 
-=== Validate Early
+|Airborne
+|OFF
+|===
 
-A rough animation in-game is more valuable than a polished animation that has never been tested in-game.
+The `Enable Foot IK` boolean is used for both:
 
-=== Save Templates
+[source,text]
+----
+Control Rig -> Should Do IKTrace
+----
 
-Do not rebuild:
+and the Control Rig Alpha:
 
-* rigging,
-* export settings,
-* grip helpers,
-* scene FPS,
-* naming structure
+[source,text]
+----
+Enable Foot IK = true  -> Alpha 1.0
+Enable Foot IK = false -> Alpha 0.0
+----
 
-for each new animation.
+With a `Select Float` node:
 
-=== Work from the Gameplay Camera
+[source,text]
+----
+Pick A = Enable Foot IK
+A = 1.0
+B = 0.0
+----
 
-A pose can look excellent from a cinematic camera and unreadable from a top-down gameplay camera.
+This prevents the post-process Control Rig from changing authored idle poses.
 
-Frequently check the intended gameplay view.
+== 10. Repeatable Checklist
 
-=== Avoid Premature Detail
+Before considering a new animation complete:
 
-Do not spend time on:
+[source,text]
+----
+[ ] Blender scene is 60 FPS
+[ ] Correct Action is active
+[ ] Correct frame range is set
+[ ] rig + Manny_RigifyPreview selected
+[ ] FBX: Selected Objects ON
+[ ] FBX: Armature + Mesh ON
+[ ] FBX: Only Deform Bones ON
+[ ] FBX: Add Leaf Bones OFF
+[ ] FBX: NLA Strips OFF
+[ ] FBX: All Actions OFF
+[ ] FBX: Sampling Rate 1
+[ ] FBX: Simplify 0
+[ ] Unreal: Import Only Animations ON
+[ ] Unreal: Skeleton = SKEL_RigifySource_Manny
+[ ] Unreal: Animation Length = Source Timeline
+[ ] Unreal: 30 Hz bake OFF
+[ ] Unreal: Sample Rate = 60
+[ ] Source animation verified
+[ ] Animation previewed through RTG_RigifyToManny
+[ ] Retargeted animation exported to Manny
+[ ] Final asset renamed A_...
+[ ] Looping animation added to AnimBP OR combat animation converted to Montage
+[ ] Tested in-game
+----
 
-* fingers,
-* facial motion,
-* tiny wrist changes,
-* subtle secondary motion
+== Summary
 
-before the major body mechanics and timing work.
+After the one-time pipeline setup, adding a new animation should normally be:
 
-=== Keep Source Files
+[source,text]
+----
+1. Animate in Blender.
+2. Confirm 60 FPS and frame range.
+3. Export FBX using the established settings.
+4. Import Only Animations against SKEL_RigifySource_Manny.
+5. Verify the source Animation Sequence.
+6. Preview it through RTG_RigifyToManny.
+7. Export the retargeted Manny Animation Sequence.
+8. Use it directly in AnimBP, or create a Montage for a triggered ability.
+9. Test in-game.
+----
 
-Keep the Blender source for each animation.
-
-Do not treat exported FBX files as the editable master.
-
-== Per-Animation Checklist
-
-=== Design
-
-* [ ] Name defined
-* [ ] Stance defined
-* [ ] Duration defined
-* [ ] FPS confirmed
-* [ ] Start pose defined
-* [ ] End pose defined
-* [ ] Gameplay purpose defined
-* [ ] Reference gathered
-
-=== Blocking
-
-* [ ] Major poses created
-* [ ] Timing readable in stepped mode
-* [ ] Action direction clear
-* [ ] Weapon path readable
-* [ ] Gameplay camera checked
-
-=== Gameplay Test
-
-* [ ] Blockout exported
-* [ ] Imported into Unreal
-* [ ] Temporary montage created
-* [ ] Impact timing tested
-* [ ] Recovery tested
-* [ ] Movement interaction tested
-
-=== Refinement
-
-* [ ] Curves refined
-* [ ] Weight transfer believable
-* [ ] Arcs clean
-* [ ] Feet stable
-* [ ] Weapon stable
-* [ ] Two-handed grip stable if applicable
-
-=== Polish
-
-* [ ] No obvious pops
-* [ ] No major intersections
-* [ ] Hands and wrists cleaned
-* [ ] Follow-through cleaned
-* [ ] Recovery cleaned
-* [ ] Loop cleaned if applicable
-
-=== Export
-
-* [ ] Animation baked to runtime skeleton
-* [ ] Runtime skeleton verified without control rig
-* [ ] Correct export preset used
-* [ ] Only required data exported
-
-=== Unreal
-
-* [ ] Correct Skeleton selected
-* [ ] Frame count correct
-* [ ] Playback correct
-* [ ] Montage created/updated
-* [ ] Gameplay event timing correct
-* [ ] VFX timing correct
-* [ ] Attack Speed tested
-* [ ] Final gameplay validation complete
-
-== Definition of Done
-
-An animation is complete when:
-
-* the source Blender file is preserved,
-* the runtime skeleton contains the baked animation,
-* the FBX imports correctly,
-* the Animation Sequence behaves correctly,
-* the animation works from the gameplay camera,
-* gameplay timing matches the motion,
-* VFX timing matches the motion,
-* runtime speed scaling behaves correctly,
-* the animation passes the relevant production gates.
+No new IK Rig, IK Retargeter, source Skeletal Mesh, source Skeleton, or Material Instance should normally be created for each new animation.
