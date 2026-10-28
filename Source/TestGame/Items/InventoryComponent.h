@@ -11,7 +11,13 @@
 
 class UAbilitySystemComponent;
 
+
 DECLARE_MULTICAST_DELEGATE(FOnInventoryChanged);
+
+DECLARE_MULTICAST_DELEGATE(
+    FOnEquipmentPresentationChanged
+);
+
 
 UCLASS(
     ClassGroup = (Inventory),
@@ -28,27 +34,57 @@ public:
         TArray<FLifetimeProperty>& OutLifetimeProps
     ) const override;
 
-    // The UI subscribes to this event.
+    // Inventory UI subscribes to this event.
     FOnInventoryChanged OnInventoryChanged;
+
+    /**
+     * Character presentation subscribes to this.
+     *
+     * Fires when publicly visible equipment changes.
+     */
+    FOnEquipmentPresentationChanged
+        OnEquipmentPresentationChanged;
 
     int32 GetInventoryCapacity() const
     {
         return InventoryCapacity;
     }
 
-    int32 GetEquipmentIndex(EEquipmentSlot Slot) const
+    int32 GetEquipmentIndex(
+        EEquipmentSlot Slot) const
     {
-        return InventoryCapacity + static_cast<int32>(Slot);
+        return
+            InventoryCapacity +
+            static_cast<int32>(Slot);
     }
 
-    FInventoryItem GetItem(int32 Index) const;
+    FInventoryItem GetItem(
+        int32 Index
+    ) const;
+
+    /**
+     * Returns the item definition currently equipped
+     * in a given slot.
+     *
+     * Unlike GetItem(), this works for remote players too,
+     * because EquippedDefinitions is replicated publicly.
+     */
+    UFUNCTION(
+        BlueprintPure,
+        Category = "Inventory|Equipment"
+    )
+    UItemDefinition* GetEquippedDefinition(
+        EEquipmentSlot Slot
+    ) const;
 
     UFUNCTION(
         BlueprintCallable,
         BlueprintAuthorityOnly,
         Category = "Inventory"
     )
-    bool AddItem(UItemDefinition* Definition);
+    bool AddItem(
+        UItemDefinition* Definition
+    );
 
     void RequestUseSlot(
         int32 Index,
@@ -70,15 +106,44 @@ private:
     )
     int32 InventoryCapacity = 60;
 
-    UPROPERTY(EditDefaultsOnly, Category = "Inventory")
-    TArray<TObjectPtr<UItemDefinition>> StartingItems;
+    UPROPERTY(
+        EditDefaultsOnly,
+        Category = "Inventory"
+    )
+    TArray<TObjectPtr<UItemDefinition>>
+        StartingItems;
 
-    // Backpack slots first, followed by equipment slots.
-    UPROPERTY(ReplicatedUsing = OnRep_Items)
+    /**
+     * Private inventory.
+     *
+     * Backpack slots first, followed by equipment slots.
+     *
+     * Only the owning player receives this array.
+     */
+    UPROPERTY(
+        ReplicatedUsing = OnRep_Items
+    )
     TArray<FInventoryItem> Items;
+
+    /**
+     * Public equipment presentation state.
+     *
+     * One entry per EEquipmentSlot.
+     *
+     * Everyone receives this so remote clients can render
+     * the correct equipment without receiving the full inventory.
+     */
+    UPROPERTY(
+        ReplicatedUsing = OnRep_EquippedDefinitions
+    )
+    TArray<TObjectPtr<UItemDefinition>>
+        EquippedDefinitions;
 
     UFUNCTION()
     void OnRep_Items();
+
+    UFUNCTION()
+    void OnRep_EquippedDefinitions();
 
     UFUNCTION(Server, Reliable)
     void ServerUseSlot(
@@ -95,10 +160,19 @@ private:
         FActiveGameplayEffectHandle& OutHandle
     );
 
+    /**
+     * Server-side.
+     *
+     * Converts the authoritative equipment section of Items
+     * into the lightweight public equipment state.
+     */
+    void RebuildEquipmentPresentationState();
+
     void NotifyChanged();
 
     // Server-only effect handles, one per equipment position.
-    TArray<FActiveGameplayEffectHandle> EquipmentEffectHandles;
+    TArray<FActiveGameplayEffectHandle>
+        EquipmentEffectHandles;
 
     void GrantAndActivateEquipmentAbility(
         const FInventoryItem& Item,
@@ -110,7 +184,8 @@ private:
     );
 
     // Server-only ability handles, one per equipment position.
-    TArray<FGameplayAbilitySpecHandle> EquipmentAbilityHandles;
+    TArray<FGameplayAbilitySpecHandle>
+        EquipmentAbilityHandles;
 
     // Prevent ability callbacks from starting another equipment
     // change while the current change is still running.

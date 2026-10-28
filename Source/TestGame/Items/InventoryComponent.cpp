@@ -18,7 +18,10 @@ namespace
         TSet<FGameplayTag>& ConfiguredTags,
         TArray<FItemRolledStat>& OutStats)
     {
-        if (Count < 0 || Count > Pool.Num())
+        if (
+            Count < 0 ||
+            Count > Pool.Num()
+            )
         {
             return false;
         }
@@ -26,25 +29,34 @@ namespace
         // Validate every entry, including duplicate tags across pools.
         for (const FItemStatRange& Range : Pool)
         {
-            if (!Range.StatTag.IsValid() ||
+            if (
+                !Range.StatTag.IsValid() ||
                 Range.MinValue > Range.MaxValue ||
-                ConfiguredTags.Contains(Range.StatTag))
+                ConfiguredTags.Contains(Range.StatTag)
+                )
             {
                 return false;
             }
 
-            ConfiguredTags.Add(Range.StatTag);
+            ConfiguredTags.Add(
+                Range.StatTag
+            );
         }
 
         // Work on a copy so the data asset is never modified.
-        TArray<FItemStatRange> RemainingStats = Pool;
+        TArray<FItemStatRange> RemainingStats =
+            Pool;
 
-        for (int32 Pick = 0; Pick < Count; ++Pick)
+        for (
+            int32 Pick = 0;
+            Pick < Count;
+            ++Pick)
         {
-            const int32 RandomIndex = FMath::RandRange(
-                0,
-                RemainingStats.Num() - 1
-            );
+            const int32 RandomIndex =
+                FMath::RandRange(
+                    0,
+                    RemainingStats.Num() - 1
+                );
 
             const FItemStatRange& Selected =
                 RemainingStats[RandomIndex];
@@ -52,18 +64,24 @@ namespace
             FItemRolledStat& Rolled =
                 OutStats.AddDefaulted_GetRef();
 
-            Rolled.StatTag = Selected.StatTag;
-            Rolled.DisplayName = Selected.DisplayName;
+            Rolled.StatTag =
+                Selected.StatTag;
 
-            Rolled.Value = static_cast<float>(
-                FMath::RandRange(
-                    Selected.MinValue,
-                    Selected.MaxValue
-                )
-                );
+            Rolled.DisplayName =
+                Selected.DisplayName;
+
+            Rolled.Value =
+                static_cast<float>(
+                    FMath::RandRange(
+                        Selected.MinValue,
+                        Selected.MaxValue
+                    )
+                    );
 
             // Prevent this stat from being selected again.
-            RemainingStats.RemoveAtSwap(RandomIndex);
+            RemainingStats.RemoveAtSwap(
+                RandomIndex
+            );
         }
 
         return true;
@@ -87,52 +105,80 @@ namespace
 
         TSet<FName> GroupNames;
 
-        for (const FItemStatGroup& Group : Definition->StatGroups)
+        for (
+            const FItemStatGroup& Group :
+            Definition->StatGroups)
         {
-            if (Group.GroupName.IsNone() ||
-                GroupNames.Contains(Group.GroupName))
+            if (
+                Group.GroupName.IsNone() ||
+                GroupNames.Contains(
+                    Group.GroupName
+                )
+                )
             {
                 UE_LOG(
                     LogTemp,
                     Warning,
-                    TEXT("[INVENTORY] Empty or duplicate group name on %s"),
+                    TEXT(
+                        "[INVENTORY] Empty or duplicate group name on %s"
+                    ),
                     *GetNameSafe(Definition)
                 );
 
                 return false;
             }
 
-            GroupNames.Add(Group.GroupName);
+            GroupNames.Add(
+                Group.GroupName
+            );
         }
 
         TSet<FName> RuleNames;
 
-        for (const FItemAffixCountRule& Rule : Profile->AffixRules)
+        for (
+            const FItemAffixCountRule& Rule :
+            Profile->AffixRules)
         {
-            if (Rule.GroupName.IsNone() ||
-                RuleNames.Contains(Rule.GroupName) ||
+            if (
+                Rule.GroupName.IsNone() ||
+                RuleNames.Contains(
+                    Rule.GroupName
+                ) ||
                 Rule.MinCount < 0 ||
-                Rule.MaxCount < Rule.MinCount)
+                Rule.MaxCount < Rule.MinCount
+                )
             {
                 UE_LOG(
                     LogTemp,
                     Warning,
-                    TEXT("[INVENTORY] Invalid affix rule in %s"),
+                    TEXT(
+                        "[INVENTORY] Invalid affix rule in %s"
+                    ),
                     *GetNameSafe(Profile)
                 );
 
                 return false;
             }
 
-            RuleNames.Add(Rule.GroupName);
+            RuleNames.Add(
+                Rule.GroupName
+            );
 
-            const FItemStatGroup* MatchingGroup = nullptr;
+            const FItemStatGroup* MatchingGroup =
+                nullptr;
 
-            for (const FItemStatGroup& Group : Definition->StatGroups)
+            for (
+                const FItemStatGroup& Group :
+                Definition->StatGroups)
             {
-                if (Group.GroupName == Rule.GroupName)
+                if (
+                    Group.GroupName ==
+                    Rule.GroupName
+                    )
                 {
-                    MatchingGroup = &Group;
+                    MatchingGroup =
+                        &Group;
+
                     break;
                 }
             }
@@ -142,7 +188,9 @@ namespace
                 UE_LOG(
                     LogTemp,
                     Warning,
-                    TEXT("[INVENTORY] Profile group '%s' is missing on %s"),
+                    TEXT(
+                        "[INVENTORY] Profile group '%s' is missing on %s"
+                    ),
                     *Rule.GroupName.ToString(),
                     *GetNameSafe(Definition)
                 );
@@ -166,9 +214,10 @@ namespace
                 return false;
             }
 
-            // Reject the configuration up front instead of randomly
-            // failing only when a count larger than the pool is selected.
-            if (Rule.MaxCount > MatchingGroup->StatPool.Num())
+            if (
+                Rule.MaxCount >
+                MatchingGroup->StatPool.Num()
+                )
             {
                 UE_LOG(
                     LogTemp,
@@ -201,50 +250,68 @@ namespace
             return false;
         }
 
-        if (Definition->GenerationChoices.Num() > 3)
+        if (
+            Definition
+            ->GenerationChoices.Num() > 3
+            )
         {
             UE_LOG(
                 LogTemp,
                 Warning,
-                TEXT("[INVENTORY] %s has more than 3 generation choices"),
+                TEXT(
+                    "[INVENTORY] %s has more than 3 generation choices"
+                ),
                 *GetNameSafe(Definition)
             );
 
             return false;
         }
 
-        // Validate the definition even if it has no choices.
-        if (!ValidateGenerationSettings(Definition, nullptr))
+        if (
+            !ValidateGenerationSettings(
+                Definition,
+                nullptr
+            )
+            )
         {
             return false;
         }
 
         int32 TotalChance = 0;
 
-        // Validate all choices before rolling so bad configuration
-        // does not cause intermittent item-creation failures.
-        for (const FItemGenerationChoice& Choice :
+        for (
+            const FItemGenerationChoice& Choice :
             Definition->GenerationChoices)
         {
-            if (!IsValid(Choice.Profile.Get()) ||
+            if (
+                !IsValid(
+                    Choice.Profile.Get()
+                ) ||
                 Choice.ChancePercent < 0 ||
-                Choice.ChancePercent > 100)
+                Choice.ChancePercent > 100
+                )
             {
                 UE_LOG(
                     LogTemp,
                     Warning,
-                    TEXT("[INVENTORY] Invalid generation choice on %s"),
+                    TEXT(
+                        "[INVENTORY] Invalid generation choice on %s"
+                    ),
                     *GetNameSafe(Definition)
                 );
 
                 return false;
             }
 
-            TotalChance += Choice.ChancePercent;
+            TotalChance +=
+                Choice.ChancePercent;
 
-            if (!ValidateGenerationSettings(
-                Definition,
-                Choice.Profile.Get()))
+            if (
+                !ValidateGenerationSettings(
+                    Definition,
+                    Choice.Profile.Get()
+                )
+                )
             {
                 return false;
             }
@@ -255,7 +322,9 @@ namespace
             UE_LOG(
                 LogTemp,
                 Warning,
-                TEXT("[INVENTORY] Generation chances exceed 100%% on %s"),
+                TEXT(
+                    "[INVENTORY] Generation chances exceed 100%% on %s"
+                ),
                 *GetNameSafe(Definition)
             );
 
@@ -267,18 +336,29 @@ namespace
             return true;
         }
 
-        const int32 Roll = FMath::RandRange(1, 100);
+        const int32 Roll =
+            FMath::RandRange(
+                1,
+                100
+            );
 
         int32 CumulativeChance = 0;
 
-        for (const FItemGenerationChoice& Choice :
+        for (
+            const FItemGenerationChoice& Choice :
             Definition->GenerationChoices)
         {
-            CumulativeChance += Choice.ChancePercent;
+            CumulativeChance +=
+                Choice.ChancePercent;
 
-            if (Roll <= CumulativeChance)
+            if (
+                Roll <=
+                CumulativeChance
+                )
             {
-                OutProfile = Choice.Profile.Get();
+                OutProfile =
+                    Choice.Profile.Get();
+
                 return true;
             }
         }
@@ -292,8 +372,22 @@ namespace
 
 UInventoryComponent::UInventoryComponent()
 {
-    PrimaryComponentTick.bCanEverTick = false;
-    SetIsReplicatedByDefault(true);
+    PrimaryComponentTick.bCanEverTick =
+        false;
+
+    SetIsReplicatedByDefault(
+        true
+    );
+
+    /*
+     * Keep the presentation array valid even before
+     * replication/BeginPlay.
+     */
+    EquippedDefinitions.SetNum(
+        static_cast<int32>(
+            EEquipmentSlot::Count
+            )
+    );
 }
 
 
@@ -301,28 +395,54 @@ void UInventoryComponent::BeginPlay()
 {
     Super::BeginPlay();
 
-    if (!GetOwner() || !GetOwner()->HasAuthority())
+    if (
+        !GetOwner() ||
+        !GetOwner()->HasAuthority()
+        )
     {
         return;
     }
 
-    InventoryCapacity = FMath::Max(1, InventoryCapacity);
+    InventoryCapacity =
+        FMath::Max(
+            1,
+            InventoryCapacity
+        );
 
     const int32 EquipmentCount =
-        static_cast<int32>(EEquipmentSlot::Count);
+        static_cast<int32>(
+            EEquipmentSlot::Count
+            );
 
-    Items.SetNum(InventoryCapacity + EquipmentCount);
-    EquipmentEffectHandles.SetNum(EquipmentCount);
-    EquipmentAbilityHandles.SetNum(EquipmentCount);
+    Items.SetNum(
+        InventoryCapacity +
+        EquipmentCount
+    );
 
-    for (UItemDefinition* Definition : StartingItems)
+    EquipmentEffectHandles.SetNum(
+        EquipmentCount
+    );
+
+    EquipmentAbilityHandles.SetNum(
+        EquipmentCount
+    );
+
+    EquippedDefinitions.SetNum(
+        EquipmentCount
+    );
+
+    for (
+        UItemDefinition* Definition :
+        StartingItems)
     {
         if (!AddItem(Definition))
         {
             UE_LOG(
                 LogTemp,
                 Warning,
-                TEXT("[INVENTORY] Could not add starting item %s"),
+                TEXT(
+                    "[INVENTORY] Could not add starting item %s"
+                ),
                 *GetNameSafe(Definition)
             );
         }
@@ -335,12 +455,25 @@ void UInventoryComponent::BeginPlay()
 void UInventoryComponent::GetLifetimeReplicatedProps(
     TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
-    Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+    Super::GetLifetimeReplicatedProps(
+        OutLifetimeProps
+    );
 
+    /*
+     * Full inventory remains private.
+     */
     DOREPLIFETIME_CONDITION(
         UInventoryComponent,
         Items,
         COND_OwnerOnly
+    );
+
+    /*
+     * Equipped presentation state is public.
+     */
+    DOREPLIFETIME(
+        UInventoryComponent,
+        EquippedDefinitions
     );
 }
 
@@ -348,26 +481,64 @@ void UInventoryComponent::GetLifetimeReplicatedProps(
 FInventoryItem UInventoryComponent::GetItem(
     int32 Index) const
 {
-    return Items.IsValidIndex(Index)
+    return
+        Items.IsValidIndex(Index)
         ? Items[Index]
         : FInventoryItem{};
 }
 
 
-UAbilitySystemComponent* UInventoryComponent::GetASC() const
+UItemDefinition*
+UInventoryComponent::GetEquippedDefinition(
+    EEquipmentSlot Slot) const
+{
+    const int32 SlotIndex =
+        static_cast<int32>(Slot);
+
+    if (
+        SlotIndex < 0 ||
+        SlotIndex >=
+        static_cast<int32>(
+            EEquipmentSlot::Count
+            ) ||
+        !EquippedDefinitions.IsValidIndex(
+            SlotIndex
+        )
+        )
+    {
+        return nullptr;
+    }
+
+    return
+        EquippedDefinitions[
+            SlotIndex
+        ].Get();
+}
+
+
+UAbilitySystemComponent*
+UInventoryComponent::GetASC() const
 {
     IAbilitySystemInterface* Interface =
-        Cast<IAbilitySystemInterface>(GetOwner());
+        Cast<IAbilitySystemInterface>(
+            GetOwner()
+        );
 
-    return Interface
-        ? Interface->GetAbilitySystemComponent()
+    return
+        Interface
+        ? Interface
+        ->GetAbilitySystemComponent()
         : nullptr;
 }
 
 
-int32 UInventoryComponent::FindEmptyInventorySlot() const
+int32 UInventoryComponent::
+FindEmptyInventorySlot() const
 {
-    for (int32 Index = 0; Index < InventoryCapacity; ++Index)
+    for (
+        int32 Index = 0;
+        Index < InventoryCapacity;
+        ++Index)
     {
         if (
             Items.IsValidIndex(Index) &&
@@ -385,65 +556,91 @@ int32 UInventoryComponent::FindEmptyInventorySlot() const
 bool UInventoryComponent::AddItem(
     UItemDefinition* Definition)
 {
-    if (!GetOwner() ||
+    if (
+        !GetOwner() ||
         !GetOwner()->HasAuthority() ||
-        !IsValid(Definition))
+        !IsValid(Definition)
+        )
     {
         return false;
     }
 
-    const int32 Index = FindEmptyInventorySlot();
+    const int32 Index =
+        FindEmptyInventorySlot();
 
     if (Index == INDEX_NONE)
     {
         return false;
     }
 
-    const UItemGenerationProfile* SelectedProfile = nullptr;
+    const UItemGenerationProfile*
+        SelectedProfile = nullptr;
 
-    if (!SelectGenerationProfile(Definition, SelectedProfile))
+    if (
+        !SelectGenerationProfile(
+            Definition,
+            SelectedProfile
+        )
+        )
     {
         return false;
     }
 
     FInventoryItem NewItem;
-    NewItem.InstanceId = FGuid::NewGuid();
-    NewItem.Definition = Definition;
 
-    NewItem.Rarity = SelectedProfile
+    NewItem.InstanceId =
+        FGuid::NewGuid();
+
+    NewItem.Definition =
+        Definition;
+
+    NewItem.Rarity =
+        SelectedProfile
         ? SelectedProfile->Rarity
         : Definition->Rarity;
 
     UE_LOG(
         LogTemp,
         Warning,
-        TEXT("[INVENTORY] Generated %s | Profile=%s | Rarity=%s"),
+        TEXT(
+            "[INVENTORY] Generated %s | Profile=%s | Rarity=%s"
+        ),
         *GetNameSafe(Definition),
         *GetNameSafe(SelectedProfile),
-        *ItemRarity::GetDisplayName(NewItem.Rarity).ToString()
+        *ItemRarity::GetDisplayName(
+            NewItem.Rarity
+        ).ToString()
     );
 
     TSet<FGameplayTag> ConfiguredTags;
 
-    for (const FItemStatGroup& Group : Definition->StatGroups)
+    for (
+        const FItemStatGroup& Group :
+        Definition->StatGroups)
     {
         int32 CountToRoll = 0;
 
         if (Group.bGuaranteed)
         {
-            CountToRoll = Group.StatPool.Num();
+            CountToRoll =
+                Group.StatPool.Num();
         }
         else if (SelectedProfile)
         {
-            for (const FItemAffixCountRule& Rule :
+            for (
+                const FItemAffixCountRule& Rule :
                 SelectedProfile->AffixRules)
             {
-                if (Rule.GroupName == Group.GroupName)
+                if (
+                    Rule.GroupName ==
+                    Group.GroupName
+                    )
                 {
-                    CountToRoll = FMath::RandRange(
-                        Rule.MinCount,
-                        Rule.MaxCount
-                    );
+                    CountToRoll =
+                        FMath::RandRange(
+                            Rule.MinCount,
+                            Rule.MaxCount
+                        );
 
                     break;
                 }
@@ -453,16 +650,21 @@ bool UInventoryComponent::AddItem(
         const int32 FirstNewStatIndex =
             NewItem.RolledStats.Num();
 
-        if (!RollStatsFromPool(
-            Group.StatPool,
-            CountToRoll,
-            ConfiguredTags,
-            NewItem.RolledStats))
+        if (
+            !RollStatsFromPool(
+                Group.StatPool,
+                CountToRoll,
+                ConfiguredTags,
+                NewItem.RolledStats
+            )
+            )
         {
             UE_LOG(
                 LogTemp,
                 Warning,
-                TEXT("[INVENTORY] Invalid stat pool '%s' on %s"),
+                TEXT(
+                    "[INVENTORY] Invalid stat pool '%s' on %s"
+                ),
                 *Group.GroupName.ToString(),
                 *GetNameSafe(Definition)
             );
@@ -470,18 +672,25 @@ bool UInventoryComponent::AddItem(
             return false;
         }
 
-        for (int32 StatIndex = FirstNewStatIndex;
-            StatIndex < NewItem.RolledStats.Num();
+        for (
+            int32 StatIndex =
+            FirstNewStatIndex;
+            StatIndex <
+            NewItem.RolledStats.Num();
             ++StatIndex)
         {
-            NewItem.RolledStats[StatIndex].bGuaranteed =
+            NewItem
+                .RolledStats[StatIndex]
+                .bGuaranteed =
                 Group.bGuaranteed;
         }
     }
 
-    Items[Index] = MoveTemp(NewItem);
+    Items[Index] =
+        MoveTemp(NewItem);
 
     NotifyChanged();
+
     return true;
 }
 
@@ -490,7 +699,10 @@ void UInventoryComponent::RequestUseSlot(
     int32 Index,
     FGuid ExpectedItemId)
 {
-    ServerUseSlot(Index, ExpectedItemId);
+    ServerUseSlot(
+        Index,
+        ExpectedItemId
+    );
 }
 
 
@@ -498,14 +710,16 @@ bool UInventoryComponent::ApplyEquipmentEffect(
     const FInventoryItem& Item,
     FActiveGameplayEffectHandle& OutHandle)
 {
-    OutHandle = FActiveGameplayEffectHandle();
+    OutHandle =
+        FActiveGameplayEffectHandle();
 
     if (!Item.IsValid())
     {
         return false;
     }
 
-    UItemDefinition* Definition = Item.Definition.Get();
+    UItemDefinition* Definition =
+        Item.Definition.Get();
 
     if (!IsValid(Definition))
     {
@@ -518,22 +732,32 @@ bool UInventoryComponent::ApplyEquipmentEffect(
         return true;
     }
 
-    UAbilitySystemComponent* ASC = GetASC();
+    UAbilitySystemComponent* ASC =
+        GetASC();
 
-    if (!ASC || ASC->GetAvatarActor() != GetOwner())
+    if (
+        !ASC ||
+        ASC->GetAvatarActor() !=
+        GetOwner()
+        )
     {
         return false;
     }
 
     const UGameplayEffect* Effect =
-        Definition->EquippedEffect
-        ->GetDefaultObject<UGameplayEffect>();
+        Definition
+        ->EquippedEffect
+        ->GetDefaultObject<
+        UGameplayEffect
+        >();
 
     if (
         Effect->DurationPolicy !=
-        EGameplayEffectDurationType::Infinite ||
+        EGameplayEffectDurationType::
+        Infinite ||
         Effect->GetStackingType() !=
-        EGameplayEffectStackingType::None
+        EGameplayEffectStackingType::
+        None
         )
     {
         UE_LOG(
@@ -551,7 +775,9 @@ bool UInventoryComponent::ApplyEquipmentEffect(
     FGameplayEffectContextHandle Context =
         ASC->MakeEffectContext();
 
-    Context.AddSourceObject(Definition);
+    Context.AddSourceObject(
+        Definition
+    );
 
     FGameplayEffectSpecHandle Spec =
         ASC->MakeOutgoingSpec(
@@ -565,25 +791,33 @@ bool UInventoryComponent::ApplyEquipmentEffect(
         return false;
     }
 
-    /// Initialize every possible additive stat bonus to zero.
-    for (const FItemStatGroup& Group : Definition->StatGroups)
+    // Initialize every possible additive stat bonus to zero.
+    for (
+        const FItemStatGroup& Group :
+        Definition->StatGroups)
     {
-        for (const FItemStatRange& Range : Group.StatPool)
+        for (
+            const FItemStatRange& Range :
+            Group.StatPool)
         {
-            Spec.Data->SetSetByCallerMagnitude(
-                Range.StatTag,
-                0.0f
-            );
+            Spec.Data
+                ->SetSetByCallerMagnitude(
+                    Range.StatTag,
+                    0.0f
+                );
         }
     }
 
     // Replace zero with the actual values selected for this item.
-    for (const FItemRolledStat& Stat : Item.RolledStats)
+    for (
+        const FItemRolledStat& Stat :
+        Item.RolledStats)
     {
-        Spec.Data->SetSetByCallerMagnitude(
-            Stat.StatTag,
-            Stat.Value
-        );
+        Spec.Data
+            ->SetSetByCallerMagnitude(
+                Stat.StatTag,
+                Stat.Value
+            );
     }
 
     OutHandle =
@@ -591,34 +825,46 @@ bool UInventoryComponent::ApplyEquipmentEffect(
             *Spec.Data.Get()
         );
 
-    return OutHandle.IsValid();
+    return
+        OutHandle.IsValid();
 }
 
 
-void UInventoryComponent::ServerUseSlot_Implementation(
+void UInventoryComponent::
+ServerUseSlot_Implementation(
     int32 Index,
     FGuid ExpectedItemId)
 {
-    if (!GetOwner() ||
+    if (
+        !GetOwner() ||
         !GetOwner()->HasAuthority() ||
-        bChangingEquipment)
+        bChangingEquipment
+        )
     {
         return;
     }
 
     const AGenericCharacter* Character =
-        Cast<AGenericCharacter>(GetOwner());
+        Cast<AGenericCharacter>(
+            GetOwner()
+        );
 
-    if (!IsValid(Character) ||
+    if (
+        !IsValid(Character) ||
         Character->bIsDead ||
         !Items.IsValidIndex(Index) ||
         !Items[Index].IsValid() ||
-        Items[Index].InstanceId != ExpectedItemId)
+        Items[Index].InstanceId !=
+        ExpectedItemId
+        )
     {
         return;
     }
 
-    TGuardValue<bool> ChangeGuard(bChangingEquipment, true);
+    TGuardValue<bool> ChangeGuard(
+        bChangingEquipment,
+        true
+    );
 
     if (Index < InventoryCapacity)
     {
@@ -631,101 +877,158 @@ void UInventoryComponent::ServerUseSlot_Implementation(
             return;
         }
 
-        int32 EquipmentSlotIndex = INDEX_NONE;
+        int32 EquipmentSlotIndex =
+            INDEX_NONE;
 
         const int32 EquipmentCount =
-            static_cast<int32>(EEquipmentSlot::Count);
+            static_cast<int32>(
+                EEquipmentSlot::Count
+                );
 
-        for (const EEquipmentSlot AllowedSlot :
+        for (
+            const EEquipmentSlot AllowedSlot :
         Definition->AllowedSlots)
         {
             const int32 Candidate =
-                static_cast<int32>(AllowedSlot);
+                static_cast<int32>(
+                    AllowedSlot
+                    );
 
-            if (Candidate < 0 || Candidate >= EquipmentCount)
+            if (
+                Candidate < 0 ||
+                Candidate >= EquipmentCount
+                )
             {
                 continue;
             }
 
             const int32 CandidateIndex =
-                InventoryCapacity + Candidate;
+                InventoryCapacity +
+                Candidate;
 
-            if (!Items.IsValidIndex(CandidateIndex))
+            if (
+                !Items.IsValidIndex(
+                    CandidateIndex
+                )
+                )
             {
                 continue;
             }
 
             // Replace the first allowed position if all are occupied.
-            if (EquipmentSlotIndex == INDEX_NONE)
+            if (
+                EquipmentSlotIndex ==
+                INDEX_NONE
+                )
             {
-                EquipmentSlotIndex = Candidate;
+                EquipmentSlotIndex =
+                    Candidate;
             }
 
             // Prefer an empty allowed position.
-            if (!Items[CandidateIndex].IsValid())
+            if (
+                !Items[
+                    CandidateIndex
+                ].IsValid()
+                        )
             {
-                EquipmentSlotIndex = Candidate;
+                EquipmentSlotIndex =
+                    Candidate;
+
                 break;
             }
         }
 
-        if (EquipmentSlotIndex == INDEX_NONE ||
-            !EquipmentEffectHandles.IsValidIndex(EquipmentSlotIndex) ||
-            !EquipmentAbilityHandles.IsValidIndex(EquipmentSlotIndex))
+        if (
+            EquipmentSlotIndex ==
+            INDEX_NONE ||
+            !EquipmentEffectHandles
+            .IsValidIndex(
+                EquipmentSlotIndex
+            ) ||
+            !EquipmentAbilityHandles
+            .IsValidIndex(
+                EquipmentSlotIndex
+            )
+            )
         {
             return;
         }
 
-        UAbilitySystemComponent* ASC = GetASC();
+        UAbilitySystemComponent* ASC =
+            GetASC();
 
-        const FActiveGameplayEffectHandle OldEffectHandle =
-            EquipmentEffectHandles[EquipmentSlotIndex];
+        const FActiveGameplayEffectHandle
+            OldEffectHandle =
+            EquipmentEffectHandles[
+                EquipmentSlotIndex
+            ];
 
         const bool bHasOldAbility =
-            EquipmentAbilityHandles[EquipmentSlotIndex].IsValid();
+            EquipmentAbilityHandles[
+                EquipmentSlotIndex
+            ].IsValid();
 
-        // Existing grants need the ASC for removal.
-        if ((OldEffectHandle.IsValid() || bHasOldAbility) &&
-            !IsValid(ASC))
+        if (
+            (
+                OldEffectHandle.IsValid() ||
+                bHasOldAbility
+                ) &&
+            !IsValid(ASC)
+            )
         {
             return;
         }
 
-        // A new item ability requires initialized actor information.
-        if (Definition->EquippedAbility &&
-            (!IsValid(ASC) || ASC->GetAvatarActor() != GetOwner()))
+        if (
+            Definition->EquippedAbility &&
+            (
+                !IsValid(ASC) ||
+                ASC->GetAvatarActor() !=
+                GetOwner()
+                )
+            )
         {
             return;
         }
 
-        FActiveGameplayEffectHandle NewEffectHandle;
+        FActiveGameplayEffectHandle
+            NewEffectHandle;
 
-        // Preserve the previous equipment if applying the new
-        // item's stat effect fails.
-        if (!ApplyEquipmentEffect(Items[Index], NewEffectHandle))
+        if (
+            !ApplyEquipmentEffect(
+                Items[Index],
+                NewEffectHandle
+            )
+            )
         {
             return;
         }
 
-        // Stop the previous item's ability before starting the new one.
-        RemoveEquipmentAbility(EquipmentSlotIndex);
+        RemoveEquipmentAbility(
+            EquipmentSlotIndex
+        );
 
         if (OldEffectHandle.IsValid())
         {
-            ASC->RemoveActiveGameplayEffect(OldEffectHandle);
+            ASC->RemoveActiveGameplayEffect(
+                OldEffectHandle
+            );
         }
 
         const int32 EquippedIndex =
-            InventoryCapacity + EquipmentSlotIndex;
+            InventoryCapacity +
+            EquipmentSlotIndex;
 
-        // Return replaced equipment to the clicked backpack slot.
-        Swap(Items[Index], Items[EquippedIndex]);
+        Swap(
+            Items[Index],
+            Items[EquippedIndex]
+        );
 
-        EquipmentEffectHandles[EquipmentSlotIndex] =
-            NewEffectHandle;
+        EquipmentEffectHandles[
+            EquipmentSlotIndex
+        ] = NewEffectHandle;
 
-        // The new item is now in its equipment slot, so its ability
-        // can inspect the equipped inventory during activation.
         GrantAndActivateEquipmentAbility(
             Items[EquippedIndex],
             EquipmentSlotIndex
@@ -734,56 +1037,165 @@ void UInventoryComponent::ServerUseSlot_Implementation(
     else
     {
         // Unequip an item into the backpack.
-        const int32 EmptyIndex = FindEmptyInventorySlot();
+        const int32 EmptyIndex =
+            FindEmptyInventorySlot();
 
         if (EmptyIndex == INDEX_NONE)
         {
-            // Backpack full: preserve the item and its ability.
             return;
         }
 
         const int32 EquipmentSlotIndex =
-            Index - InventoryCapacity;
+            Index -
+            InventoryCapacity;
 
-        if (!EquipmentEffectHandles.IsValidIndex(EquipmentSlotIndex) ||
-            !EquipmentAbilityHandles.IsValidIndex(EquipmentSlotIndex))
+        if (
+            !EquipmentEffectHandles
+            .IsValidIndex(
+                EquipmentSlotIndex
+            ) ||
+            !EquipmentAbilityHandles
+            .IsValidIndex(
+                EquipmentSlotIndex
+            )
+            )
         {
             return;
         }
 
-        UAbilitySystemComponent* ASC = GetASC();
+        UAbilitySystemComponent* ASC =
+            GetASC();
 
-        const FActiveGameplayEffectHandle EffectHandle =
-            EquipmentEffectHandles[EquipmentSlotIndex];
+        const FActiveGameplayEffectHandle
+            EffectHandle =
+            EquipmentEffectHandles[
+                EquipmentSlotIndex
+            ];
 
         const bool bHasAbility =
-            EquipmentAbilityHandles[EquipmentSlotIndex].IsValid();
+            EquipmentAbilityHandles[
+                EquipmentSlotIndex
+            ].IsValid();
 
-        if ((EffectHandle.IsValid() || bHasAbility) &&
-            !IsValid(ASC))
+        if (
+            (
+                EffectHandle.IsValid() ||
+                bHasAbility
+                ) &&
+            !IsValid(ASC)
+            )
         {
             return;
         }
 
-        RemoveEquipmentAbility(EquipmentSlotIndex);
+        RemoveEquipmentAbility(
+            EquipmentSlotIndex
+        );
 
         if (EffectHandle.IsValid())
         {
-            ASC->RemoveActiveGameplayEffect(EffectHandle);
+            ASC->RemoveActiveGameplayEffect(
+                EffectHandle
+            );
         }
 
-        EquipmentEffectHandles[EquipmentSlotIndex] =
+        EquipmentEffectHandles[
+            EquipmentSlotIndex
+        ] =
             FActiveGameplayEffectHandle();
 
-        Swap(Items[Index], Items[EmptyIndex]);
+            Swap(
+                Items[Index],
+                Items[EmptyIndex]
+            );
     }
 
     NotifyChanged();
 }
 
 
+void UInventoryComponent::
+RebuildEquipmentPresentationState()
+{
+    if (
+        !GetOwner() ||
+        !GetOwner()->HasAuthority()
+        )
+    {
+        return;
+    }
+
+    const int32 EquipmentCount =
+        static_cast<int32>(
+            EEquipmentSlot::Count
+            );
+
+    TArray<TObjectPtr<UItemDefinition>>
+        NewEquippedDefinitions;
+
+    NewEquippedDefinitions.SetNum(
+        EquipmentCount
+    );
+
+    for (
+        int32 SlotIndex = 0;
+        SlotIndex < EquipmentCount;
+        ++SlotIndex)
+    {
+        const int32 ItemIndex =
+            InventoryCapacity +
+            SlotIndex;
+
+        if (
+            Items.IsValidIndex(
+                ItemIndex
+            ) &&
+            Items[
+                ItemIndex
+            ].IsValid()
+                    )
+        {
+            NewEquippedDefinitions[
+                SlotIndex
+            ] =
+                Items[
+                    ItemIndex
+                ].Definition;
+        }
+    }
+
+    if (
+        NewEquippedDefinitions ==
+        EquippedDefinitions
+        )
+    {
+        return;
+    }
+
+    EquippedDefinitions =
+        MoveTemp(
+            NewEquippedDefinitions
+        );
+
+    /*
+     * OnRep does not run on the authoritative server,
+     * so notify local presentation manually.
+     */
+    OnEquipmentPresentationChanged
+        .Broadcast();
+}
+
+
 void UInventoryComponent::NotifyChanged()
 {
+    if (
+        GetOwner() &&
+        GetOwner()->HasAuthority()
+        )
+    {
+        RebuildEquipmentPresentationState();
+    }
+
     OnInventoryChanged.Broadcast();
 
     if (GetOwner())
@@ -799,29 +1211,52 @@ void UInventoryComponent::OnRep_Items()
 }
 
 
+void UInventoryComponent::
+OnRep_EquippedDefinitions()
+{
+    OnEquipmentPresentationChanged
+        .Broadcast();
+}
+
+
 void UInventoryComponent::EndPlay(
     const EEndPlayReason::Type EndPlayReason)
 {
     // Block equipment changes triggered by teardown callbacks.
     bChangingEquipment = true;
 
-    if (GetOwner() && GetOwner()->HasAuthority())
+    if (
+        GetOwner() &&
+        GetOwner()->HasAuthority()
+        )
     {
-        for (int32 EquipmentSlotIndex = 0;
-            EquipmentSlotIndex < EquipmentAbilityHandles.Num();
+        for (
+            int32 EquipmentSlotIndex = 0;
+            EquipmentSlotIndex <
+            EquipmentAbilityHandles.Num();
             ++EquipmentSlotIndex)
         {
-            RemoveEquipmentAbility(EquipmentSlotIndex);
+            RemoveEquipmentAbility(
+                EquipmentSlotIndex
+            );
         }
 
-        if (UAbilitySystemComponent* ASC = GetASC())
+        if (
+            UAbilitySystemComponent* ASC =
+            GetASC()
+            )
         {
-            for (const FActiveGameplayEffectHandle EffectHandle :
+            for (
+                const FActiveGameplayEffectHandle
+                EffectHandle :
             EquipmentEffectHandles)
             {
                 if (EffectHandle.IsValid())
                 {
-                    ASC->RemoveActiveGameplayEffect(EffectHandle);
+                    ASC
+                        ->RemoveActiveGameplayEffect(
+                            EffectHandle
+                        );
                 }
             }
         }
@@ -830,49 +1265,73 @@ void UInventoryComponent::EndPlay(
     EquipmentAbilityHandles.Reset();
     EquipmentEffectHandles.Reset();
 
-    Super::EndPlay(EndPlayReason);
+    Super::EndPlay(
+        EndPlayReason
+    );
 }
 
 
-void UInventoryComponent::GrantAndActivateEquipmentAbility(
+void UInventoryComponent::
+GrantAndActivateEquipmentAbility(
     const FInventoryItem& Item,
     int32 EquipmentSlotIndex)
 {
-    if (!GetOwner() ||
+    if (
+        !GetOwner() ||
         !GetOwner()->HasAuthority() ||
         !Item.IsValid() ||
-        !EquipmentAbilityHandles.IsValidIndex(EquipmentSlotIndex))
+        !EquipmentAbilityHandles
+        .IsValidIndex(
+            EquipmentSlotIndex
+        )
+        )
     {
         return;
     }
 
-    UItemDefinition* Definition = Item.Definition.Get();
+    UItemDefinition* Definition =
+        Item.Definition.Get();
 
-    if (!IsValid(Definition) || !Definition->EquippedAbility)
+    if (
+        !IsValid(Definition) ||
+        !Definition->EquippedAbility
+        )
     {
         return;
     }
 
-    // Never overwrite a tracked ability handle.
-    if (EquipmentAbilityHandles[EquipmentSlotIndex].IsValid())
+    if (
+        EquipmentAbilityHandles[
+            EquipmentSlotIndex
+        ].IsValid()
+                )
     {
         UE_LOG(
             LogTemp,
             Warning,
-            TEXT("[INVENTORY] Equipment slot already has an ability.")
+            TEXT(
+                "[INVENTORY] Equipment slot already has an ability."
+            )
         );
 
         return;
     }
 
-    UAbilitySystemComponent* ASC = GetASC();
+    UAbilitySystemComponent* ASC =
+        GetASC();
 
-    if (!IsValid(ASC) || ASC->GetAvatarActor() != GetOwner())
+    if (
+        !IsValid(ASC) ||
+        ASC->GetAvatarActor() !=
+        GetOwner()
+        )
     {
         UE_LOG(
             LogTemp,
             Warning,
-            TEXT("[INVENTORY] ASC is not ready for item ability: %s"),
+            TEXT(
+                "[INVENTORY] ASC is not ready for item ability: %s"
+            ),
             *GetNameSafe(Definition)
         );
 
@@ -886,28 +1345,35 @@ void UInventoryComponent::GrantAndActivateEquipmentAbility(
         Definition
     );
 
-    const FGameplayAbilitySpecHandle AbilityHandle =
-        ASC->GiveAbility(AbilitySpec);
+    const FGameplayAbilitySpecHandle
+        AbilityHandle =
+        ASC->GiveAbility(
+            AbilitySpec
+        );
 
     if (!AbilityHandle.IsValid())
     {
         UE_LOG(
             LogTemp,
             Warning,
-            TEXT("[INVENTORY] Could not grant ability for item: %s"),
+            TEXT(
+                "[INVENTORY] Could not grant ability for item: %s"
+            ),
             *GetNameSafe(Definition)
         );
 
         return;
     }
 
-    // Store the handle before activation, which may invoke callbacks.
-    EquipmentAbilityHandles[EquipmentSlotIndex] = AbilityHandle;
+    EquipmentAbilityHandles[
+        EquipmentSlotIndex
+    ] = AbilityHandle;
 
-    // Activate here on the server. Do not forward activation
-    // to a client for a locally executed ability.
     const bool bActivated =
-        ASC->TryActivateAbility(AbilityHandle, false);
+        ASC->TryActivateAbility(
+            AbilityHandle,
+            false
+        );
 
     if (!bActivated)
     {
@@ -920,44 +1386,64 @@ void UInventoryComponent::GrantAndActivateEquipmentAbility(
                 "costs, cooldowns, and activation requirements."
             ),
             *GetNameSafe(Definition),
-            *GetNameSafe(Definition->EquippedAbility.Get())
+            *GetNameSafe(
+                Definition
+                ->EquippedAbility.Get()
+            )
         );
 
-        // The item remains equipped. Remove the failed grant.
-        RemoveEquipmentAbility(EquipmentSlotIndex);
+        RemoveEquipmentAbility(
+            EquipmentSlotIndex
+        );
     }
 }
 
 
-void UInventoryComponent::RemoveEquipmentAbility(
+void UInventoryComponent::
+RemoveEquipmentAbility(
     int32 EquipmentSlotIndex)
 {
-    if (!GetOwner() ||
+    if (
+        !GetOwner() ||
         !GetOwner()->HasAuthority() ||
-        !EquipmentAbilityHandles.IsValidIndex(EquipmentSlotIndex))
+        !EquipmentAbilityHandles
+        .IsValidIndex(
+            EquipmentSlotIndex
+        )
+        )
     {
         return;
     }
 
-    const FGameplayAbilitySpecHandle AbilityHandle =
-        EquipmentAbilityHandles[EquipmentSlotIndex];
+    const FGameplayAbilitySpecHandle
+        AbilityHandle =
+        EquipmentAbilityHandles[
+            EquipmentSlotIndex
+        ];
 
     if (!AbilityHandle.IsValid())
     {
         return;
     }
 
-    UAbilitySystemComponent* ASC = GetASC();
+    UAbilitySystemComponent* ASC =
+        GetASC();
 
     if (!IsValid(ASC))
     {
         return;
     }
 
-    // Clear our tracking before cancellation invokes callbacks.
-    EquipmentAbilityHandles[EquipmentSlotIndex] =
+    EquipmentAbilityHandles[
+        EquipmentSlotIndex
+    ] =
         FGameplayAbilitySpecHandle();
 
-    ASC->CancelAbilityHandle(AbilityHandle);
-    ASC->ClearAbility(AbilityHandle);
+        ASC->CancelAbilityHandle(
+            AbilityHandle
+        );
+
+        ASC->ClearAbility(
+            AbilityHandle
+        );
 }
