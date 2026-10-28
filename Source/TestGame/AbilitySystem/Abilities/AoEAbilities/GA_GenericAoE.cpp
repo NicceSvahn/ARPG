@@ -99,3 +99,80 @@ UGA_GenericAoE::FindCharactersInRadius(
 
     return Characters;
 }
+
+TArray<AGenericCharacter*>
+UGA_GenericAoE::FindCharactersInArc(
+    UObject* WorldContextObject,
+    const FVector& Origin,
+    const FVector& ForwardDirection,
+    const float Radius,
+    const float ArcDegrees,
+    AActor* ActorToIgnore,
+    TSubclassOf<AGenericCharacter> RequiredCharacterClass)
+{
+    TArray<AGenericCharacter*> CharactersInArc;
+
+    const TArray<AGenericCharacter*> CharactersInRadius =
+        FindCharactersInRadius(
+            WorldContextObject,
+            Origin,
+            Radius,
+            ActorToIgnore,
+            RequiredCharacterClass
+        );
+
+    FVector Forward = ForwardDirection;
+    Forward.Z = 0.0f;
+
+    if (!Forward.Normalize())
+    {
+        return CharactersInArc;
+    }
+
+    const float ClampedArc =
+        FMath::Clamp(ArcDegrees, 0.0f, 360.0f);
+
+    if (ClampedArc >= 360.0f)
+    {
+        return CharactersInRadius;
+    }
+
+    const float HalfArcRadians =
+        FMath::DegreesToRadians(
+            ClampedArc * 0.5f
+        );
+
+    const float MinimumDot =
+        FMath::Cos(HalfArcRadians);
+
+    for (AGenericCharacter* Character : CharactersInRadius)
+    {
+        if (!IsValid(Character))
+        {
+            continue;
+        }
+
+        FVector DirectionToTarget =
+            Character->GetActorLocation() - Origin;
+
+        DirectionToTarget.Z = 0.0f;
+
+        if (!DirectionToTarget.Normalize())
+        {
+            continue;
+        }
+
+        const float Dot =
+            FVector::DotProduct(
+                Forward,
+                DirectionToTarget
+            );
+
+        if (Dot >= MinimumDot)
+        {
+            CharactersInArc.Add(Character);
+        }
+    }
+
+    return CharactersInArc;
+}

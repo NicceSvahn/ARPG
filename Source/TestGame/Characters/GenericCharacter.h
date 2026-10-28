@@ -13,7 +13,6 @@
 #include "GenericCharacter.generated.h"
 
 class UTestGameAbilitySystemComponent;
-class UGameplayAbility;
 class UResourceAttributeSet;
 class UGameplayEffect;
 class UMovementSpeedAttributeSet;
@@ -22,22 +21,6 @@ class UDefensiveAttributeSet;
 class UOffensiveAttributeSet;
 class UUtilityAttributeSet;
 class UMaterialInterface;
-
-DECLARE_MULTICAST_DELEGATE_TwoParams(
-	FOnHealthChanged,
-	float,
-	float
-);
-
-DECLARE_MULTICAST_DELEGATE_OneParam(
-	FOnDamageReceived,
-	float
-);
-
-DECLARE_MULTICAST_DELEGATE_OneParam(
-	FOnHealingReceived,
-	float
-);
 
 UCLASS()
 class TESTGAME_API AGenericCharacter : public ACharacter, public IAbilitySystemInterface
@@ -50,7 +33,6 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly) 
 	TObjectPtr<UTestGameAbilitySystemComponent> AbilitySystemComponent;
 
-	FOnHealthChanged OnHealthChanged;
 
 	float GetCurrentHealth() const;
 	float GetMaxHealth() const;
@@ -96,19 +78,13 @@ public:
 		const FOnAttributeChangeData& Data
 	);
 
-	FDelegateHandle MovementSpeedChangedHandle;
 
-	FOnDamageReceived OnDamageReceived;
-	FOnHealingReceived OnHealingReceived;
 
 	AGenericCharacter();
 
 	// Granting Abilities
 	virtual void PossessedBy(AController* NewController) override;
 	virtual void OnRep_PlayerState() override;
-
-	// Called every frame
-	virtual void Tick(float DeltaTime) override;
 
 protected:
 
@@ -199,7 +175,6 @@ protected:
 	)
 	TSubclassOf<UGameplayEffect> BaseStatsEffect;
 
-	void ApplyPrimaryStatDerivedEffect();
 
 	void ApplyAttributeEffect(
 		TSubclassOf<UGameplayEffect> EffectClass
@@ -214,7 +189,6 @@ private:
 
 	//Hit reaction
 	FGameplayTag HitReactionTag;
-	FDelegateHandle HitReactionTagChangedHandle;
 	FTimerHandle HitReactionTimerHandle;
 
 	void HandleHitReactionTagChanged(

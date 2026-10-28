@@ -18,7 +18,8 @@ bool UTestGameAbilitySystemComponent::RequestAbility(
         return false;
     }
 
-    FGameplayAbilitySpec* AbilitySpec = FindAbilitySpecForTag(AbilityTag);
+    FGameplayAbilitySpec* AbilitySpec =
+        FindAbilitySpecForTag(AbilityTag);
 
     if (!AbilitySpec || !AbilitySpec->Ability)
     {
@@ -28,27 +29,60 @@ bool UTestGameAbilitySystemComponent::RequestAbility(
     const IAbilityRequestPolicy* RequestPolicy =
         Cast<IAbilityRequestPolicy>(AbilitySpec->Ability);
 
+    const bool bSupportsForceDirectionalAttack =
+        RequestPolicy &&
+        RequestPolicy->SupportsForceDirectionalAttack();
+
+    // Only abilities that explicitly opt into this behaviour may consume
+    // the Shift modifier. Holding Shift must not silently change targeting
+    // data for unrelated abilities such as Fireball.
+    FAbilityInputContext EffectiveContext = Context;
+    EffectiveContext.bForceDirectionalAttack =
+        bSupportsForceDirectionalAttack &&
+        Context.bForceDirectionalAttack;
+
     const bool bRequiresTarget =
-        RequestPolicy && RequestPolicy->RequiresTarget();
+        RequestPolicy &&
+        RequestPolicy->RequiresTarget() &&
+        !EffectiveContext.bForceDirectionalAttack;
 
     const float MaximumRange =
-        RequestPolicy ? RequestPolicy->GetMaximumRange() : 0.0f;
+        EffectiveContext.bForceDirectionalAttack
+        ? 0.0f
+        : (RequestPolicy
+            ? RequestPolicy->GetMaximumRange()
+            : 0.0f);
 
-    if (!CheckTarget(bRequiresTarget, Context))
+    // Directional attacks need a real cursor/world hit to define the aim
+    // point. If the cursor trace found nothing, do not activate.
+    if (EffectiveContext.bForceDirectionalAttack &&
+        !EffectiveContext.HitResult.bBlockingHit)
     {
         return false;
     }
 
-    if (!CheckRange(MaximumRange, Context))
+    if (!CheckTarget(
+        bRequiresTarget,
+        EffectiveContext))
+    {
+        return false;
+    }
+
+    if (!CheckRange(
+        MaximumRange,
+        EffectiveContext))
     {
         return RequestMovement(
             AbilityTag,
-            Context,
+            EffectiveContext,
             MaximumRange
         );
     }
 
-    return TryActivateRequestedAbility(AbilitySpec->Handle, Context);
+    return TryActivateRequestedAbility(
+        AbilitySpec->Handle,
+        EffectiveContext
+    );
 }
 
 void UTestGameAbilitySystemComponent::AbilityInputTagPressed(
@@ -213,24 +247,37 @@ bool UTestGameAbilitySystemComponent::TryActivateRequestedAbility(
 
     FGameplayTagContainer FailureTags;
 
-    const bool bCanActivate =
-        Spec->Ability->CanActivateAbility(
-            AbilityHandle,
-            AbilityActorInfo.Get(),
-            nullptr,
-            nullptr,
-            &FailureTags
-        );
-
-    if (!bCanActivate)
+    if (!Spec->Ability->CanActivateAbility(
+        AbilityHandle,
+        AbilityActorInfo.Get(),
+        nullptr,
+        nullptr,
+        &FailureTags
+    ))
     {
         return false;
     }
 
-    const bool bActivated =
-        TryActivateAbility(AbilityHandle);
+    // A forced directional melee attack is intentionally stationary.
+    // Stop both click movement and any pending chase only after we know the
+    // ability is actually allowed to activate.
+    if (Context.bForceDirectionalAttack)
+    {
+        APawn* AvatarPawn = Cast<APawn>(GetAvatarActor());
 
-    return bActivated;
+        ATestGamePlayerController* PlayerController =
+            AvatarPawn
+            ? Cast<ATestGamePlayerController>(
+                AvatarPawn->GetController())
+            : nullptr;
+
+        if (PlayerController)
+        {
+            PlayerController->StopMovementForAbility();
+        }
+    }
+
+    return TryActivateAbility(AbilityHandle);
 }
 
 bool UTestGameAbilitySystemComponent::RequestMovement(
@@ -353,7 +400,6 @@ void UTestGameAbilitySystemComponent::SendAbilityEvent(
     FGameplayEventData EventData;
     EventData.Instigator = GetAvatarActor();
     EventData.Target = Context.TargetActor;
-    //EventData.ContextHandle = MakeEffectContext();
 
     HandleGameplayEvent(
         EventTag,

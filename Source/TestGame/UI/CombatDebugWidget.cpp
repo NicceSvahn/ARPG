@@ -3,18 +3,12 @@
 #include "Components/TextBlock.h"
 
 #include "../Characters/GenericCharacter.h"
-#include "../AbilitySystem/TestGameAbilitySystemComponent.h"
 #include "../Player/TestGamePlayerController.h"
 
 void UCombatDebugWidget::InitializeDebugWidget(
     AGenericCharacter* InPlayerCharacter)
 {
     PlayerCharacter = InPlayerCharacter;
-
-    AbilitySystemComponent =
-        PlayerCharacter
-        ? PlayerCharacter->GetAbilitySystemComponent()
-        : nullptr;
 
     RefreshDebugInfo();
 }
@@ -58,45 +52,42 @@ void UCombatDebugWidget::RefreshDebugInfo()
         ? Controller->GetCharacterUnderCursor()
         : nullptr;
 
+    if (TargetCharacter == PlayerCharacter)
+    {
+        TargetCharacter = nullptr;
+    }
+
+    if (PlayerResourceText)
+    {
+        PlayerResourceText->SetText(
+            FText::FromString(TEXT("Resource: N/A"))
+        );
+    }
+
     if (!TargetCharacter)
     {
         if (TargetActorText)
         {
             TargetActorText->SetText(
-                FText::FromString(
-                    TEXT("Actor: None")
-                )
+                FText::FromString(TEXT("Actor: None"))
             );
         }
 
         if (TargetHealthText)
         {
             TargetHealthText->SetText(
-                FText::FromString(
-                    TEXT("Health: -")
-                )
+                FText::FromString(TEXT("Health: -"))
             );
         }
 
         if (TargetDistanceText)
         {
             TargetDistanceText->SetText(
-                FText::FromString(
-                    TEXT("Distance: -")
-                )
+                FText::FromString(TEXT("Distance: -"))
             );
         }
 
         return;
-    }
-
-    if (PlayerResourceText)
-    {
-        PlayerResourceText->SetText(
-            FText::FromString(
-                TEXT("Resource: N/A")
-            )
-        );
     }
 
     if (TargetActorText)
@@ -109,11 +100,6 @@ void UCombatDebugWidget::RefreshDebugInfo()
                 )
             )
         );
-    }
-
-    if (TargetCharacter == PlayerCharacter)
-    {
-        TargetCharacter = nullptr;
     }
 
     if (TargetHealthText)

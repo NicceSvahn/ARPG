@@ -3,11 +3,8 @@
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
 #include "GameplayTagContainer.h"
-#include "AbilitySystemBlueprintLibrary.h"
 
-#include "../AbilitySystem/AbilityInputContext.h"
-#include "../UI/PlayerHudWidget.h"
-#include "../UI/CharacterPanelWidget.h"
+#include "../Characters/PlayerClass.h"
 
 #include "TestGamePlayerController.generated.h"
 
@@ -15,8 +12,9 @@ class UInputMappingContext;
 class UInputAction;
 class UPlayerHudWidget;
 class UCombatDebugWidget;
-class AGenericCharacter;
+class UCharacterPanelWidget;
 class UCameraOccludableComponent;
+class AGenericCharacter;
 
 DECLARE_DELEGATE_OneParam(
     FOnMoveIntoRangeCompleted,
@@ -33,7 +31,11 @@ struct FAbilityInputBinding
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
     TObjectPtr<UInputAction> InputAction;
 
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta = (Categories = "Input.Ability"))
+    UPROPERTY(
+        EditDefaultsOnly,
+        BlueprintReadOnly,
+        meta = (Categories = "Input.Ability")
+    )
     FGameplayTag InputTag;
 };
 
@@ -54,17 +56,22 @@ public:
     );
 
     void CancelMoveIntoRange();
-    
-    // For Debugging
+
+    // Used by abilities that must attack in place. Stops both click movement
+    // and target-chasing movement immediately.
+    void StopMovementForAbility();
+
+    // Combat debug helper.
     AGenericCharacter* GetCharacterUnderCursor() const;
 
-    // Class
     UFUNCTION(BlueprintCallable, Category = "Class")
     void RequestPlayerClass(EPlayerClass NewClass);
 
 protected:
     virtual void BeginPlay() override;
     virtual void SetupInputComponent() override;
+    virtual void OnPossess(APawn* InPawn) override;
+    virtual void OnRep_Pawn() override;
 
     UPROPERTY(EditDefaultsOnly, Category = "Input")
     TObjectPtr<UInputMappingContext> DefaultMappingContext;
@@ -74,9 +81,6 @@ protected:
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
     TArray<FAbilityInputBinding> AbilityInputBindings;
-
-    virtual void OnPossess(APawn* InPawn) override;
-    virtual void OnRep_Pawn() override;
 
     UPROPERTY(EditDefaultsOnly, Category = "HUD")
     TSubclassOf<UPlayerHudWidget> PlayerHudWidgetClass;
@@ -93,15 +97,6 @@ protected:
     UPROPERTY(EditDefaultsOnly, Category = "Input|Debug")
     TObjectPtr<UInputAction> ToggleCombatDebugAction;
 
-    bool bCombatDebugVisible = false;
-
-    void ToggleCombatDebug();
-    
-    // Class
-    UFUNCTION(Server, Reliable)
-    void ServerRequestPlayerClass(EPlayerClass NewClass);
-
-    // Toggle Character Panel
     UPROPERTY(EditDefaultsOnly, Category = "Input")
     TObjectPtr<UInputAction> IA_ToggleCharacterPanel;
 
@@ -111,42 +106,40 @@ protected:
     UPROPERTY()
     TObjectPtr<UCharacterPanelWidget> CharacterPanelWidget;
 
+    UPROPERTY(EditDefaultsOnly, Category = "Movement")
+    float ClickMoveAcceptanceRadius = 50.0f;
 
+    UFUNCTION(Server, Reliable)
+    void ServerRequestPlayerClass(EPlayerClass NewClass);
 
 private:
-
     void OnAbilityInputPressed(FGameplayTag InputTag);
-
     void OnAbilityInputReleased(FGameplayTag InputTag);
 
     void FinishMoveIntoRange(bool bSuccess);
 
     void TryInitializeHud();
+    void TryInitializeCharacterPanel();
 
-    TWeakObjectPtr<AActor> MovementTarget;
-
-    float MovementAcceptanceRadius = 0.0f;
-
-    bool bIsMovingToTarget = false;
-    FOnMoveIntoRangeCompleted MoveCompletedDelegate;
+    void ToggleCombatDebug();
+    bool bCombatDebugVisible = false;
 
     void UpdateCameraOcclusion();
-    TSet<TWeakObjectPtr<UCameraOccludableComponent>> OccludedComponents;
 
     void OnClickMove();
-
     void StartClickMove(const FVector& Destination);
     void UpdateClickMove();
     void StopClickMove();
 
+    void ToggleCharacterPanel();
+
+    TWeakObjectPtr<AActor> MovementTarget;
+    float MovementAcceptanceRadius = 0.0f;
+    bool bIsMovingToTarget = false;
+    FOnMoveIntoRangeCompleted MoveCompletedDelegate;
+
+    TSet<TWeakObjectPtr<UCameraOccludableComponent>> OccludedComponents;
+
     FVector ClickMoveDestination = FVector::ZeroVector;
     bool bIsClickMoving = false;
-
-    UPROPERTY(EditDefaultsOnly, Category = "Movement")
-    float ClickMoveAcceptanceRadius = 50.0f;
-
-    // Toggle Character Panel
-    void InitializeCharacterPanel();
-
-    void ToggleCharacterPanel();
 };

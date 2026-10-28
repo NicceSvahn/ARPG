@@ -1,0 +1,627 @@
+= Blender -> Unreal Animation Pipeline
+:toc:
+:toclevels: 3
+:sectnums:
+
+== Purpose
+
+This document describes the repeatable workflow for adding a new character animation to the project after the Blender/Rigify -> Unreal retargeting pipeline has already been set up.
+
+It intentionally does *not* describe how to create the Rigify rig, IK Rigs, IK Retargeter, source skeleton, or Manny setup. Those are one-time pipeline assets.
+
+The reusable Unreal pipeline assets are:
+
+[source,text]
+----
+SK_RigifySource_Manny
+SKEL_RigifySource_Manny
+IK_RigifySource
+IK_Manny
+RTG_RigifyToManny
+----
+
+For each new animation, the normal flow is:
+
+[source,text]
+----
+Animate in Blender
+        |
+        v
+Export FBX
+        |
+        v
+Import Only Animation -> SKEL_RigifySource_Manny
+        |
+        v
+RTG_RigifyToManny
+        |
+        v
+Export retargeted Animation Sequence
+        |
+        v
+Use in AnimBP or Anim Montage
+----
+
+== Project Animation Conventions
+
+All animation authoring is done at:
+
+[source,text]
+----
+60 FPS
+----
+
+Current project timing convention:
+
+[cols="1,1,2"]
+|===
+|Animation type |Length |Notes
+
+|Combat ability
+|57 frames
+|Base duration is approximately 0.95 seconds at 60 FPS. Attack speed can increase playback rate.
+
+|Looping / locomotion
+|180 frames
+|Used for idle, running, and similar continuous animation assets.
+
+|Channeled abilities
+|Variable
+|Not required to follow the 57-frame combat rule.
+|===
+
+The Blender scene frame rate must therefore be set to *60 FPS before export*.
+
+== 1. Prepare the Animation in Blender
+
+Before exporting:
+
+. Open the `.blend` file containing the finished animation.
+. Confirm that the animation plays correctly.
+. Confirm the scene frame rate:
++
+[source,text]
+----
+Output Properties
+-> Frame Rate = 60 FPS
+----
+. Confirm the intended frame range.
++
+Examples:
++
+[source,text]
+----
+Combat:
+Start = 1
+End   = 57
+
+Idle / locomotion:
+Start = 1
+End   = 180
+----
+. Confirm that the correct Blender Action is active on the generated Rigify `rig`.
+. Give the Action a useful source name, for example:
++
+[source,text]
+----
+SRC_2H_Axe_CombatRun
+SRC_Cleave
+SRC_Bash
+----
+. Save the `.blend` file before export.
+
+TIP: The source Action name is only an authoring/source name. The final Unreal animation should normally use the project's `A_...` naming convention.
+
+== 2. Select the Export Objects
+
+Switch Blender to *Object Mode*.
+
+Select the same two objects used by the established pipeline:
+
+[source,text]
+----
+rig
+Manny_RigifyPreview
+----
+
+Do *not* select:
+
+[source,text]
+----
+metarig
+original Manny armature
+WGT collections
+weapon meshes
+unrelated scene objects
+----
+
+The weapon can exist in Blender as an animation reference, but it is not part of the character animation export.
+
+== 3. Export FBX from Blender
+
+Go to:
+
+[source,text]
+----
+File
+-> Export
+-> FBX (.fbx)
+----
+
+Use a clear source filename, for example:
+
+[source,text]
+----
+SRC_2H_Axe_CombatRun.fbx
+SRC_Cleave.fbx
+----
+
+=== Include
+
+Set:
+
+[cols="2,1"]
+|===
+|Option |Value
+
+|Selected Objects
+|ON
+
+|Object Type: Armature
+|ON
+
+|Object Type: Mesh
+|ON
+
+|Other object types
+|OFF
+|===
+
+=== Transform
+
+Use the established project settings:
+
+[cols="2,1"]
+|===
+|Option |Value
+
+|Scale
+|1.00
+
+|Apply Scalings
+|All Local
+
+|Forward
+|-Z Forward
+
+|Up
+|Y Up
+
+|Apply Unit
+|ON
+
+|Use Space Transform
+|ON
+
+|Apply Transform
+|OFF
+|===
+
+IMPORTANT: Do not casually change the axis or scale settings once the pipeline is working. These values are part of the tested Blender -> Unreal roundtrip.
+
+=== Armature
+
+Set:
+
+[cols="2,1"]
+|===
+|Option |Value
+
+|Armature FBXNode Type
+|Null
+
+|Only Deform Bones
+|ON
+
+|Add Leaf Bones
+|OFF
+|===
+
+=== Animation
+
+Set:
+
+[cols="2,1"]
+|===
+|Option |Value
+
+|Animation
+|ON
+
+|Key All Bones
+|ON
+
+|NLA Strips
+|OFF
+
+|All Actions
+|OFF
+
+|Force Start/End Keying
+|ON
+
+|Sampling Rate
+|1.00
+
+|Simplify
+|0.00
+|===
+
+IMPORTANT: `NLA Strips` and `All Actions` must be OFF. The export should contain the currently active animation, not every Action or NLA strip in the Blender file.
+
+Click *Export FBX*.
+
+== 4. Import the New Animation into Unreal
+
+The source Rigify mesh and skeleton already exist. Do *not* create a new Skeletal Mesh, Skeleton, Material Instance, IK Rig, or Retargeter for each animation.
+
+Import the FBX into an appropriate temporary/source animation folder.
+
+In the Unreal import dialog:
+
+=== Common Skeletal Mesh / Animation Settings
+
+Set:
+
+[cols="2,1"]
+|===
+|Option |Value
+
+|Import Only Animations
+|ON
+
+|Try Auto Select Skeleton
+|OFF
+
+|Skeleton
+|`SKEL_RigifySource_Manny`
+
+|Use T0 As Ref Pose
+|OFF
+|===
+
+The important part is:
+
+[source,text]
+----
+Skeleton = SKEL_RigifySource_Manny
+----
+
+This causes the new FBX to reuse the existing Rigify source skeleton rather than generating another source character setup.
+
+=== Animation Settings
+
+Set:
+
+[cols="2,1"]
+|===
+|Option |Value
+
+|Import Animations
+|ON
+
+|Animation Length
+|Source Timeline
+
+|Use 30Hz to Bake Bone Animation
+|OFF
+
+|Custom Bone Animation Sample Rate
+|60
+
+|Import Bone Tracks
+|ON
+|===
+
+Import the file.
+
+A normal repeat import should primarily create a new source Animation Sequence, not another complete set of mesh/skeleton/material assets.
+
+== 5. Verify the Source Animation
+
+Open the imported source Animation Sequence.
+
+Check:
+
+. The pose looks correct.
+. The entire animation plays.
+. No bones explode, twist, or collapse.
+. The animation is sampled at 60 FPS.
+. The duration matches the source.
+
+Useful sanity checks:
+
+[source,text]
+----
+57-frame combat animation @ 60 FPS
+~= 0.95 seconds
+
+180-frame animation @ 60 FPS
+~= 3.0 seconds
+----
+
+For a 180-frame animation, Unreal may display approximately:
+
+[source,text]
+----
+Number of Sampled Keys:   180
+Number of Sampled Frames: 179
+----
+
+This is expected.
+
+If Unreal instead shows roughly 360 samples for a 180-frame animation, check that Blender was actually set to 60 FPS before export.
+
+== 6. Retarget to the Runtime Manny Skeleton
+
+Open:
+
+[source,text]
+----
+RTG_RigifyToManny
+----
+
+This retargeter is reused for every animation.
+
+The established mapping contains the main body chains:
+
+[source,text]
+----
+Pelvis
+
+Spine
+Neck
+Head
+
+LeftClavicle
+RightClavicle
+
+LeftArm
+RightArm
+
+LeftLeg
+RightLeg
+
+LeftFoot / LeftToe
+RightFoot / RightToe
+----
+
+Finger and facial retargeting are intentionally not required for the current top-down gameplay use case.
+
+Unused finger/metacarpal target chains should remain mapped to:
+
+[source,text]
+----
+None
+----
+
+=== Operation Stack
+
+The working body-retarget setup uses the default retarget operations.
+
+For the current project workflow:
+
+[source,text]
+----
+Pelvis Motion   ON
+FK Chains       ON
+----
+
+`Run IK Rig` is not required for the basic body retarget if the source does not provide matching hand/foot IK goals. It can remain disabled to avoid missing-goal warnings.
+
+Root Motion should only be enabled/configured when an animation is intentionally authored to use root motion.
+
+=== Preview
+
+In the Retargeter's *Asset Browser*:
+
+. Select the new source Animation Sequence.
+. Play it.
+. Confirm that source Manny plays the animation.
+. Confirm that target/runtime Manny follows correctly.
+
+Do not compensate for a bad source export by randomly editing the retarget pose. First verify that the source animation itself is correct.
+
+== 7. Export the Retargeted Manny Animation
+
+In the Retargeter's *Asset Browser*:
+
+. Select the source animation.
+. Click:
++
+[source,text]
+----
+Export Selected Animations
+----
+. Save the exported animation in the appropriate gameplay animation folder.
+. Rename it using the runtime naming convention.
+
+Examples:
+
+[source,text]
+----
+A_2H_Axe_CombatIdle
+A_2H_Axe_CombatRun
+A_Cleave
+A_Bash
+----
+
+The exported `A_...` Animation Sequence should use Manny's normal runtime Skeleton.
+
+At this point the temporary/source animation is no longer the asset the game should reference.
+
+== 8. Put the Animation into the Game
+
+The final step depends on the animation type.
+
+=== Looping Idle / Locomotion
+
+Examples:
+
+[source,text]
+----
+A_2H_Axe_CombatIdle
+A_2H_Axe_CombatRun
+----
+
+Use the Animation Sequence directly in the appropriate Animation Blueprint state / locomotion setup.
+
+Make sure looping is enabled where appropriate.
+
+Do *not* create a Montage simply because the animation came from Blender.
+
+General rule:
+
+[source,text]
+----
+Idle / Walk / Run / looping stance
+-> Animation Sequence in AnimBP / State Machine
+----
+
+=== Triggered Combat Ability
+
+Examples:
+
+[source,text]
+----
+A_Cleave
+A_Bash
+A_Warcry
+----
+
+For an ability animation:
+
+. Retarget/export the final Manny Animation Sequence as normal.
+. Create an Anim Montage from the final Manny Animation Sequence.
+. Name it using the Montage convention, for example:
++
+[source,text]
+----
+AM_Cleave
+AM_Bash
+----
+. Add required gameplay notifies/events at the correct frames.
+. Reference the Montage from the ability system.
+
+General rule:
+
+[source,text]
+----
+Triggered ability
+-> Animation Sequence
+-> Anim Montage
+-> Ability
+----
+
+== 9. Current Foot IK Rule
+
+The current `ABP_Player` applies a Control Rig after the main state machine.
+
+Foot IK can overwrite intentionally authored leg poses. The current project rule is therefore:
+
+[source,text]
+----
+Enable Foot IK = Should Move AND NOT Is Falling
+----
+
+This gives:
+
+[cols="1,1"]
+|===
+|State |Foot IK
+
+|Standing authored idle
+|OFF
+
+|Grounded movement
+|ON
+
+|Airborne
+|OFF
+|===
+
+The `Enable Foot IK` boolean is used for both:
+
+[source,text]
+----
+Control Rig -> Should Do IKTrace
+----
+
+and the Control Rig Alpha:
+
+[source,text]
+----
+Enable Foot IK = true  -> Alpha 1.0
+Enable Foot IK = false -> Alpha 0.0
+----
+
+With a `Select Float` node:
+
+[source,text]
+----
+Pick A = Enable Foot IK
+A = 1.0
+B = 0.0
+----
+
+This prevents the post-process Control Rig from changing authored idle poses.
+
+== 10. Repeatable Checklist
+
+Before considering a new animation complete:
+
+[source,text]
+----
+[ ] Blender scene is 60 FPS
+[ ] Correct Action is active
+[ ] Correct frame range is set
+[ ] rig + Manny_RigifyPreview selected
+[ ] FBX: Selected Objects ON
+[ ] FBX: Armature + Mesh ON
+[ ] FBX: Only Deform Bones ON
+[ ] FBX: Add Leaf Bones OFF
+[ ] FBX: NLA Strips OFF
+[ ] FBX: All Actions OFF
+[ ] FBX: Sampling Rate 1
+[ ] FBX: Simplify 0
+[ ] Unreal: Import Only Animations ON
+[ ] Unreal: Skeleton = SKEL_RigifySource_Manny
+[ ] Unreal: Animation Length = Source Timeline
+[ ] Unreal: 30 Hz bake OFF
+[ ] Unreal: Sample Rate = 60
+[ ] Source animation verified
+[ ] Animation previewed through RTG_RigifyToManny
+[ ] Retargeted animation exported to Manny
+[ ] Final asset renamed A_...
+[ ] Looping animation added to AnimBP OR combat animation converted to Montage
+[ ] Tested in-game
+----
+
+== Summary
+
+After the one-time pipeline setup, adding a new animation should normally be:
+
+[source,text]
+----
+1. Animate in Blender.
+2. Confirm 60 FPS and frame range.
+3. Export FBX using the established settings.
+4. Import Only Animations against SKEL_RigifySource_Manny.
+5. Verify the source Animation Sequence.
+6. Preview it through RTG_RigifyToManny.
+7. Export the retargeted Manny Animation Sequence.
+8. Use it directly in AnimBP, or create a Montage for a triggered ability.
+9. Test in-game.
+----
+
+No new IK Rig, IK Retargeter, source Skeletal Mesh, source Skeleton, or Material Instance should normally be created for each new animation.
