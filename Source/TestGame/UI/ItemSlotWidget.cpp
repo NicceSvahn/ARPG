@@ -1,5 +1,9 @@
 #include "ItemSlotWidget.h"
 
+#include "ItemTooltipWidget.h"
+#include "../Items/ItemRarity.h"
+
+#include "Components/Border.h"
 #include "Components/Button.h"
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
@@ -73,6 +77,9 @@ void UItemSlotWidget::SetItem(
         )
         : FText::GetEmpty()
     );
+
+    UpdateRarityVisuals(InItem);
+    UpdateItemTooltip(InItem);
 }
 
 void UItemSlotWidget::HandleClicked()
@@ -84,4 +91,71 @@ void UItemSlotWidget::HandleClicked()
             ItemId
         );
     }
+}
+
+void UItemSlotWidget::UpdateItemTooltip(
+    const FInventoryItem& Item)
+{
+    // Remove any previous tooltip on the slot widget.
+    SetToolTip(nullptr);
+    SetToolTipText(FText::GetEmpty());
+
+    if (!SlotButton)
+    {
+        return;
+    }
+
+    // Clear the button's tooltip when the item changes.
+    SlotButton->SetToolTip(nullptr);
+    SlotButton->SetToolTipText(FText::GetEmpty());
+
+    if (!Item.IsValid() ||
+        !IsValid(Item.Definition.Get()) ||
+        !ItemTooltipClass)
+    {
+        return;
+    }
+
+    UItemTooltipWidget* Tooltip =
+        CreateWidget<UItemTooltipWidget>(
+            GetOwningPlayer(),
+            ItemTooltipClass
+        );
+
+    if (!Tooltip)
+    {
+        return;
+    }
+
+    Tooltip->SetItem(Item);
+
+    SlotButton->SetToolTip(Tooltip);
+}
+
+void UItemSlotWidget::UpdateRarityVisuals(
+    const FInventoryItem& Item)
+{
+    if (!RarityBorder)
+    {
+        return;
+    }
+
+    // Neutral border for empty slots.
+    FLinearColor BorderColor(
+        0.08f,
+        0.08f,
+        0.08f,
+        1.0f
+    );
+
+    const UItemDefinition* Definition =
+        Item.Definition.Get();
+
+    if (Item.IsValid() && IsValid(Definition))
+    {
+        BorderColor =
+            ItemRarity::GetColor(Item.Rarity);
+    }
+
+    RarityBorder->SetBrushColor(BorderColor);
 }

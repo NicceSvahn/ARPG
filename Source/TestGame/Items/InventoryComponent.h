@@ -3,7 +3,10 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "GameplayEffectTypes.h"
+#include "GameplayAbilitySpec.h"
+
 #include "ItemDefinition.h"
+
 #include "InventoryComponent.generated.h"
 
 class UAbilitySystemComponent;
@@ -96,4 +99,20 @@ private:
 
     // Server-only effect handles, one per equipment position.
     TArray<FActiveGameplayEffectHandle> EquipmentEffectHandles;
+
+    void GrantAndActivateEquipmentAbility(
+        const FInventoryItem& Item,
+        int32 EquipmentSlotIndex
+    );
+
+    void RemoveEquipmentAbility(
+        int32 EquipmentSlotIndex
+    );
+
+    // Server-only ability handles, one per equipment position.
+    TArray<FGameplayAbilitySpecHandle> EquipmentAbilityHandles;
+
+    // Prevent ability callbacks from starting another equipment
+    // change while the current change is still running.
+    bool bChangingEquipment = false;
 };

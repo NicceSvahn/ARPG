@@ -8,6 +8,8 @@
 class UButton;
 class UImage;
 class UTextBlock;
+class UItemTooltipWidget;
+class UBorder;
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(
     FOnItemSlotPressed,
@@ -45,6 +47,12 @@ public:
 protected:
     virtual void NativeOnInitialized() override;
 
+    UPROPERTY(EditDefaultsOnly, Category = "Item|Tooltip")
+    TSubclassOf<UItemTooltipWidget> ItemTooltipClass;
+
+    UPROPERTY(meta = (BindWidget))
+    TObjectPtr<UBorder> RarityBorder;
+
 private:
     UFUNCTION()
     void HandleClicked();
@@ -63,4 +71,8 @@ private:
 
     int32 ItemIndex = INDEX_NONE;
     FGuid ItemId;
+
+    void UpdateItemTooltip(const FInventoryItem& Item);
+
+    void UpdateRarityVisuals(const FInventoryItem& Item);
 };

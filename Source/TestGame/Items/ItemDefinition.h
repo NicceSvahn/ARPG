@@ -4,10 +4,14 @@
 #include "Engine/DataAsset.h"
 #include "GameplayTagContainer.h"
 
+#include "ItemGenerationProfile.h"
+#include "ItemRarity.h"
+
 #include "ItemDefinition.generated.h"
 
 class UTexture2D;
 class UGameplayEffect;
+class UGameplayAbility;
 
 // Defines the possible values for one stat.
 USTRUCT(BlueprintType)
@@ -36,13 +40,10 @@ struct TESTGAME_API FItemStatGroup
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stats")
     FName GroupName = NAME_None;
 
-    UPROPERTY(
-        EditAnywhere,
-        BlueprintReadOnly,
-        Category = "Stats",
-        meta = (ClampMin = "0")
-    )
-    int32 StatCount = 1;
+    // Every entry in this group is rolled.
+    // Rarity rules do not affect these stats.
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stats")
+    bool bGuaranteed = false;
 
     UPROPERTY(
         EditAnywhere,
@@ -51,6 +52,23 @@ struct TESTGAME_API FItemStatGroup
         meta = (TitleProperty = "DisplayName")
     )
     TArray<FItemStatRange> StatPool;
+};
+
+USTRUCT(BlueprintType)
+struct TESTGAME_API FItemGenerationChoice
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Generation")
+    TObjectPtr<UItemGenerationProfile> Profile = nullptr;
+
+    UPROPERTY(
+        EditAnywhere,
+        BlueprintReadOnly,
+        Category = "Generation",
+        meta = (ClampMin = "0", ClampMax = "100")
+    )
+    int32 ChancePercent = 0;
 };
 
 // Stores the actual value rolled for an individual item.
@@ -67,6 +85,9 @@ struct TESTGAME_API FItemRolledStat
 
     UPROPERTY(BlueprintReadOnly, Category = "Item")
     float Value = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Item")
+    bool bGuaranteed = false;
 };
 
 // The equipment positions available on a character.
@@ -107,6 +128,9 @@ struct TESTGAME_API FInventoryItem
     UPROPERTY(BlueprintReadOnly, Category = "Item")
     TArray<FItemRolledStat> RolledStats;
 
+    UPROPERTY(BlueprintReadOnly, Category = "Item")
+    EItemRarity Rarity = EItemRarity::Normal;
+
     bool IsValid() const
     {
         return InstanceId.IsValid() && Definition != nullptr;
@@ -146,6 +170,24 @@ public:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Item|Stats")
     TArray<FItemStatRange> StatRanges;
 
+    UPROPERTY(
+        EditDefaultsOnly,
+        BlueprintReadOnly,
+        Category = "Equipment"
+    )
+    TSubclassOf<UGameplayAbility> EquippedAbility;
+
+    //Tooltip
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Item|Display")
+    FText ItemTypeText;
+
+    UPROPERTY(
+        EditDefaultsOnly,
+        BlueprintReadOnly,
+        Category = "Item"
+    )
+    EItemRarity Rarity = EItemRarity::Normal;
+
     // An empty array means this item cannot be equipped.
     // A ring can support both LeftRing and RightRing.
     UPROPERTY(
@@ -170,4 +212,11 @@ public:
         meta = (TitleProperty = "GroupName")
     )
         TArray<FItemStatGroup> StatGroups;
+
+        UPROPERTY(
+            EditDefaultsOnly,
+            BlueprintReadOnly,
+            Category = "Item|Generation"
+        )
+        TArray<FItemGenerationChoice> GenerationChoices;
 };
