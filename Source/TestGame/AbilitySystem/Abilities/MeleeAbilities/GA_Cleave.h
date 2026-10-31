@@ -5,6 +5,7 @@
 #include "GA_Cleave.generated.h"
 
 class AGenericCharacter;
+class UAnimMontage;
 
 UCLASS()
 class TESTGAME_API UGA_Cleave : public UGA_GenericMelee
@@ -23,6 +24,8 @@ protected:
     virtual void OnMeleeHit(
         AActor* TargetActor
     ) override;
+
+    virtual UAnimMontage* GetAttackMontageForActivation() override;
 
     UPROPERTY(
         EditDefaultsOnly,
@@ -53,8 +56,24 @@ protected:
     )
     TSubclassOf<AGenericCharacter> AffectedCharacterClass;
 
+    UPROPERTY(
+        EditDefaultsOnly,
+        BlueprintReadOnly,
+        Category = "Ability|Cleave|Animation"
+    )
+    TObjectPtr<UAnimMontage> LeftCleaveMontage = nullptr;
+
+    UPROPERTY(
+        EditDefaultsOnly,
+        BlueprintReadOnly,
+        Category = "Ability|Cleave|Animation"
+    )
+    TObjectPtr<UAnimMontage> RightCleaveMontage = nullptr;
+
 private:
     void ApplyCleaveDamage(
         AGenericCharacter* SourceCharacter
     );
+
+    bool bUseLeftMontageNext = true;
 };

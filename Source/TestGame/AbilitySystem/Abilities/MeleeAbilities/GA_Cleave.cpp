@@ -37,6 +37,38 @@ UGA_Cleave::UGA_Cleave()
         10.0f;
 }
 
+UAnimMontage* UGA_Cleave::GetAttackMontageForActivation()
+{
+    // If both alternating montages are configured, alternate between them
+    // on every Cleave activation.
+    if (LeftCleaveMontage && RightCleaveMontage)
+    {
+        UAnimMontage* MontageToPlay =
+            bUseLeftMontageNext
+            ? LeftCleaveMontage.Get()
+            : RightCleaveMontage.Get();
+
+        bUseLeftMontageNext =
+            !bUseLeftMontageNext;
+
+        return MontageToPlay;
+    }
+
+    // Allow development with only one of the two montages configured.
+    if (LeftCleaveMontage)
+    {
+        return LeftCleaveMontage.Get();
+    }
+
+    if (RightCleaveMontage)
+    {
+        return RightCleaveMontage.Get();
+    }
+
+    // Backwards-compatible fallback to GenericMelee's AttackMontage.
+    return Super::GetAttackMontageForActivation();
+}
+
 void UGA_Cleave::OnMeleeHit(
     AActor* TargetActor)
 {
